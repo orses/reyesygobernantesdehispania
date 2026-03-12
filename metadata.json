@@ -1,0 +1,5 @@
+{
+  "name": "Gobernantes de España",
+  "description": "Aplicación de gestión y visualización de datos de monarcas y gobernantes, diseñada para operar offline con datasets locales.",
+  "requestFramePermissions": []
+}
