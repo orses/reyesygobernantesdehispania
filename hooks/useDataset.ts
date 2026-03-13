@@ -80,6 +80,7 @@ export function useDataset() {
     const [error, setError] = useState<string | null>(null);
     const [datasetName, setDatasetName] = useState("datos.json");
     const [idbLoaded, setIdbLoaded] = useState(false);
+    const [datasetLoadedAt, setDatasetLoadedAt] = useState<number | null>(null);
 
     // --- Persistencia con IndexedDB ---
     useEffect(() => {
@@ -147,6 +148,7 @@ export function useDataset() {
             setRows(next);
             setError(null);
             if (nameHint) setDatasetName(nameHint);
+            setDatasetLoadedAt(Date.now());
         },
         []
     );
@@ -296,5 +298,7 @@ export function useDataset() {
         removeRow,
         removePerson,
         exportCsv,
+        idbLoaded,
+        datasetLoadedAt,
     };
 }

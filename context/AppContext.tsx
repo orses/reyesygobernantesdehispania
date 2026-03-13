@@ -50,21 +50,60 @@ export function useAppContext(): AppContextData {
 
 interface AppProviderProps {
     rows: RawRow[];
+    idbLoaded: boolean;
+    datasetLoadedAt: number | null;
     children: React.ReactNode;
 }
 
-export function AppProvider({ rows, children }: AppProviderProps) {
-    const [filters, setFilters] = useState<FilterState>({
-        query: "",
-        filterReino: "__all__",
-        filterDinastia: "__all__",
-        filterSiglo: "__all__",
-        filterDinastiaLocked: false,
-        sortKey: "cronologia",
-        sortDir: "asc",
+const DEFAULT_FILTERS: FilterState = {
+    query: "",
+    filterReino: "__all__",
+    filterDinastia: "__all__",
+    filterSiglo: "__all__",
+    filterDinastiaLocked: false,
+    sortKey: "cronologia",
+    sortDir: "asc",
+};
+
+export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppProviderProps) {
+    const [filters, setFilters] = useState<FilterState>(() => {
+        try {
+            const stored = localStorage.getItem("reyes_filters");
+            if (stored) return JSON.parse(stored);
+        } catch (e) {
+            console.error("Error reading filters from localStorage:", e);
+        }
+        return DEFAULT_FILTERS;
     });
 
-    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(() => {
+        try {
+            return localStorage.getItem("reyes_selected_person") || null;
+        } catch (e) {
+            return null;
+        }
+    });
+
+    // Save filters and selectedPersonId to localStorage when they change
+    useEffect(() => {
+        try {
+            localStorage.setItem("reyes_filters", JSON.stringify(filters));
+        } catch (e) {
+            console.error("Error saving filters to localStorage:", e);
+        }
+    }, [filters]);
+
+    useEffect(() => {
+        try {
+            if (selectedPersonId) {
+                localStorage.setItem("reyes_selected_person", selectedPersonId);
+            } else {
+                localStorage.removeItem("reyes_selected_person");
+            }
+        } catch (e) {
+            console.error("Error saving selected person to localStorage:", e);
+        }
+    }, [selectedPersonId]);
 
     // --- Agrupar filas por persona ---
     const byPerson = useMemo(() => {
@@ -230,9 +269,20 @@ export function AppProvider({ rows, children }: AppProviderProps) {
     }, [allPeople, filters]);
 
     // Auto-seleccionar el personaje inicial (cronológicamente más antiguo)
-    // al cargar nuevos datos o cuando la selección actual ya no es válida por filtros.
+    // Primero: si se acaba de cargar un nuevo dataset explícitamente, resetear filtros e ir al primero
     useEffect(() => {
-        if (people.length === 0) {
+        if (!datasetLoadedAt || people.length === 0) return;
+        setFilters(DEFAULT_FILTERS);
+        // Because filters are modified, people will recalculate and might change, so we defer selection
+        setTimeout(() => {
+            const firstId = String(allPeople[0]?.personId);
+            if (firstId) setSelectedPersonId(firstId);
+        }, 0);
+    }, [datasetLoadedAt]);
+
+    // Segundo: al cargar nuevos datos o si la selección actual no es válida por filtros
+    useEffect(() => {
+        if (!idbLoaded || people.length === 0) {
             return;
         }
 
@@ -242,7 +292,7 @@ export function AppProvider({ rows, children }: AppProviderProps) {
         if (!selectedPersonId || !personExists) {
             setSelectedPersonId(String(people[0].personId));
         }
-    }, [people, selectedPersonId, rows]); // 'rows' asegura que se resetee al cargar nuevos archivos
+    }, [people, selectedPersonId, rows, idbLoaded]);
 
     // --- Listas para selectores ---
     const reinos = useMemo(

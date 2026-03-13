@@ -42,7 +42,7 @@ export default function ReyesApp() {
   const dataset = useDataset();
 
   return (
-    <AppProvider rows={dataset.rows}>
+    <AppProvider rows={dataset.rows} idbLoaded={dataset.idbLoaded} datasetLoadedAt={dataset.datasetLoadedAt}>
       <ReyesAppInner dataset={dataset} />
     </AppProvider>
   );
