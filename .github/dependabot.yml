@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    groups:
+      # Agrupa todas las actualizaciones de tipo patch en un solo PR semanal
+      patch-updates:
+        update-types:
+          - "patch"

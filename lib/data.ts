@@ -10,8 +10,8 @@ export function formatNumber(n: number | null | undefined): string {
 export function safeJsonParse(text: string) {
   try {
     return { ok: true, value: JSON.parse(text) };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || String(e) };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -102,8 +102,8 @@ export function parseCsv(text: string) {
     }
   }
 
-  const records = [];
-  let record = [];
+  const records: string[][] = [];
+  let record: string[] = [];
   let field = "";
   inQ = false;
 
@@ -155,7 +155,7 @@ export function parseCsv(text: string) {
   const rows = [];
   for (let i = 1; i < records.length; i++) {
     const cols = records[i];
-    const obj: any = {};
+    const obj: Record<string, string> = {};
     for (let c = 0; c < header.length; c++) {
       const k = header[c];
       obj[k] = cols[c] ?? "";
@@ -168,7 +168,7 @@ export function parseCsv(text: string) {
 
 // --- Generación CSV ---
 
-export function generateCsv(rows: any[]) {
+export function generateCsv(rows: Record<string, unknown>[]) {
   if (!rows || !rows.length) return "";
 
   // 1. Limpiar campos internos
@@ -189,7 +189,7 @@ export function generateCsv(rows: any[]) {
   headers = headers.filter(h => !h.startsWith("_") && h.trim() !== "");
 
   // 3. Construir CSV
-  const escapeCsv = (val: any) => {
+  const escapeCsv = (val: unknown) => {
     const s = String(val ?? "");
     return `"${s.replace(/"/g, '""')}"`;
   };
@@ -204,7 +204,7 @@ export function generateCsv(rows: any[]) {
 
 // --- Normalización y Cálculos ---
 
-export function asNumberOrNull(v: any) {
+export function asNumberOrNull(v: unknown) {
   if (v === null || v === undefined) return null;
   if (typeof v === "number" && Number.isFinite(v)) return v;
   const s = String(v).trim().replace(",", ".");
@@ -234,7 +234,7 @@ function parseRoman(str: string): number | null {
  * Intenta extraer un año computacional "seguro" de un texto histórico.
  * Soporta: "1452", "c. 850", "Siglo X", "s. XI", "a.C."
  */
-export function asYearOrNull(v: any) {
+export function asYearOrNull(v: unknown) {
   if (v === null || v === undefined) return null;
   if (typeof v === "number" && Number.isFinite(v)) return Math.trunc(v);
 
@@ -248,8 +248,6 @@ export function asYearOrNull(v: any) {
 
   // 2. Limpieza básica de ruido (c., ca., h., sobre, hacia)
   // Eliminamos caracteres que no sean dígitos, letras de siglo o indicadores de fecha importantes
-  const cleanNum = s0.replace(",", ".").replace(/[^\d.-]/g, " ");
-
   // 3. Buscar año de 3 o 4 dígitos explícito (Prioridad 1)
   // Ej: "c. 1450" -> 1450
   const mYear = s0.match(/(?:\b|\D)(\d{3,4})(?:\b|\D)/);
@@ -319,7 +317,7 @@ export function asYearOrNull(v: any) {
   return null;
 }
 
-export function yearsBetweenMaybe(start: any, end: any) {
+export function yearsBetweenMaybe(start: unknown, end: unknown) {
   // Versión simple basada en años extraídos
   const yStart = asYearOrNull(start);
   const yEnd = asYearOrNull(end);
@@ -331,8 +329,8 @@ export function yearsBetweenMaybe(start: any, end: any) {
   }
 
   // Fallback a fechas exactas si el formato lo permite (para ISO estricto)
-  const ds = new Date(start);
-  const de = new Date(end);
+  const ds = new Date(start as string | number);
+  const de = new Date(end as string | number);
   if (!Number.isNaN(ds.getTime()) && !Number.isNaN(de.getTime())) {
     const ms = de.getTime() - ds.getTime();
     const years = ms / (365.2425 * 24 * 3600 * 1000);
@@ -342,14 +340,17 @@ export function yearsBetweenMaybe(start: any, end: any) {
   return null;
 }
 
-export function normalizeRows(input: any) {
+export function normalizeRows(input: unknown) {
   if (Array.isArray(input)) return { ok: true, value: input };
-  if (input && typeof input === "object" && Array.isArray(input.datos)) return { ok: true, value: input.datos };
-  if (input && typeof input === "object" && Array.isArray(input.reyes)) return { ok: true, value: input.reyes };
+  if (input && typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    if (Array.isArray(obj.datos)) return { ok: true, value: obj.datos };
+    if (Array.isArray(obj.reyes)) return { ok: true, value: obj.reyes };
+  }
   return { ok: false, error: 'JSON no reconocido: se esperaba un array o un objeto con clave "datos".' };
 }
 
-export function boolFromVerified(v: any) {
+export function boolFromVerified(v: unknown) {
   const s = String(v ?? "").trim().toLowerCase();
   if (s === "sí" || s === "si" || s === "true" || s === "1" || s === "x") return true;
   if (s === "no" || s === "false" || s === "0" || s === "") return false;
@@ -360,7 +361,7 @@ export function verifiedToText(b: boolean) {
   return b ? "sí" : "no";
 }
 
-export function computeDerivedRow(row: any) {
+export function computeDerivedRow(row: Record<string, unknown>) {
   const dur = asNumberOrNull(row?.duracionAnios ?? row?.["Duración (años)"] ?? row?.["duración (años)"]);
   if (dur !== null) return { ...row, _duracionCalc: dur, _duracionFuente: "duracionAnios" };
 
@@ -376,19 +377,19 @@ export function computeDerivedRow(row: any) {
   return { ...row, _duracionCalc: null, _duracionFuente: "no-disponible" };
 }
 
-export function getRowId(row: any, idx: number) {
+export function getRowId(row: Record<string, unknown>, idx: number) {
   const v = row?.ID ?? row?.id;
   const s = String(v ?? "").trim();
   return s ? s : `row-${idx + 1}`;
 }
 
-export function getPersonId(row: any) {
+export function getPersonId(row: Record<string, unknown>) {
   const v = row?.PersonID ?? row?.personId ?? row?.personID;
   const s = String(v ?? "").trim();
   return s ? s : "";
 }
 
-export function rowDisplayName(row: any) {
+export function rowDisplayName(row: Record<string, unknown>) {
   const n0 = String(row?.Nombre ?? row?.nombre ?? "").trim();
   const a0 = String(row?.Apelativo ?? row?.apelativo ?? "").trim();
 
@@ -400,7 +401,7 @@ export function rowDisplayName(row: any) {
   return n || a;
 }
 
-export function firstNonEmpty(...vals: any[]) {
+export function firstNonEmpty(...vals: unknown[]) {
   for (const v of vals) {
     const s = String(v ?? "").trim();
     if (s) return s;
@@ -408,7 +409,7 @@ export function firstNonEmpty(...vals: any[]) {
   return "";
 }
 
-export function normalizeUrl(v: any) {
+export function normalizeUrl(v: unknown) {
   const s0 = String(v ?? "").trim();
   if (!s0) return "";
   if (/^https?:\/\//i.test(s0)) return s0;
@@ -417,7 +418,7 @@ export function normalizeUrl(v: any) {
   return s0;
 }
 
-export function looksLikeUrlText(v: any) {
+export function looksLikeUrlText(v: unknown) {
   const s = String(v ?? "").trim();
   if (!s) return false;
   if (/^https?:\/\//i.test(s)) return true;
@@ -425,7 +426,7 @@ export function looksLikeUrlText(v: any) {
   return false;
 }
 
-export function toRoman(n: any) {
+export function toRoman(n: unknown) {
   const x = asNumberOrNull(n);
   if (x === null) return "";
   const v = Math.trunc(x);
@@ -456,14 +457,14 @@ export function toRoman(n: any) {
   return r;
 }
 
-export function centuryFromYear(y: any) {
+export function centuryFromYear(y: unknown) {
   const n = asYearOrNull(y);
   if (n === null) return null;
   const c = Math.floor((n - 1) / 100) + 1;
   return Number.isFinite(c) ? c : null;
 }
 
-export function formatCenturyLabel(c: any) {
+export function formatCenturyLabel(c: unknown) {
   const n = asNumberOrNull(c);
   if (n === 0) return "siglo 0";
   const r = toRoman(n);
