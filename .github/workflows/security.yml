@@ -10,6 +10,8 @@ jobs:
   security:
     name: Audit, Lint & Type-check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
