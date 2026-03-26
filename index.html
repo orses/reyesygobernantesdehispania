@@ -3,6 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Content-Security-Policy para despliegue en producción (hosting estático).
+      Si el servidor puede enviar la cabecera HTTP equivalente, eliminar este meta.
+      NOTA: en desarrollo, vite.config.ts inyecta una cabecera HTTP más permisiva
+      (incluye 'unsafe-inline' y ws:) que sobreescribe este meta para que HMR funcione.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: blob:;
+      connect-src 'self';
+      font-src 'self';
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
     <title>Gobernantes de España</title>
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="stylesheet" href="/index.css">

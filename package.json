@@ -7,7 +7,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint .",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --max-warnings=0"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
@@ -22,12 +29,22 @@
     "tailwind-merge": "^3.4.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "3.2.4",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
+    "husky": "9.1.7",
+    "lint-staged": "16.4.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.57.2",
     "vite": "^6.2.0",
     "vitest": "^3.0.0"
   }
