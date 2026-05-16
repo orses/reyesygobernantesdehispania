@@ -1,11 +1,34 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAppContext } from "../../context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Button } from "../ui/button";
 import { X, UserPlus, Scale } from "lucide-react";
-import { formatNumber } from "../../lib/data";
+import { formatNumber, normalizeUrl } from "../../lib/data";
 import { Person } from "../../lib/types";
+
+function ComparePortrait({ url, name }: { url: unknown; name: string }) {
+  const imageUrl = normalizeUrl(url);
+  const [ok, setOk] = useState(true);
+
+  useEffect(() => {
+    setOk(true);
+  }, [imageUrl]);
+
+  if (!imageUrl || !ok) {
+    return <span className="text-xl font-bold text-slate-600">{name.charAt(0)}</span>;
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={`imagen de ${name}`}
+      className="h-full w-full object-cover"
+      loading="lazy"
+      onError={() => setOk(false)}
+    />
+  );
+}
 
 export function ComparativaTab() {
   const { allPeople } = useAppContext();
@@ -105,11 +128,7 @@ export function ComparativaTab() {
                       {/* Portada Mini */}
                       <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
                         <div className="h-12 w-12 rounded-full border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {p.reinados[0]?.["Imagen URL"] ? (
-                            <img src={String(p.reinados[0]["Imagen URL"])} alt={p.nombrePrincipal} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-xl font-bold text-slate-600">{p.nombrePrincipal.charAt(0)}</span>
-                          )}
+                          <ComparePortrait url={p.reinados[0]?.["Imagen URL"]} name={p.nombrePrincipal} />
                         </div>
                         <div>
                           <h3 className="font-bold text-slate-100 leading-tight pr-6">{p.nombrePrincipal}</h3>

@@ -28,7 +28,7 @@ export default defineConfig({
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline'",   // 'unsafe-inline' solo para HMR en dev
         "style-src 'self' 'unsafe-inline'",    // Tailwind y framer-motion usan estilos inline
-        "img-src 'self' data: blob:",
+        "img-src 'self' https: data: blob:",
         "connect-src 'self' ws:",              // ws: necesario para HMR WebSocket
         "font-src 'self'",
         "object-src 'none'",

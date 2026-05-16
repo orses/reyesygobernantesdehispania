@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "./components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import {
   Upload,
@@ -14,13 +14,10 @@ import { motion } from "framer-motion";
 
 import {
   getPersonId,
-  asYearOrNull,
   formatCenturyLabel,
-  boolFromVerified,
   verifiedToText,
-  rowDisplayName,
 } from "./lib/data";
-import type { RawRow, Person } from "./lib/types";
+import type { RawRow } from "./lib/types";
 
 // Componentes
 import { Notification } from "./components/ui/notification";
@@ -121,14 +118,14 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     if (urlPersonId && urlPersonId !== selectedPersonId) {
       setSelectedPersonId(urlPersonId);
     }
-  }, [urlPersonId]); // Sólo cuando cambia la URL para forzar al AppContext
+  }, [urlPersonId, selectedPersonId, setSelectedPersonId]); // Sólo cuando cambia la URL para forzar al AppContext
 
   useEffect(() => {
     // Si cambia el seleccionado internamente y estamos en fichas (o /), actualizamos URL sin romper la historia
     if (selectedPersonId && selectedPersonId !== urlPersonId && activeTab === "fichas") {
       navigate(`/fichas/${selectedPersonId}`, { replace: true });
     }
-  }, [selectedPersonId, activeTab]);
+  }, [selectedPersonId, urlPersonId, activeTab, navigate]);
 
   // --- Estado de edición ---
   const [editorOpen, setEditorOpen] = useState(false);
@@ -293,8 +290,9 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 </h1>
               </div>
               <p className="text-base text-slate-200">
-                La aplicación no consulta fuentes externas. Solo procesa los
-                datos que usted cargue.
+                La aplicación solo procesa los datos que usted cargue. Si el
+                conjunto de datos incluye imágenes externas, el navegador las
+                solicita a su origen.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
