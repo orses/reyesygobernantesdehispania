@@ -17,6 +17,10 @@ export function safeJsonParse(text: string) {
 
 export function downloadTextFile(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
+  downloadBlobFile(filename, blob);
+}
+
+export function downloadBlobFile(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -230,6 +234,16 @@ function parseRoman(str: string): number | null {
   return num;
 }
 
+export type ChronologyEvidenceKind = "empty" | "explicit" | "inferred";
+
+export interface ChronologyEvidence {
+  kind: ChronologyEvidenceKind;
+  year: number | null;
+  raw: string;
+  label: string;
+  tooltip: string;
+}
+
 /**
  * Intenta extraer un año computacional "seguro" de un texto histórico.
  * Soporta: "1452", "c. 850", "Siglo X", "s. XI", "a.C."
@@ -298,7 +312,8 @@ export function asYearOrNull(v: unknown) {
     const roman = mCentury[1];
     const century = parseRoman(roman);
     if (century !== null) {
-      let offset = 0;
+      let offset = 50;
+      if (lower.includes("princip")) offset = 1;
       if (lower.includes("fin") || lower.includes("tard")) offset = 90;
       else if (lower.includes("med") || lower.includes("mitad")) offset = 50;
 
@@ -307,7 +322,16 @@ export function asYearOrNull(v: unknown) {
     }
   }
 
-  // 5. Fallback: buscar cualquier secuencia de dígitos
+  // 6. Siglo romano aislado: «VIII», «XII». Se interpreta como mitad de siglo.
+  const mRomanOnly = s0.match(/^\s*([ivxlcdm]+)\s*$/i);
+  if (mRomanOnly) {
+    const century = parseRoman(mRomanOnly[1]);
+    if (century !== null && century >= 1 && century <= 21) {
+      return (((century - 1) * 100) + 50) * multiplier;
+    }
+  }
+
+  // 7. Fallback: buscar cualquier secuencia de dígitos
   const mAny = s0.replace(",", ".").match(/-?\d+/);
   if (mAny) {
     const n = Number(mAny[0]);
@@ -315,6 +339,67 @@ export function asYearOrNull(v: unknown) {
   }
 
   return null;
+}
+
+export function getChronologyEvidence(value: unknown): ChronologyEvidence {
+  const raw = String(value ?? "").trim();
+  const year = asYearOrNull(value);
+
+  if (!raw) {
+    return {
+      kind: "empty",
+      year: null,
+      raw,
+      label: "Sin dato",
+      tooltip: "No hay dato cronológico de origen.",
+    };
+  }
+
+  const lower = raw.toLowerCase();
+  const hasExplicitYear =
+    (typeof value === "number" && Number.isFinite(value)) ||
+    /(?:\b|\D)\d{3,4}(?:\b|\D)/.test(raw);
+  const hasApproximation =
+    /\b(ca?\.?|circa|hacia|sobre|aprox(?:\.|imad[oa])?|principios?|mediados?|finales?|tercio|siglo|s\.)\b/i.test(raw) ||
+    /^\s*[ivxlcdm]+\s*$/i.test(raw);
+
+  if (year !== null && hasExplicitYear && !hasApproximation) {
+    return {
+      kind: "explicit",
+      year,
+      raw,
+      label: "Original",
+      tooltip: `Dato original de «${raw}» (${year}).`,
+    };
+  }
+
+  if (year !== null) {
+    return {
+      kind: "inferred",
+      year,
+      raw,
+      label: "Inferido",
+      tooltip: `Inferido de «${raw}» (${year}).`,
+    };
+  }
+
+  if (lower) {
+    return {
+      kind: "explicit",
+      year: null,
+      raw,
+      label: "Original",
+      tooltip: `Dato original textual: «${raw}».`,
+    };
+  }
+
+  return {
+    kind: "empty",
+    year: null,
+    raw,
+    label: "Sin dato",
+    tooltip: "No hay dato cronológico de origen.",
+  };
 }
 
 export function yearsBetweenMaybe(start: unknown, end: unknown) {
@@ -407,6 +492,14 @@ export function firstNonEmpty(...vals: unknown[]) {
     if (s) return s;
   }
   return "";
+}
+
+export function personPrincipalName(rows: Array<Record<string, unknown>>): string {
+  const override = firstNonEmpty(...rows.map((row) => row?.["Nombre principal"]));
+  if (override) return override;
+
+  const firstName = firstNonEmpty(...rows.map((row) => row?.Nombre ?? row?.nombre));
+  return firstName || "(sin nombre)";
 }
 
 export function normalizeUrl(v: unknown) {

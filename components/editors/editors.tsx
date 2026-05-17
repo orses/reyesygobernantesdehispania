@@ -126,6 +126,13 @@ function PersonEditorContent({
         colSpan2
       />
 
+      <EditorField
+        label="Nombre principal"
+        value={String(draft["Nombre principal"] ?? "")}
+        onChange={upd("Nombre principal")}
+        colSpan2
+      />
+
       <div className="space-y-1 md:col-span-2">
         <div className="flex flex-col gap-2">
           <Label className="text-sm font-semibold text-slate-300">
@@ -175,7 +182,6 @@ function PersonEditorContent({
 function RowEditorContent({
   draft,
   setDraft,
-  error,
   setError,
 }: {
   draft: RawRow;

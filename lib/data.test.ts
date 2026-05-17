@@ -17,6 +17,8 @@ import {
     boolFromVerified,
     verifiedToText,
     asNumberOrNull,
+    getChronologyEvidence,
+    personPrincipalName,
 } from "./data";
 import type { RawRow } from "./types";
 
@@ -64,14 +66,15 @@ describe("asYearOrNull", () => {
         expect(asYearOrNull("sin datos")).toBe(null);
     });
 
-    it("interpreta siglos romanos", () => {
-        // Siglo VIII = convención, e.g. c. 750
-        const r = asYearOrNull("VIII");
-        // Acepta cualquier resultado no-null razonable para un siglo romano
-        if (r !== null) {
-            expect(r).toBeGreaterThanOrEqual(700);
-            expect(r).toBeLessThanOrEqual(800);
-        }
+    it("interpreta siglos romanos aislados como mitad de siglo", () => {
+        expect(asYearOrNull("VIII")).toBe(750);
+        expect(asYearOrNull("XII")).toBe(1150);
+    });
+
+    it("interpreta siglos genéricos como mitad de siglo para no caer en el siglo anterior", () => {
+        expect(asYearOrNull("siglo X")).toBe(950);
+        expect(asYearOrNull("s. VIII")).toBe(750);
+        expect(centuryFromYear("siglo X")).toBe(10);
     });
 
     it("interpreta «p. s. IX» → principios del siglo IX (año ~801)", () => {
@@ -128,6 +131,50 @@ describe("centuryFromYear", () => {
         expect(centuryFromYear(null)).toBe(null);
         expect(centuryFromYear(undefined)).toBe(null);
         expect(centuryFromYear("abc")).toBe(null);
+    });
+});
+
+// ===========================================================================
+// getChronologyEvidence
+// ===========================================================================
+describe("getChronologyEvidence", () => {
+    it("marca como original un año explícito", () => {
+        expect(getChronologyEvidence("10 de mayo de 1479")).toMatchObject({
+            kind: "explicit",
+            year: 1479,
+            label: "Original",
+        });
+    });
+
+    it("marca como inferido un dato aproximado o de siglo", () => {
+        expect(getChronologyEvidence("c. 850")).toMatchObject({
+            kind: "inferred",
+            year: 850,
+            label: "Inferido",
+        });
+        expect(getChronologyEvidence("VIII")).toMatchObject({
+            kind: "inferred",
+            year: 750,
+            label: "Inferido",
+        });
+    });
+});
+
+// ===========================================================================
+// personPrincipalName
+// ===========================================================================
+describe("personPrincipalName", () => {
+    it("prioriza Nombre principal sin modificar las denominaciones por fila", () => {
+        const rows = [
+            { "Nombre principal": "Fernando el Católico", Nombre: "Fernando V" },
+            { Nombre: "Fernando II" },
+        ];
+
+        expect(personPrincipalName(rows)).toBe("Fernando el Católico");
+    });
+
+    it("usa el primer Nombre si no hay Nombre principal", () => {
+        expect(personPrincipalName([{ Nombre: "Pelayo" }, { Nombre: "Fávila" }])).toBe("Pelayo");
     });
 });
 

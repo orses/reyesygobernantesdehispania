@@ -17,6 +17,7 @@ import {
   formatCenturyLabel,
   verifiedToText,
 } from "./lib/data";
+import { resolveStartupAwareRouteSelectedPersonId } from "./lib/selection";
 import type { RawRow } from "./lib/types";
 
 // Componentes
@@ -48,6 +49,19 @@ export default function ReyesApp() {
 // ---------------------------------------------------------------------------
 // Componente interior (consume el contexto)
 // ---------------------------------------------------------------------------
+function decodeRouteParam(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function personRoute(personId: string | number): string {
+  return `/fichas/${encodeURIComponent(String(personId))}`;
+}
+
 function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) {
   const {
     fileRef,
@@ -65,8 +79,16 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     addRowForPerson,
     removeRow,
     removePerson,
+    exportDatasetPackage,
     exportCsv,
     rows,
+    mediaAssets,
+    mediaPreviewUrls,
+    addMediaUrl,
+    addUploadedMedia,
+    updateMediaAsset,
+    removeMediaAsset,
+    setPrimaryMediaAsset,
   } = dataset;
 
   const {
@@ -112,20 +134,40 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   };
 
   const matchFicha = location.pathname.match(/^\/fichas\/(.+)/);
-  const urlPersonId = matchFicha ? matchFicha[1] : null;
+  const urlPersonId = decodeRouteParam(matchFicha ? matchFicha[1] : null);
+  const allPersonIds = useMemo(() => allPeople.map((person) => person.personId), [allPeople]);
 
   useEffect(() => {
-    if (urlPersonId && urlPersonId !== selectedPersonId) {
-      setSelectedPersonId(urlPersonId);
-    }
-  }, [urlPersonId, selectedPersonId, setSelectedPersonId]); // Sólo cuando cambia la URL para forzar al AppContext
+    if (!dataset.idbLoaded) return;
+    if (activeTab !== "fichas") return;
+    const nextPersonId = resolveStartupAwareRouteSelectedPersonId(urlPersonId, selectedPersonId, allPersonIds);
 
-  useEffect(() => {
-    // Si cambia el seleccionado internamente y estamos en fichas (o /), actualizamos URL sin romper la historia
-    if (selectedPersonId && selectedPersonId !== urlPersonId && activeTab === "fichas") {
-      navigate(`/fichas/${selectedPersonId}`, { replace: true });
+    if (!nextPersonId) {
+      if (urlPersonId) navigate("/fichas", { replace: true });
+      return;
     }
-  }, [selectedPersonId, urlPersonId, activeTab, navigate]);
+
+    if (nextPersonId !== selectedPersonId) {
+      setSelectedPersonId(nextPersonId);
+    }
+    if (nextPersonId !== urlPersonId) {
+      navigate(personRoute(nextPersonId), { replace: true });
+    }
+  }, [activeTab, urlPersonId, selectedPersonId, allPersonIds, setSelectedPersonId, navigate, dataset.idbLoaded]);
+
+  const selectPerson = (personId: string | null) => {
+    if (!personId) {
+      setSelectedPersonId(null);
+      return;
+    }
+
+    if (activeTab === "fichas") {
+      navigate(personRoute(personId));
+      return;
+    }
+
+    setSelectedPersonId(personId);
+  };
 
   // --- Estado de edición ---
   const [editorOpen, setEditorOpen] = useState(false);
@@ -159,6 +201,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     const base = p.reinados[0] || {};
     const personDraft: RawRow = {
       PersonID: personId,
+      "Nombre principal": p.nombrePrincipal === "(sin nombre)" ? "" : p.nombrePrincipal,
       "Información verificada": verifiedToText(p.verifiedAll),
       "Nacimiento (Fecha)": base["Nacimiento (Fecha)"] ?? "",
       "Nacimiento (lugar)": base["Nacimiento (lugar)"] ?? "",
@@ -242,15 +285,14 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
 
   // --- Navegación desde estadísticas ---
   const navigateToPerson = (personId: string) => {
-    setSelectedPersonId(personId);
-    navigate(`/fichas/${personId}`);
+    navigate(personRoute(personId));
   };
 
   return (
-    <div className="min-h-screen w-full dark bg-slate-950 text-slate-50 text-[16px] leading-6">
-      <div className="mx-auto max-w-7xl p-4 md:p-8 space-y-6">
+    <div className="min-h-screen w-full overflow-x-clip dark bg-slate-950 text-slate-50 text-[16px] leading-6">
+      <div className="mx-auto w-full max-w-[1920px] space-y-5 px-3 py-4 sm:px-5 lg:px-8 2xl:px-10">
         {/* Notificaciones */}
-        <div className="fixed right-4 top-4 z-50 space-y-3 w-[min(520px,calc(100vw-2rem))]">
+        <div className="fixed left-3 right-3 top-3 z-50 space-y-3 sm:left-auto sm:right-4 sm:w-[min(520px,calc(100vw-2rem))]">
           {showCsvNotice && detectedDelimiter && (
             <Notification
               type="csv"
@@ -281,21 +323,21 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-1">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-5xl space-y-1">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5" />
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+                <ShieldCheck className="h-5 w-5 shrink-0" />
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl xl:text-4xl">
                   Gobernantes de España
                 </h1>
               </div>
-              <p className="text-base text-slate-200">
+              <p className="max-w-4xl text-sm text-slate-200 sm:text-base">
                 La aplicación solo procesa los datos que usted cargue. Si el
                 conjunto de datos incluye imágenes externas, el navegador las
                 solicita a su origen.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
               <div className="relative">
                 <Button
                   variant="outline"
@@ -346,7 +388,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
               <input
                 ref={fileRef}
                 type="file"
-                accept=".json,.csv"
+                accept=".json,.csv,.zip"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -358,14 +400,14 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
               <Button
                 variant="secondary"
                 onClick={() => fileRef.current?.click()}
-                className="rounded-[3px] bg-slate-950/30 border border-slate-700/70"
+                className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
                 <Upload className="h-4 w-4 mr-2" /> cargar datos
               </Button>
               <Button
                 variant="outline"
                 onClick={exportCsv}
-                className="rounded-[3px] bg-slate-950/30 border border-slate-700/70"
+                className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
                 <Download className="h-4 w-4 mr-2" /> CSV
               </Button>
@@ -373,7 +415,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 variant="outline"
                 onClick={addRowForSelectedPerson}
                 disabled={!selectedPerson}
-                className="rounded-[3px] bg-slate-950/30 border border-slate-700/70"
+                className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" /> gobierno
               </Button>
@@ -382,30 +424,31 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
         </motion.div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="rounded-[3px] bg-slate-900/40 border border-slate-800 p-1">
-            <TabsTrigger value="fichas" className="rounded-[3px] px-4">
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-[3px] bg-slate-900/40 border border-slate-800 p-1">
+            <TabsTrigger value="fichas" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
               fichas
             </TabsTrigger>
-            <TabsTrigger value="estadistica" className="rounded-[3px] px-4">
+            <TabsTrigger value="estadistica" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
               estadística
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="rounded-[3px] px-4">
+            <TabsTrigger value="timeline" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
               timeline
             </TabsTrigger>
-            <TabsTrigger value="comparativa" className="rounded-[3px] px-4">
+            <TabsTrigger value="comparativa" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
               comparativa
             </TabsTrigger>
-            <TabsTrigger value="datos" className="rounded-[3px] px-4">
+            <TabsTrigger value="datos" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
               datos
             </TabsTrigger>
           </TabsList>
 
-          <div className="mt-4">
+          <div className="mt-4 min-w-0">
             <Routes>
               <Route path="/" element={<Navigate to="/fichas" replace />} />
               <Route path="/fichas/*" element={
                 <FichasTab
                   people={people}
+                  chronologicalPeople={allPeople}
                   rows={rows}
                   query={filters.query}
                   setQuery={setQuery}
@@ -421,7 +464,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   sortDir={filters.sortDir}
                   setSortDir={setSortDir}
                   selectedPersonId={selectedPersonId}
-                  setSelectedPersonId={setSelectedPersonId}
+                  setSelectedPersonId={selectPerson}
                   selectedPerson={selectedPerson}
                   reinos={reinos}
                   dinastias={dinastias}
@@ -432,6 +475,13 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   openRowEditor={openRowEditor}
                   setDeleteTarget={setDeleteTarget}
                   setDeleteOpen={setDeleteOpen}
+                  mediaAssets={mediaAssets}
+                  mediaPreviewUrls={mediaPreviewUrls}
+                  addMediaUrl={addMediaUrl}
+                  addUploadedMedia={addUploadedMedia}
+                  updateMediaAsset={updateMediaAsset}
+                  removeMediaAsset={removeMediaAsset}
+                  setPrimaryMediaAsset={setPrimaryMediaAsset}
                 />
               } />
               
@@ -449,12 +499,14 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   rows={rows}
                   datasetName={datasetName}
                   setDatasetName={setDatasetName}
+                  mediaAssets={mediaAssets}
+                  exportDatasetPackage={exportDatasetPackage}
                 />
               } />
 
               <Route path="/timeline" element={<TimelineTab />} />
 
-              <Route path="/comparativa" element={<ComparativaTab />} />
+              <Route path="/comparativa" element={<ComparativaTab mediaAssets={mediaAssets} mediaPreviewUrls={mediaPreviewUrls} />} />
               
               <Route path="*" element={<Navigate to="/fichas" replace />} />
             </Routes>

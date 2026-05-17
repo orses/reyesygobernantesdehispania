@@ -2,9 +2,41 @@ import * as React from "react"
 import { ChevronDown, Check } from "lucide-react"
 import { cn } from "../../lib/utils"
 
-const SelectContext = React.createContext<any>(null)
+interface SelectContextValue {
+  value?: string;
+  onValueChange?: (value: string) => void;
+  open: boolean;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
 
-export const Select = ({ value, onValueChange, children }: any) => {
+interface SelectProps {
+  value?: string;
+  onValueChange?: (value: string) => void;
+  children: React.ReactNode;
+}
+
+type SelectTriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+type SelectContentProps = React.HTMLAttributes<HTMLDivElement>;
+
+interface SelectItemProps extends React.HTMLAttributes<HTMLDivElement> {
+  value: string;
+  disabled?: boolean;
+}
+
+interface SelectValueProps {
+  placeholder?: React.ReactNode;
+  children?: React.ReactNode;
+}
+
+const SelectContext = React.createContext<SelectContextValue | null>(null)
+
+function useSelectContext(): SelectContextValue {
+  const context = React.useContext(SelectContext)
+  if (!context) throw new Error("Select debe usarse dentro de Select")
+  return context
+}
+
+export const Select = ({ value, onValueChange, children }: SelectProps) => {
   const [open, setOpen] = React.useState(false)
   return (
     <SelectContext.Provider value={{ value, onValueChange, open, setOpen }}>
@@ -13,8 +45,8 @@ export const Select = ({ value, onValueChange, children }: any) => {
   )
 }
 
-export const SelectTrigger = ({ className, children }: any) => {
-  const { open, setOpen, value } = React.useContext(SelectContext)
+export const SelectTrigger = ({ className, children, ...props }: SelectTriggerProps) => {
+  const { open, setOpen } = useSelectContext()
   return (
     <button
       type="button"
@@ -23,6 +55,7 @@ export const SelectTrigger = ({ className, children }: any) => {
         "flex h-10 w-full items-center justify-between rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
+      {...props}
     >
       {children}
       <ChevronDown className="h-4 w-4 opacity-50 text-slate-100" />
@@ -30,8 +63,8 @@ export const SelectTrigger = ({ className, children }: any) => {
   )
 }
 
-export const SelectContent = ({ className, children }: any) => {
-  const { open, setOpen } = React.useContext(SelectContext)
+export const SelectContent = ({ className, children, ...props }: SelectContentProps) => {
+  const { open, setOpen } = useSelectContext()
   const ref = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -53,14 +86,15 @@ export const SelectContent = ({ className, children }: any) => {
         "absolute z-50 mt-1 max-h-96 w-max min-w-[var(--trigger-width,100%)] overflow-auto rounded-md border border-slate-700 bg-slate-950 text-slate-50 shadow-md animate-in fade-in-80",
         className
       )}
+      {...props}
     >
       <div className="p-1">{children}</div>
     </div>
   )
 }
 
-export const SelectItem = ({ className, children, value, ...props }: any) => {
-  const { value: selectedValue, onValueChange, setOpen } = React.useContext(SelectContext)
+export const SelectItem = ({ className, children, value, disabled = false, ...props }: SelectItemProps) => {
+  const { value: selectedValue, onValueChange, setOpen } = useSelectContext()
   const isSelected = selectedValue === value
 
   return (
@@ -69,11 +103,14 @@ export const SelectItem = ({ className, children, value, ...props }: any) => {
         "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-slate-800 hover:text-slate-50 focus:bg-slate-800 focus:text-slate-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
-      onClick={(e) => {
-        e.stopPropagation()
-        onValueChange(value)
+      onClick={(event) => {
+        if (disabled) return
+        event.stopPropagation()
+        onValueChange?.(value)
         setOpen(false)
       }}
+      aria-disabled={disabled}
+      data-disabled={disabled ? "" : undefined}
       {...props}
     >
       <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
@@ -84,7 +121,7 @@ export const SelectItem = ({ className, children, value, ...props }: any) => {
   )
 }
 
-export const SelectValue = ({ placeholder, children }: any) => {
-  const { value } = React.useContext(SelectContext)
+export const SelectValue = ({ placeholder, children }: SelectValueProps) => {
+  const { value } = useSelectContext()
   return <span>{children || (value === "" || value === undefined ? placeholder : value)}</span>
 }

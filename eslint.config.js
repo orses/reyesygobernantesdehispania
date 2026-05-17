@@ -6,7 +6,7 @@ import globals from "globals";
 
 export default tseslint.config(
   // Ignorar build y dependencias
-  { ignores: ["dist/**", "node_modules/**"] },
+  { ignores: ["dist/**", "node_modules/**", "coverage/**"] },
 
   // Reglas base JS
   js.configs.recommended,

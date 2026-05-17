@@ -23,11 +23,73 @@ import {
 } from "recharts";
 import { formatNumber, formatCenturyLabel } from "../../lib/data";
 import { useAppContext } from "../../context/AppContext";
+import type { AgeEntry, CenturyEntry, CountEntry, DurationByEntityEntry, DurationEntry, Stats } from "../../lib/types";
 
-function ClickableAxisTick({ x, y, payload, data, onClick, maxLen = 25 }: any) {
+type FilterKind = "reino" | "tipo" | "dinastia" | "siglo";
+type ChartClickValue = string | number;
+type DurationChartEntry = DurationEntry & { months?: number };
+type ChartEntry = Partial<CountEntry & DurationByEntityEntry & DurationEntry & AgeEntry & CenturyEntry & { months: number }>;
+
+interface AxisPayload {
+  value?: unknown;
+}
+
+interface ClickableAxisTickProps {
+  x?: string | number;
+  y?: string | number;
+  payload?: AxisPayload;
+  data?: ChartEntry[];
+  onClick?: (value: ChartClickValue) => void;
+  maxLen?: number;
+}
+
+interface StatCardProps {
+  title: string;
+  value: React.ReactNode;
+  unit?: string;
+}
+
+interface StatsTabProps {
+  globalStats: Stats;
+  filteredStats: Stats;
+  hasFilters: boolean;
+  onPersonClick?: (personId: string) => void;
+  onTabChange?: (tab: string) => void;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
+function getName(value: unknown): string {
+  const record = asRecord(value);
+  return typeof record?.name === "string" ? record.name : "";
+}
+
+function getPersonIdFromEntry(value: unknown): string | null {
+  const record = asRecord(value);
+  return typeof record?.personId === "string" ? record.personId : null;
+}
+
+function getCenturyFromEntry(value: unknown): number | null {
+  const record = asRecord(value);
+  return typeof record?.c === "number" ? record.c : null;
+}
+
+function getIsApproxFromTooltipPayload(value: unknown): boolean {
+  const record = asRecord(value);
+  const payload = asRecord(record?.payload);
+  return payload?.isApprox === true;
+}
+
+function formatChartNumber(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value) : String(value ?? "");
+}
+
+function ClickableAxisTick({ x, y, payload, data, onClick, maxLen = 25 }: ClickableAxisTickProps) {
   const raw = String(payload?.value ?? "");
   // Buscamos la entrada correspondiente. En el caso de siglos, comparamos con el label formateado.
-  const entry = data?.find?.((d: any) => {
+  const entry = data?.find?.((d) => {
     if (d.label === raw || d.name === raw) return true;
     if (typeof d.c === 'number' && formatCenturyLabel(d.c) === raw) return true;
     return false;
@@ -56,7 +118,7 @@ function ClickableAxisTick({ x, y, payload, data, onClick, maxLen = 25 }: any) {
   );
 }
 
-function StatCard({ title, value, unit }: any) {
+function StatCard({ title, value, unit }: StatCardProps) {
   return (
     <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 flex flex-col justify-center min-h-[120px]">
       <CardContent className="p-6 flex flex-col justify-center h-full">
@@ -70,11 +132,11 @@ function StatCard({ title, value, unit }: any) {
   );
 }
 
-export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick, onTabChange }: { globalStats: any, filteredStats: any, hasFilters: boolean, onPersonClick?: (personId: string) => void, onTabChange?: (tab: string) => void }) {
+export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick, onTabChange }: StatsTabProps) {
   const { setFilters, setSelectedPersonId } = useAppContext();
   const [viewMode, setViewMode] = useState<"filtered" | "global">("filtered");
 
-  const handleFilterClick = (type: 'reino' | 'tipo' | 'dinastia' | 'siglo', value: string | number) => {
+  const handleFilterClick = (type: FilterKind, value: ChartClickValue) => {
     // Para que la ficha muestre el primer personaje de la categoría pulsada,
     // reseteamos la selección. El auto-selector de AppContext elegirá el más antiguo.
     setSelectedPersonId(null);
@@ -88,11 +150,11 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
   const activeStats = hasFilters && viewMode === "filtered" ? filteredStats : globalStats;
 
   const shortestChart = useMemo(() => {
-    const arr = activeStats.topShortestReign || [];
-    const maxYears = arr.length ? Math.max(...arr.map((d: any) => d.years)) : 0;
+    const arr: DurationEntry[] = activeStats.topShortestReign || [];
+    const maxYears = arr.length ? Math.max(...arr.map((d) => d.years)) : 0;
     const monthsMode = maxYears > 0 && maxYears < 1.25;
-    const data = monthsMode ? arr.map((d: any) => ({ ...d, months: d.years * 12 })) : arr;
-    const maxMonths = monthsMode && data.length ? Math.max(...data.map((d: any) => d.months)) : 0;
+    const data: DurationChartEntry[] = monthsMode ? arr.map((d) => ({ ...d, months: d.years * 12 })) : arr;
+    const maxMonths = monthsMode && data.length ? Math.max(...data.map((d) => d.months ?? 0)) : 0;
     return { monthsMode, data, maxYears, maxMonths };
   }, [activeStats.topShortestReign]);
 
@@ -168,7 +230,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       dataKey="name"
                       width={180}
                       interval={0}
-                      tick={<ClickableAxisTick data={activeStats.byEntity || []} onClick={(v: string) => handleFilterClick('reino', v)} />}
+                      tick={<ClickableAxisTick data={activeStats.byEntity || []} onClick={(value) => handleFilterClick('reino', value)} />}
                       axisLine={{ stroke: "#475569" }}
                       tickLine={{ stroke: "#475569" }}
                     />
@@ -183,7 +245,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       labelStyle={{ color: "#e2e8f0" }}
                       itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="count" fill="#93c5fd" radius={3} style={{ cursor: "pointer" }} onClick={(d: any) => handleFilterClick('reino', d.name)}>
+                    <Bar dataKey="count" fill="#93c5fd" radius={3} style={{ cursor: "pointer" }} onClick={(entry: unknown) => handleFilterClick('reino', getName(entry))}>
                       <LabelList dataKey="count" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} />
                     </Bar>
 
@@ -219,12 +281,12 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       dataKey="name"
                       width={180}
                       interval={0}
-                      tick={<ClickableAxisTick data={activeStats.byEntityDuration || []} onClick={(v: string) => handleFilterClick('reino', v)} />}
+                      tick={<ClickableAxisTick data={activeStats.byEntityDuration || []} onClick={(value) => handleFilterClick('reino', value)} />}
                       axisLine={{ stroke: "#475569" }}
                       tickLine={{ stroke: "#475569" }}
                     />
                     <Tooltip
-                      formatter={(value: any) => [`${formatNumber(value)} años`, "duración total"]}
+                      formatter={(value: unknown) => [`${formatChartNumber(value)} años`, "duración total"]}
                       contentStyle={{
                         backgroundColor: "rgba(2, 6, 23, 0.96)",
                         border: "1px solid rgba(148, 163, 184, 0.35)",
@@ -234,8 +296,8 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       labelStyle={{ color: "#e2e8f0" }}
                       itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="years" fill="#a5b4fc" radius={3} style={{ cursor: "pointer" }} onClick={(d: any) => handleFilterClick('reino', d.name)}>
-                      <LabelList dataKey="years" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} formatter={(v: any) => formatNumber(v)} />
+                    <Bar dataKey="years" fill="#a5b4fc" radius={3} style={{ cursor: "pointer" }} onClick={(entry: unknown) => handleFilterClick('reino', getName(entry))}>
+                      <LabelList dataKey="years" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} formatter={(value: unknown) => formatChartNumber(value)} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -271,7 +333,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       dataKey="name"
                       width={110}
                       interval={0}
-                      tick={<ClickableAxisTick data={activeStats.byTipoGobierno || []} onClick={(v: string) => handleFilterClick('tipo', v)} maxLen={15} />}
+                      tick={<ClickableAxisTick data={activeStats.byTipoGobierno || []} onClick={(value) => handleFilterClick('tipo', value)} maxLen={15} />}
                       axisLine={{ stroke: "#475569" }}
                       tickLine={{ stroke: "#475569" }}
                     />
@@ -286,7 +348,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       labelStyle={{ color: "#e2e8f0" }}
                       itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="count" fill="#6ee7b7" radius={3} style={{ cursor: "pointer" }} onClick={(d: any) => handleFilterClick('tipo', d.name)}>
+                    <Bar dataKey="count" fill="#6ee7b7" radius={3} style={{ cursor: "pointer" }} onClick={(entry: unknown) => handleFilterClick('tipo', getName(entry))}>
                       <LabelList dataKey="count" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} />
                     </Bar>
                   </BarChart>
@@ -320,7 +382,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       dataKey="name"
                       width={180}
                       interval={0}
-                      tick={<ClickableAxisTick data={activeStats.byDinastia || []} onClick={(v: string) => handleFilterClick('dinastia', v)} />}
+                      tick={<ClickableAxisTick data={activeStats.byDinastia || []} onClick={(value) => handleFilterClick('dinastia', value)} />}
                       axisLine={{ stroke: "#475569" }}
                       tickLine={{ stroke: "#475569" }}
                     />
@@ -335,7 +397,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                       labelStyle={{ color: "#000000" }}
                       itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="count" fill="#fcd34d" radius={3} style={{ cursor: "pointer" }} onClick={(d: any) => handleFilterClick('dinastia', d.name)}>
+                    <Bar dataKey="count" fill="#fcd34d" radius={3} style={{ cursor: "pointer" }} onClick={(entry: unknown) => handleFilterClick('dinastia', getName(entry))}>
                       <LabelList dataKey="count" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} />
                     </Bar>
                   </BarChart>
@@ -360,14 +422,14 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                   <BarChart data={activeStats.topLongestReign || []} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis type="number" allowDecimals={false} domain={[0, "dataMax"]} tick={{ fill: "#e2e8f0", fontSize: 11 }} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
-                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={activeStats.topLongestReign || []} onClick={onPersonClick} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
+                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={activeStats.topLongestReign || []} onClick={onPersonClick ? (value) => onPersonClick(String(value)) : undefined} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
                     <Tooltip
-                      formatter={(value: any) => [typeof value === "number" ? `${formatNumber(value)} años` : value, "duración"]}
+                      formatter={(value: unknown) => [typeof value === "number" ? `${formatNumber(value)} años` : String(value ?? ""), "duración"]}
                       contentStyle={{ backgroundColor: "rgba(2, 6, 23, 0.96)", border: "1px solid rgba(148, 163, 184, 0.35)", borderRadius: "3px", color: "#e2e8f0" }}
                       labelStyle={{ color: "#e2e8f0" }} itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="years" fill="#6ee7b7" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(data: any) => { if (onPersonClick && data?.personId) onPersonClick(data.personId); }}>
-                      <LabelList dataKey="years" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} formatter={(v: any) => formatNumber(v)} />
+                    <Bar dataKey="years" fill="#6ee7b7" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(entry: unknown) => { const personId = getPersonIdFromEntry(entry); if (onPersonClick && personId) onPersonClick(personId); }}>
+                      <LabelList dataKey="years" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} formatter={(value: unknown) => formatChartNumber(value)} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -390,18 +452,18 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                   <BarChart data={shortestChart.data || []} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis type="number" allowDecimals={shortestChart.monthsMode} domain={shortestChart.monthsMode ? [0, Math.max(14, Math.ceil(shortestChart.maxMonths))] : [0, "dataMax"]} tick={{ fill: "#e2e8f0", fontSize: 11 }} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
-                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={shortestChart.data || []} onClick={onPersonClick} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
+                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={shortestChart.data || []} onClick={onPersonClick ? (value) => onPersonClick(String(value)) : undefined} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
                     <Tooltip
-                      formatter={(value: any) => {
+                      formatter={(value: unknown) => {
                         const n = typeof value === "number" && Number.isFinite(value) ? value : null;
-                        if (n === null) return [value, "duración"];
+                        if (n === null) return [String(value ?? ""), "duración"];
                         return shortestChart.monthsMode ? [`${formatNumber(n)} meses`, "duración"] : [`${formatNumber(n)} años`, "duración"];
                       }}
                       contentStyle={{ backgroundColor: "rgba(2, 6, 23, 0.96)", border: "1px solid rgba(148, 163, 184, 0.35)", borderRadius: "3px", color: "#e2e8f0" }}
                       labelStyle={{ color: "#e2e8f0" }} itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey={shortestChart.monthsMode ? "months" : "years"} fill="#6ee7b7" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(data: any) => { if (onPersonClick && data?.personId) onPersonClick(data.personId); }}>
-                      <LabelList dataKey={shortestChart.monthsMode ? "months" : "years"} position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} formatter={(v: any) => shortestChart.monthsMode ? `${formatNumber(v)} m` : formatNumber(v)} />
+                    <Bar dataKey={shortestChart.monthsMode ? "months" : "years"} fill="#6ee7b7" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(entry: unknown) => { const personId = getPersonIdFromEntry(entry); if (onPersonClick && personId) onPersonClick(personId); }}>
+                      <LabelList dataKey={shortestChart.monthsMode ? "months" : "years"} position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} formatter={(value: unknown) => shortestChart.monthsMode ? `${formatChartNumber(value)} m` : formatChartNumber(value)} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -425,16 +487,16 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                   <BarChart data={activeStats.topOldestMonarch || []} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis type="number" allowDecimals={false} domain={[0, "dataMax"]} tick={{ fill: "#e2e8f0", fontSize: 11 }} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
-                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={activeStats.topOldestMonarch || []} onClick={onPersonClick} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
+                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={activeStats.topOldestMonarch || []} onClick={onPersonClick ? (value) => onPersonClick(String(value)) : undefined} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
                     <Tooltip
-                      formatter={(value: any, name: any, props: any) => [
-                        `${props.payload.isApprox ? "~" : ""}${value} años`,
+                      formatter={(value: unknown, _name: unknown, props: unknown) => [
+                        `${getIsApproxFromTooltipPayload(props) ? "~" : ""}${value} años`,
                         "edad"
                       ]}
                       contentStyle={{ backgroundColor: "rgba(2, 6, 23, 0.96)", border: "1px solid rgba(148, 163, 184, 0.35)", borderRadius: "3px", color: "#e2e8f0" }}
                       labelStyle={{ color: "#e2e8f0" }} itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="age" fill="#f9a8d4" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(data: any) => { if (onPersonClick && data?.personId) onPersonClick(data.personId); }}>
+                    <Bar dataKey="age" fill="#f9a8d4" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(entry: unknown) => { const personId = getPersonIdFromEntry(entry); if (onPersonClick && personId) onPersonClick(personId); }}>
                       <LabelList dataKey="age" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} />
                     </Bar>
                   </BarChart>
@@ -456,16 +518,16 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                   <BarChart data={activeStats.topYoungestMonarch || []} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis type="number" allowDecimals={false} domain={[0, "dataMax"]} tick={{ fill: "#e2e8f0", fontSize: 11 }} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
-                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={activeStats.topYoungestMonarch || []} onClick={onPersonClick} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
+                    <YAxis type="category" dataKey="label" width={180} tick={<ClickableAxisTick data={activeStats.topYoungestMonarch || []} onClick={onPersonClick ? (value) => onPersonClick(String(value)) : undefined} />} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
                     <Tooltip
-                      formatter={(value: any, name: any, props: any) => [
-                        `${props.payload.isApprox ? "~" : ""}${value} años`,
+                      formatter={(value: unknown, _name: unknown, props: unknown) => [
+                        `${getIsApproxFromTooltipPayload(props) ? "~" : ""}${value} años`,
                         "edad"
                       ]}
                       contentStyle={{ backgroundColor: "rgba(2, 6, 23, 0.96)", border: "1px solid rgba(148, 163, 184, 0.35)", borderRadius: "3px", color: "#e2e8f0" }}
                       labelStyle={{ color: "#e2e8f0" }} itemStyle={{ color: "#e2e8f0" }}
                     />
-                    <Bar dataKey="age" fill="#f9a8d4" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(data: any) => { if (onPersonClick && data?.personId) onPersonClick(data.personId); }}>
+                    <Bar dataKey="age" fill="#f9a8d4" radius={3} style={{ cursor: onPersonClick ? "pointer" : undefined }} onClick={(entry: unknown) => { const personId = getPersonIdFromEntry(entry); if (onPersonClick && personId) onPersonClick(personId); }}>
                       <LabelList dataKey="age" position="insideRight" fill="#0f172a" fontSize={10} fontWeight={700} />
                     </Bar>
                   </BarChart>
@@ -494,7 +556,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                   domain={[8, 21]}
                   allowDataOverflow
                   tickFormatter={(v) => formatCenturyLabel(v)}
-                  tick={<ClickableAxisTick data={activeStats.perCentury || []} onClick={(v: string) => handleFilterClick('siglo', v)} />}
+                  tick={<ClickableAxisTick data={activeStats.perCentury || []} onClick={(value) => handleFilterClick('siglo', value)} />}
                   axisLine={{ stroke: "#475569" }}
                   tickLine={{ stroke: "#475569" }}
                 />
@@ -517,7 +579,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
                   labelStyle={{ color: "#e2e8f0" }}
                   itemStyle={{ color: "#e2e8f0" }}
                 />
-                <Line type="monotone" dataKey="count" stroke="#60a5fa" strokeWidth={2} dot={{ r: 4, fill: "#60a5fa" }} style={{ cursor: "pointer" }} onClick={(d: any) => handleFilterClick('siglo', d.c)} />
+                <Line type="monotone" dataKey="count" stroke="#60a5fa" strokeWidth={2} dot={{ r: 4, fill: "#60a5fa" }} style={{ cursor: "pointer" }} onClick={(entry: unknown) => { const century = getCenturyFromEntry(entry); if (century !== null) handleFilterClick('siglo', century); }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

@@ -5,10 +5,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "../ui/button";
 import { X, UserPlus, Scale } from "lucide-react";
 import { formatNumber, normalizeUrl } from "../../lib/data";
-import { Person } from "../../lib/types";
+import { getPrimaryMediaAsset } from "../../lib/media";
+import type { MediaAsset, Person } from "../../lib/types";
 
-function ComparePortrait({ url, name }: { url: unknown; name: string }) {
-  const imageUrl = normalizeUrl(url);
+function mediaSrc(asset: MediaAsset | null, previewUrls: Record<string, string>): string {
+  if (!asset) return "";
+  if (asset.kind === "uploaded-file") return previewUrls[asset.id] ?? "";
+  return normalizeUrl(asset.src);
+}
+
+function ComparePortrait({ asset, previewUrls, name }: { asset: MediaAsset | null; previewUrls: Record<string, string>; name: string }) {
+  const imageUrl = mediaSrc(asset, previewUrls);
   const [ok, setOk] = useState(true);
 
   useEffect(() => {
@@ -30,7 +37,13 @@ function ComparePortrait({ url, name }: { url: unknown; name: string }) {
   );
 }
 
-export function ComparativaTab() {
+export function ComparativaTab({
+  mediaAssets = [],
+  mediaPreviewUrls = {},
+}: {
+  mediaAssets?: MediaAsset[];
+  mediaPreviewUrls?: Record<string, string>;
+}) {
   const { allPeople } = useAppContext();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
@@ -59,7 +72,7 @@ export function ComparativaTab() {
     <div className="space-y-4">
       <Card className="bg-slate-900/30 border border-slate-800 rounded-[3px]">
         <CardHeader className="pb-4 border-b border-slate-800">
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <CardTitle className="text-xl text-slate-50 flex items-center gap-2">
                 <Scale className="h-5 w-5" /> Análisis Comparativo (Cara a Cara)
@@ -68,8 +81,8 @@ export function ComparativaTab() {
                 Seleccione múltiples figuras históricas para contrastar su esperanza de vida, tiempo en el poder y verificabilidad.
               </CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="w-[280px]">
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <div className="w-full sm:w-[320px]">
                 <Select onValueChange={handleSelect} value="">
                   <SelectTrigger className="w-full bg-slate-950 border-slate-700 text-slate-200">
                     <SelectValue placeholder=" Añadir monarca a comparar..." />
@@ -91,7 +104,7 @@ export function ComparativaTab() {
                 variant="outline" 
                 onClick={clearAll} 
                 disabled={selectedIds.length === 0}
-                className="bg-slate-950 border-slate-700/70 text-slate-300 hover:text-white"
+                className="w-full bg-slate-950 border-slate-700/70 text-slate-300 hover:text-white sm:w-auto"
               >
                 Limpiar visualización
               </Button>
@@ -107,14 +120,14 @@ export function ComparativaTab() {
             </div>
           ) : (
             <div className="overflow-x-auto pb-4 custom-scrollbar">
-              <div className="flex gap-4 min-w-max">
+              <div className="flex min-w-max gap-4">
                 {selectedPeople.map(p => {
                   
                   const durationGobierno = p.reinados.reduce((s, r) => s + (typeof r._duracionCalc === 'number' ? r._duracionCalc : 0), 0);
                   const activeYears = p.reinados.map(r => r["Inicio del reinado (año)"]).filter(Boolean).join(", ");
                   
                   return (
-                    <div key={p.personId} className="w-[300px] flex-shrink-0 flex flex-col bg-slate-950/60 border border-slate-800 rounded-md overflow-hidden relative">
+                    <div key={p.personId} className="w-[min(82vw,340px)] flex-shrink-0 flex flex-col bg-slate-950/60 border border-slate-800 rounded-md overflow-hidden relative">
                       <Button 
                         title="Quitar de comparativa"
                         variant="ghost" 
@@ -128,7 +141,7 @@ export function ComparativaTab() {
                       {/* Portada Mini */}
                       <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
                         <div className="h-12 w-12 rounded-full border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          <ComparePortrait url={p.reinados[0]?.["Imagen URL"]} name={p.nombrePrincipal} />
+                          <ComparePortrait asset={getPrimaryMediaAsset(mediaAssets, p.personId)} previewUrls={mediaPreviewUrls} name={p.nombrePrincipal} />
                         </div>
                         <div>
                           <h3 className="font-bold text-slate-100 leading-tight pr-6">{p.nombrePrincipal}</h3>

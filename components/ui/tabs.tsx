@@ -1,15 +1,32 @@
 import * as React from "react"
 import { cn } from "../../lib/utils"
 
-const TabsContext = React.createContext<any>(null)
+interface TabsContextValue {
+  value?: string;
+  setValue: (value: string) => void;
+}
 
-export const Tabs = ({ defaultValue, value: controlledValue, onValueChange, className, children, ...props }: any) => {
+interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
+  defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+}
+
+const TabsContext = React.createContext<TabsContextValue | null>(null)
+
+function useTabsContext(): TabsContextValue {
+  const context = React.useContext(TabsContext)
+  if (!context) throw new Error("Tabs debe usarse dentro de Tabs")
+  return context
+}
+
+export const Tabs = ({ defaultValue, value: controlledValue, onValueChange, className, children, ...props }: TabsProps) => {
   const [internalValue, setInternalValue] = React.useState(defaultValue)
   const isControlled = controlledValue !== undefined
   const value = isControlled ? controlledValue : internalValue
-  const setValue = (v: string) => {
-    if (!isControlled) setInternalValue(v)
-    onValueChange?.(v)
+  const setValue = (nextValue: string) => {
+    if (!isControlled) setInternalValue(nextValue)
+    onValueChange?.(nextValue)
   }
   return (
     <TabsContext.Provider value={{ value, setValue }}>
@@ -39,7 +56,7 @@ export const TabsTrigger = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }
 >(({ className, value: tabValue, ...props }, ref) => {
-  const { value, setValue } = React.useContext(TabsContext)
+  const { value, setValue } = useTabsContext()
   const isActive = value === tabValue
   return (
     <button
@@ -63,7 +80,7 @@ export const TabsContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { value: string }
 >(({ className, value: tabValue, ...props }, ref) => {
-  const { value } = React.useContext(TabsContext)
+  const { value } = useTabsContext()
   if (value !== tabValue) return null
   return (
     <div

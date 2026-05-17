@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { calculateStatsHelper } from "./stats";
 import { computeDerivedRow, getRowId } from "./data";
-import type { RawRow, Person, Stats } from "./types";
+import type { RawRow, Person } from "./types";
 
 function makeRow(overrides: Partial<RawRow>, idx: number): RawRow {
     const base: RawRow = {

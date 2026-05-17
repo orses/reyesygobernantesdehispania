@@ -142,7 +142,7 @@ export function TimelineTab() {
         <CardContent>
           <div className="overflow-x-auto pb-6 custom-scrollbar">
             {/* Lienzo virtual temporal */}
-            <div className="min-w-[1200px] relative bg-slate-950/20 rounded-md border border-slate-800/60" style={{ height: `${totalHeight}px` }}>
+            <div className="relative min-w-[900px] rounded-md border border-slate-800/60 bg-slate-950/20 lg:min-w-full" style={{ height: `${totalHeight}px` }}>
               
               {/* Eje X (Líneas de fondo de tiempo) */}
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">

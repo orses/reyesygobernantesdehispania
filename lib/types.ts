@@ -12,6 +12,7 @@ export interface RawRow {
     "Nº Reinado"?: string;
 
     // — Datos del gobernante
+    "Nombre principal"?: string;
     Nombre?: string;
     nombre?: string;
     Apelativo?: string;
@@ -72,6 +73,50 @@ export interface RawRow {
 
     // Permitir claves arbitrarias de CSV/JSON desconocidos
     [key: string]: unknown;
+}
+
+/** Estado jurídico declarado para una imagen. */
+export type MediaRightsStatus =
+    | "public-domain"
+    | "licensed"
+    | "copyrighted"
+    | "unknown";
+
+/** Origen técnico de una imagen asociada a un personaje. */
+export type MediaKind = "external-url" | "uploaded-file";
+
+/** Metadatos opcionales al crear una imagen asociada a un personaje. */
+export interface MediaInputOptions {
+    rightsStatus?: MediaRightsStatus;
+    title?: string;
+    author?: string;
+    sourceName?: string;
+    sourceUrl?: string;
+    license?: string;
+    usageNotes?: string;
+}
+
+/** Imagen asociada a un personaje, con metadatos de fuente y derechos. */
+export interface MediaAsset {
+    id: string;
+    personId: string;
+    kind: MediaKind;
+    src: string;
+    storageKey?: string;
+    title?: string;
+    author?: string;
+    sourceName?: string;
+    sourceUrl?: string;
+    license?: string;
+    rightsStatus: MediaRightsStatus;
+    usageNotes?: string;
+    fileName?: string;
+    mimeType?: string;
+    size?: number;
+    packagePath?: string;
+    isPrimary: boolean;
+    createdAt: string;
+    updatedAt?: string;
 }
 
 /** Resultado de parsear un CSV. */

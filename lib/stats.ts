@@ -14,7 +14,6 @@ import type {
 } from "./types";
 import {
     asYearOrNull,
-    asNumberOrNull,
     centuryFromYear,
     formatCenturyLabel,
     rowDisplayName,
