@@ -22,8 +22,8 @@
     "framer-motion": "^12.38.0",
     "idb-keyval": "^6.2.2",
     "lucide-react": "^0.574.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.4.1"
