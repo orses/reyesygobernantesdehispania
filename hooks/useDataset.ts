@@ -27,6 +27,7 @@ import {
     toPortableMediaAsset,
 } from "../lib/dataset-package";
 import {
+    applyMediaAssetsToRows,
     createExternalMediaAsset,
     deriveMediaAssetsFromRows,
     ensurePrimaryMediaAssets,
@@ -37,44 +38,31 @@ import { createStoredZip, parseStoredZip } from "../lib/zip";
 // Datos de ejemplo
 const SAMPLE_ROWS: RawRow[] = [
     {
-        ID: "51fernandov14791516castilla",
-        PersonID: 51,
+        ID: "101pelayo718737asturias",
+        PersonID: 101,
         "Nº Reinado": "",
-        Nombre: "Fernando V",
+        Nombre: "Pelayo",
         Apelativo: "",
-        Reino: "Corona de Castilla",
-        "Tipo de gobierno": "Corona",
-        Dinastía: "Trastámara",
-        "Inicio del reinado (año)": 1479,
-        "Final del reinado (año)": 1516,
+        Reino: "Reino de Asturias",
+        "Tipo de gobierno": "Reino",
+        Dinastía: "Astur-Leonesa",
+        "Inicio del reinado (año)": 718,
+        "Final del reinado (año)": 737,
         "Inicio Reinado (Fecha)": "",
         "Fin Reinado (Fecha)": "",
-        "Nacimiento (Fecha)": "1452",
-        "Nacimiento (lugar)": "Sos",
+        "Nacimiento (Fecha)": "p. t. s. VII",
+        "Nacimiento (lugar)": "",
         "Nacimiento (ciudad)": "",
         "Nacimiento (provincia)": "",
         "Nacimiento (País)": "",
-        "Fallecimiento (Fecha)": "1516",
-        "Fallecimiento (lugar)": "Madrigalejo",
+        "Fallecimiento (Fecha)": "737",
+        "Fallecimiento (lugar)": "Cangas de Onís",
         "Fallecimiento (ciudad)": "",
         "Fallecimiento (provincia)": "",
         "Fallecimiento (País)": "",
         Descripción: "Ejemplo interno. Sustitúyalo por su dataset.",
         "Imagen URL": "",
         "Ficha RAH URL": "",
-        "Información verificada": "no",
-    },
-    {
-        ID: "51fernandoii14791516aragon",
-        PersonID: 51,
-        "Nº Reinado": "",
-        Nombre: "Fernando II",
-        Apelativo: "",
-        Reino: "Corona de Aragón",
-        "Tipo de gobierno": "Corona",
-        Dinastía: "Trastámara",
-        "Inicio del reinado (año)": 1479,
-        "Final del reinado (año)": 1516,
         "Información verificada": "no",
     },
 ];
@@ -674,10 +662,10 @@ export function useDataset() {
     }, [datasetName, mediaAssets, rows]);
 
     const exportCsv = useCallback(() => {
-        const text = generateCsv(rows);
+        const text = generateCsv(applyMediaAssetsToRows(rows, mediaAssets));
         const base = getExportFileName(datasetName, "csv");
         downloadTextFile(base, text, "text/csv;charset=utf-8");
-    }, [rows, datasetName]);
+    }, [rows, mediaAssets, datasetName]);
 
     return {
         fileRef,

@@ -103,19 +103,40 @@ export function derivePeopleFromRows(rows: RawRow[]): {
     };
 }
 
+export function normalizePersonSearchText(value: unknown): string {
+    return String(value ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+}
+
+export function personMatchesSearch(person: Person, searchText: string): boolean {
+    const query = normalizePersonSearchText(searchText);
+    if (!query) return true;
+
+    return [
+        person.nombrePrincipal,
+        ...person.nombres,
+        ...person.apelativos,
+        ...person.reinos,
+        person.dinastia,
+    ].some((value) => normalizePersonSearchText(value).includes(query));
+}
+
+export function getFirstMatchingPersonId(people: Person[], searchText: string): string | null {
+    const query = normalizePersonSearchText(searchText);
+    if (!query) return null;
+
+    const person = people.find((candidate) => personMatchesSearch(candidate, query));
+    return person ? String(person.personId) : null;
+}
+
 export function filterAndSortPeople(allPeople: Person[], filters: FilterState): Person[] {
     let output = [...allPeople];
 
     if (filters.query) {
-        const query = filters.query.toLowerCase();
-        output = output.filter(
-            (person) =>
-                person.nombrePrincipal.toLowerCase().includes(query) ||
-                person.nombres.some((name) => name.toLowerCase().includes(query)) ||
-                person.apelativos.some((apelativo) => apelativo.toLowerCase().includes(query)) ||
-                person.reinos.some((reino) => reino.toLowerCase().includes(query)) ||
-                person.dinastia.toLowerCase().includes(query)
-        );
+        output = output.filter((person) => personMatchesSearch(person, filters.query));
     }
 
     if (filters.filterReino !== "__all__") {

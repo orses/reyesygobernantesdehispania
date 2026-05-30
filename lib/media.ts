@@ -1,5 +1,6 @@
 import type { MediaAsset, MediaRightsStatus, RawRow } from "./types";
 import { getPersonId, normalizeUrl } from "./data";
+import { createMediaPackagePath } from "./dataset-package";
 
 const RIGHTS_STATUSES: readonly MediaRightsStatus[] = [
     "public-domain",
@@ -137,6 +138,62 @@ export function ensurePrimaryMediaAssets(assets: MediaAsset[]): MediaAsset[] {
         return asset.isPrimary === (asset.id === primaryId)
             ? asset
             : { ...asset, isPrimary: asset.id === primaryId };
+    });
+}
+
+/** Columna del CSV donde se listan, como referencia, las rutas estables de las
+ * imágenes subidas (archivos). El archivo en sí solo viaja en el ZIP; aquí queda
+ * la ruta que tiene dentro del paquete, no el nombre editable. */
+export const UPLOADED_MEDIA_CSV_COLUMN = "Imágenes subidas (rutas, solo en ZIP)";
+
+/**
+ * Vuelca el estado de la galería (mediaAssets) sobre las columnas de cada fila,
+ * para que una exportación CSV/JSON refleje TODAS las imágenes:
+ * - URLs externas → «Imagen URL» (la principal) y «Galería» (el resto).
+ * - Imágenes subidas → columna de referencia con su nombre (el archivo no cabe en CSV).
+ * No muta las filas originales.
+ */
+export function applyMediaAssetsToRows(rows: RawRow[], mediaAssets: MediaAsset[]): RawRow[] {
+    if (!mediaAssets || mediaAssets.length === 0) return rows;
+
+    const byPerson = new Map<string, MediaAsset[]>();
+    for (const asset of mediaAssets) {
+        const pid = normalizePersonId(asset.personId);
+        if (!pid) continue;
+        const list = byPerson.get(pid);
+        if (list) list.push(asset);
+        else byPerson.set(pid, [asset]);
+    }
+
+    return rows.map((row) => {
+        const pid = getPersonId(row);
+        const assets = pid ? byPerson.get(pid) : undefined;
+        if (!assets || assets.length === 0) return row;
+
+        // La principal primero, para que caiga en «Imagen URL».
+        const ordered = [...assets].sort(
+            (a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary))
+        );
+        const external = ordered
+            .filter((asset) => asset.kind === "external-url")
+            .map((asset) => normalizeUrl(asset.src))
+            .filter(Boolean);
+        const uploaded = ordered.filter((asset) => asset.kind === "uploaded-file");
+
+        const next: RawRow = { ...row };
+
+        if (external.length > 0) {
+            next["Imagen URL"] = external[0];
+            next.Galería = external.slice(1).join(" | ");
+        }
+
+        if (uploaded.length > 0) {
+            next[UPLOADED_MEDIA_CSV_COLUMN] = uploaded
+                .map((asset) => asset.packagePath || createMediaPackagePath(asset))
+                .join(" | ");
+        }
+
+        return next;
     });
 }
 

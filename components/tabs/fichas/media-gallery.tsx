@@ -12,6 +12,7 @@ import {
   normalizeRightsStatus,
 } from "../../../lib/media";
 import type { MediaAsset, MediaInputOptions, MediaRightsStatus } from "../../../lib/types";
+import { MediaViewer } from "./media-viewer";
 import { CopyIconButton, SectionTitle } from "./shared";
 
 interface MediaGalleryProps {
@@ -41,7 +42,9 @@ export function MediaGallery({
   const [rightsDraft, setRightsDraft] = useState<MediaRightsStatus>("unknown");
   const [licenseDraft, setLicenseDraft] = useState("");
   const [authorDraft, setAuthorDraft] = useState("");
+  const [viewerAssetId, setViewerAssetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewerAsset = viewerAssetId ? assets.find((asset) => asset.id === viewerAssetId) ?? null : null;
 
   const mediaDraftOptions = (): MediaInputOptions => ({
     rightsStatus: rightsDraft,
@@ -74,9 +77,18 @@ export function MediaGallery({
 
             return (
               <div key={asset.id} className="min-w-0 rounded-[3px] border border-slate-700/70 bg-slate-950/25 p-3">
-                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[3px] border border-slate-700/70 bg-slate-950/60">
+                <button
+                  type="button"
+                  className={`relative aspect-[4/3] w-full overflow-hidden rounded-[3px] border border-slate-700/70 bg-slate-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${src ? "cursor-zoom-in" : "cursor-default"}`}
+                  disabled={!src}
+                  title={src ? "Abrir imagen" : undefined}
+                  aria-label={src ? `Abrir ${asset.title || asset.fileName || "imagen"}` : "Sin imagen"}
+                  onClick={() => {
+                    if (src) setViewerAssetId(asset.id);
+                  }}
+                >
                   {src ? (
-                    <img src={src} alt={asset.title || `imagen de ${personName}`} className="h-full w-full object-cover object-top" />
+                    <img src={src} alt={asset.title || `imagen de ${personName}`} className="h-full w-full object-contain object-center" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">sin imagen</div>
                   )}
@@ -85,7 +97,7 @@ export function MediaGallery({
                       Principal
                     </span>
                   ) : null}
-                </div>
+                </button>
 
                 <div className="mt-3 min-w-0">
                   <div className="truncate text-sm font-semibold text-slate-100">{asset.title || asset.fileName || "Imagen"}</div>
@@ -101,6 +113,26 @@ export function MediaGallery({
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="min-w-0 space-y-1">
+                    <span className="text-[11px] font-black tracking-wide text-slate-500">Nombre de la imagen</span>
+                    <input
+                      className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
+                      value={asset.title ?? ""}
+                      onChange={(event) => updateMediaAsset?.(asset.id, { title: event.target.value })}
+                      placeholder={asset.fileName || "Retrato, grabado, escudo..."}
+                    />
+                  </label>
+
+                  <label className="min-w-0 space-y-1">
+                    <span className="text-[11px] font-black tracking-wide text-slate-500">Fecha de la obra</span>
+                    <input
+                      className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
+                      value={asset.workDate ?? ""}
+                      onChange={(event) => updateMediaAsset?.(asset.id, { workDate: event.target.value })}
+                      placeholder="1798, s. XV, c. 1650..."
+                    />
+                  </label>
+
                   <label className="min-w-0 space-y-1">
                     <span className="text-[11px] font-black tracking-wide text-slate-500">Licencia</span>
                     <input
@@ -241,6 +273,13 @@ export function MediaGallery({
           </label>
         </div>
       </div>
+
+      <MediaViewer
+        asset={viewerAsset}
+        previewUrls={previewUrls}
+        personName={personName}
+        onClose={() => setViewerAssetId(null)}
+      />
     </div>
   );
 }

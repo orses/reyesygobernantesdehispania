@@ -21,6 +21,7 @@ export interface ChronologicalPersonCandidate {
     personId: string | number;
     minInicioAnio?: number | null;
     nombrePrincipal?: string;
+    nombres?: string[];
 }
 
 export function compareChronologicalPersonCandidates(
@@ -39,6 +40,29 @@ export function getChronologicalDefaultPersonId(
 ): string {
     const first = [...people].sort(compareChronologicalPersonCandidates)[0];
     return first ? String(first.personId) : "";
+}
+
+function normalizeSelectionName(value: unknown): string {
+    return String(value ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+}
+
+function isPelayoCandidate(person: ChronologicalPersonCandidate): boolean {
+    const names = [person.nombrePrincipal, ...(person.nombres ?? [])];
+    return names.some((name) => {
+        const normalizedName = normalizeSelectionName(name);
+        return normalizedName === "pelayo" || normalizedName.includes(" pelayo") || normalizedName.startsWith("pelayo ");
+    });
+}
+
+export function getPreferredStartupPersonId(
+    people: ChronologicalPersonCandidate[]
+): string {
+    const pelayo = people.find(isPelayoCandidate);
+    return pelayo ? String(pelayo.personId) : getChronologicalDefaultPersonId(people);
 }
 
 export function getAdjacentPersonIds(

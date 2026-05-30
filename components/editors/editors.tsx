@@ -236,6 +236,72 @@ function RowEditorContent({
 }
 
 // ---------------------------------------------------------------------------
+// Diálogo de confirmación al cargar datos (reemplaza el contenido actual)
+// ---------------------------------------------------------------------------
+
+interface LoadDataDialogProps {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  file: File | null;
+  uploadedCount: number;
+  onConfirm: () => void;
+}
+
+export function LoadDataDialog({
+  open,
+  setOpen,
+  file,
+  uploadedCount,
+  onConfirm,
+}: LoadDataDialogProps) {
+  const name = file?.name ?? "";
+  const isZip = name.toLowerCase().endsWith(".zip");
+  const willLoseImages = uploadedCount > 0 && !isZip;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-lg rounded-[3px] bg-slate-950 text-slate-50 border border-slate-800">
+        <DialogHeader>
+          <DialogTitle>Cargar datos</DialogTitle>
+          <DialogDescription className="text-base text-slate-300">
+            Vas a importar{" "}
+            <span className="font-mono text-slate-100">{name || "(archivo)"}</span>. Esto{" "}
+            <span className="font-semibold text-slate-100">reemplaza por completo</span> los
+            datos y la galería que tienes ahora en la aplicación.
+          </DialogDescription>
+        </DialogHeader>
+
+        {willLoseImages ? (
+          <div className="rounded-[3px] border border-amber-600/50 bg-amber-950/30 p-3 text-sm text-amber-200">
+            ⚠️ Tienes <span className="font-semibold">{uploadedCount}</span> imagen(es) subida(s)
+            que este archivo no contiene (solo el formato <span className="font-semibold">ZIP</span> las
+            incluye). Si continúas, desaparecerán de la galería. Para conservarlas, cancela y exporta
+            antes un «ZIP completo».
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button
+            variant="secondary"
+            className="rounded-[3px]"
+            onClick={() => setOpen(false)}
+          >
+            cancelar
+          </Button>
+          <Button
+            variant={willLoseImages ? "destructive" : "default"}
+            className="rounded-[3px]"
+            onClick={onConfirm}
+          >
+            cargar y reemplazar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Diálogo de eliminación
 // ---------------------------------------------------------------------------
 

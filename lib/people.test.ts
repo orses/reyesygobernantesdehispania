@@ -5,9 +5,11 @@ import {
     derivePeopleFromRows,
     filterAndSortPeople,
     filterRowsForPeople,
+    getFirstMatchingPersonId,
     getPersonFilterOptions,
     getSelectedCenturies,
     groupRowsByPerson,
+    personMatchesSearch,
     rowCenturies,
     rowSpansCentury,
 } from "./people";
@@ -192,6 +194,28 @@ describe("filterAndSortPeople", () => {
         });
 
         expect(people[0]?.personId).toBe("fernando");
+    });
+
+    it("busca sin depender de tildes ni mayúsculas", () => {
+        const { allPeople } = derivePeopleFromRows(rowsFixture());
+        const people = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            query: "leon",
+        });
+
+        expect(people.map((person) => person.personId)).toContain("alfonso");
+    });
+
+    it("localiza el primer personaje visible que coincide con la búsqueda", () => {
+        const { allPeople } = derivePeopleFromRows(rowsFixture());
+        const people = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            query: "trastamara",
+        });
+
+        expect(getFirstMatchingPersonId(people, "trastamara")).toBe("isabel");
+        expect(getFirstMatchingPersonId(people, "")).toBeNull();
+        expect(personMatchesSearch(people[0], "corona")).toBe(true);
     });
 });
 

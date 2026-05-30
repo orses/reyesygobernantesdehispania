@@ -89,6 +89,12 @@ export function createDatasetPayload(
         version: DATASET_PACKAGE_VERSION,
         exportedAt,
         datos: cleanRowsForExport(rows),
-        mediaAssets: mediaAssets.map((asset) => toPortableMediaAsset(asset)),
+        // Las imágenes subidas llevan su ruta estable (packagePath), aunque el JSON
+        // suelto no contenga el archivo: así la referencia no depende del nombre editable.
+        mediaAssets: mediaAssets.map((asset) =>
+            asset.kind === "uploaded-file"
+                ? toPortableMediaAsset(asset, createMediaPackagePath(asset))
+                : toPortableMediaAsset(asset)
+        ),
     };
 }

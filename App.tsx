@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
@@ -17,7 +17,10 @@ import {
   formatCenturyLabel,
   verifiedToText,
 } from "./lib/data";
-import { resolveStartupAwareRouteSelectedPersonId } from "./lib/selection";
+import {
+  getPreferredStartupPersonId,
+  resolveStartupAwareRouteSelectedPersonId,
+} from "./lib/selection";
 import type { RawRow } from "./lib/types";
 
 // Componentes
@@ -27,7 +30,7 @@ import { FichasTab } from "./components/tabs/fichas-tab";
 import { DataTab } from "./components/tabs/data-tab";
 import { TimelineTab } from "./components/tabs/timeline-tab";
 import { ComparativaTab } from "./components/tabs/comparativa-tab";
-import { EditorDialog, DeleteDialog } from "./components/editors/editors";
+import { EditorDialog, DeleteDialog, LoadDataDialog } from "./components/editors/editors";
 
 // Hook y Contexto
 import { useDataset } from "./hooks/useDataset";
@@ -80,7 +83,6 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     removeRow,
     removePerson,
     exportDatasetPackage,
-    exportCsv,
     rows,
     mediaAssets,
     mediaPreviewUrls,
@@ -136,11 +138,30 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const matchFicha = location.pathname.match(/^\/fichas\/(.+)/);
   const urlPersonId = decodeRouteParam(matchFicha ? matchFicha[1] : null);
   const allPersonIds = useMemo(() => allPeople.map((person) => person.personId), [allPeople]);
+  const startupPersonId = useMemo(() => getPreferredStartupPersonId(allPeople), [allPeople]);
+  const handledRouteDatasetLoadedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!dataset.idbLoaded) return;
     if (activeTab !== "fichas") return;
-    const nextPersonId = resolveStartupAwareRouteSelectedPersonId(urlPersonId, selectedPersonId, allPersonIds);
+    if (
+      dataset.datasetLoadedAt &&
+      startupPersonId &&
+      handledRouteDatasetLoadedAtRef.current !== dataset.datasetLoadedAt
+    ) {
+      handledRouteDatasetLoadedAtRef.current = dataset.datasetLoadedAt;
+      if (startupPersonId !== selectedPersonId) {
+        setSelectedPersonId(startupPersonId);
+      }
+      if (startupPersonId !== urlPersonId) {
+        navigate(personRoute(startupPersonId), { replace: true });
+      }
+      return;
+    }
+
+    const nextPersonId = !selectedPersonId && startupPersonId
+      ? startupPersonId
+      : resolveStartupAwareRouteSelectedPersonId(urlPersonId, selectedPersonId, allPersonIds);
 
     if (!nextPersonId) {
       if (urlPersonId) navigate("/fichas", { replace: true });
@@ -153,7 +174,17 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     if (nextPersonId !== urlPersonId) {
       navigate(personRoute(nextPersonId), { replace: true });
     }
-  }, [activeTab, urlPersonId, selectedPersonId, allPersonIds, setSelectedPersonId, navigate, dataset.idbLoaded]);
+  }, [
+    activeTab,
+    urlPersonId,
+    selectedPersonId,
+    allPersonIds,
+    startupPersonId,
+    setSelectedPersonId,
+    navigate,
+    dataset.idbLoaded,
+    dataset.datasetLoadedAt,
+  ]);
 
   const selectPerson = (personId: string | null) => {
     if (!personId) {
@@ -177,6 +208,25 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const [draft, setDraft] = useState<RawRow | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: string; id: string | number | null }>({ kind: "row", id: null });
+
+  // --- Carga de datos (con confirmación) ---
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [loadConfirmOpen, setLoadConfirmOpen] = useState(false);
+  const uploadedMediaCount = useMemo(
+    () => mediaAssets.filter((asset) => asset.kind === "uploaded-file").length,
+    [mediaAssets]
+  );
+
+  function requestLoadFile(file: File) {
+    setPendingFile(file);
+    setLoadConfirmOpen(true);
+  }
+
+  function confirmLoadFile() {
+    if (pendingFile) handleFile(pendingFile);
+    setLoadConfirmOpen(false);
+    setPendingFile(null);
+  }
 
   // --- Derivados ---
   const hasFilters = useMemo(
@@ -392,7 +442,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleFile(f);
+                  if (f) requestLoadFile(f);
                   e.target.value = "";
                 }}
               />
@@ -400,16 +450,18 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
               <Button
                 variant="secondary"
                 onClick={() => fileRef.current?.click()}
+                title="Importa un archivo .csv, .json o .zip. Reemplaza por completo los datos actuales (te pedimos confirmación antes)."
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
                 <Upload className="h-4 w-4 mr-2" /> cargar datos
               </Button>
               <Button
                 variant="outline"
-                onClick={exportCsv}
+                onClick={exportDatasetPackage}
+                title="Descarga un ZIP con TODO: datos, URLs y las imágenes que has subido. La forma segura de no perder nada. (Para CSV o JSON sueltos, ve a la pestaña «datos».)"
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
-                <Download className="h-4 w-4 mr-2" /> CSV
+                <Download className="h-4 w-4 mr-2" /> guardar todo
               </Button>
               <Button
                 variant="outline"
@@ -531,6 +583,14 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
         setOpen={setDeleteOpen}
         target={deleteTarget}
         removeTarget={removeTarget}
+      />
+
+      <LoadDataDialog
+        open={loadConfirmOpen}
+        setOpen={setLoadConfirmOpen}
+        file={pendingFile}
+        uploadedCount={uploadedMediaCount}
+        onConfirm={confirmLoadFile}
       />
     </div>
   );

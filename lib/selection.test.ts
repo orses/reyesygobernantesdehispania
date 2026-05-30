@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
     getAdjacentPersonIds,
     getChronologicalDefaultPersonId,
+    getPreferredStartupPersonId,
     personIdExists,
     resolveRouteSelectedPersonId,
     resolveSelectedPersonId,
@@ -71,6 +72,26 @@ describe("getChronologicalDefaultPersonId", () => {
                 { personId: 1, nombrePrincipal: "A", minInicioAnio: 1000 },
             ])
         ).toBe("1");
+    });
+});
+
+describe("getPreferredStartupPersonId", () => {
+    it("prioriza a Pelayo como personaje inicial aunque la ruta previa apunte a otro personaje", () => {
+        expect(
+            getPreferredStartupPersonId([
+                { personId: 51, nombrePrincipal: "Fernando V", minInicioAnio: 1479 },
+                { personId: 101, nombrePrincipal: "Pelayo", minInicioAnio: 718 },
+            ])
+        ).toBe("101");
+    });
+
+    it("usa el primer personaje cronológico si Pelayo no existe en el dataset", () => {
+        expect(
+            getPreferredStartupPersonId([
+                { personId: 51, nombrePrincipal: "Fernando V", minInicioAnio: 1479 },
+                { personId: 52, nombrePrincipal: "Isabel I", minInicioAnio: 1474 },
+            ])
+        ).toBe("52");
     });
 });
 

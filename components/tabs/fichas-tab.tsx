@@ -2,6 +2,7 @@ import {
   getPersonMediaAssets,
   getPrimaryMediaAsset,
 } from "../../lib/media";
+import { getFirstMatchingPersonId } from "../../lib/people";
 import { getAdjacentPersonIds } from "../../lib/selection";
 import { PersonDetailCard } from "./fichas/person-detail-card";
 import { PersonListPanel } from "./fichas/person-list-panel";
@@ -108,6 +109,10 @@ export function FichasTab({
   const successor = selectedNeighbors.successorId
     ? chronologicalPeople.find((person) => String(person.personId) === selectedNeighbors.successorId) ?? null
     : null;
+  const selectFirstSearchMatch = (searchText: string) => {
+    const firstPersonId = getFirstMatchingPersonId(people, searchText);
+    if (firstPersonId) setSelectedPersonId(firstPersonId);
+  };
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(330px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(380px,460px)_minmax(0,1fr)]">
@@ -130,6 +135,7 @@ export function FichasTab({
         sortOptions={SORT_OPTIONS}
         selectedPersonId={selectedPersonId}
         setSelectedPersonId={setSelectedPersonId}
+        onSearchSubmit={selectFirstSearchMatch}
         reinos={reinos}
         dinastias={dinastias}
         siglos={siglos}

@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    applyMediaAssetsToRows,
     createExternalMediaAsset,
     deriveMediaAssetsFromRows,
     ensurePrimaryMediaAssets,
@@ -11,6 +12,7 @@ import {
     getMediaAssetRouteLabel,
     getPrimaryMediaAsset,
     splitGalleryUrls,
+    UPLOADED_MEDIA_CSV_COLUMN,
 } from "./media";
 import type { MediaAsset, RawRow } from "./types";
 
@@ -98,6 +100,57 @@ describe("deriveMediaAssetsFromRows", () => {
             "https://img.test/pelayo.jpg",
             "https://img.test/pelayo-2.jpg",
         ]);
+    });
+});
+
+describe("applyMediaAssetsToRows", () => {
+    const baseAsset = (over: Partial<MediaAsset>): MediaAsset => ({
+        id: "x",
+        personId: "101",
+        kind: "external-url",
+        src: "",
+        rightsStatus: "unknown",
+        isPrimary: false,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        ...over,
+    });
+
+    it("vuelca la principal en «Imagen URL» y el resto de externas en «Galería»", () => {
+        const rows: RawRow[] = [{ PersonID: 101, Nombre: "Pelayo" }];
+        const assets: MediaAsset[] = [
+            baseAsset({ id: "a", src: "https://img.test/a.jpg", isPrimary: false }),
+            baseAsset({ id: "b", src: "https://img.test/b.jpg", isPrimary: true }),
+        ];
+
+        const [row] = applyMediaAssetsToRows(rows, assets);
+
+        expect(row["Imagen URL"]).toBe("https://img.test/b.jpg");
+        expect(row.Galería).toBe("https://img.test/a.jpg");
+        // round-trip: derivar de nuevo recupera las dos URLs
+        expect(deriveMediaAssetsFromRows([row]).map((a) => a.src)).toEqual([
+            "https://img.test/b.jpg",
+            "https://img.test/a.jpg",
+        ]);
+    });
+
+    it("lista las imágenes subidas por su ruta estable, no por el nombre editable", () => {
+        const rows: RawRow[] = [{ PersonID: 38, Nombre: "Test" }];
+        const assets: MediaAsset[] = [
+            baseAsset({ id: "u1", personId: "38", kind: "uploaded-file", fileName: "retrato.jpg", title: "Nombre editable" }),
+            baseAsset({ id: "u2", personId: "38", kind: "uploaded-file", fileName: "grabado.png" }),
+        ];
+
+        const [row] = applyMediaAssetsToRows(rows, assets);
+
+        // La referencia usa la ruta del paquete (id + nombre de archivo original),
+        // independiente del «title» editable.
+        expect(row[UPLOADED_MEDIA_CSV_COLUMN]).toBe("media/u1-retrato.jpg | media/u2-grabado.png");
+    });
+
+    it("no toca filas de personas sin imágenes ni muta la entrada", () => {
+        const rows: RawRow[] = [{ PersonID: 999, Nombre: "Solo" }];
+        const result = applyMediaAssetsToRows(rows, [baseAsset({ src: "https://img.test/a.jpg" })]);
+        expect(result[0]).toEqual({ PersonID: 999, Nombre: "Solo" });
     });
 });
 

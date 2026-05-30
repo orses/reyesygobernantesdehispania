@@ -89,6 +89,7 @@ export type MediaKind = "external-url" | "uploaded-file";
 export interface MediaInputOptions {
     rightsStatus?: MediaRightsStatus;
     title?: string;
+    workDate?: string;
     author?: string;
     sourceName?: string;
     sourceUrl?: string;
@@ -104,6 +105,8 @@ export interface MediaAsset {
     src: string;
     storageKey?: string;
     title?: string;
+    /** Fecha de la obra (cuándo se creó el cuadro, foto, grabado…). Texto libre y editable. */
+    workDate?: string;
     author?: string;
     sourceName?: string;
     sourceUrl?: string;

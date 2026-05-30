@@ -5,7 +5,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from "react";
 import type { RawRow, Person, Stats, FilterState } from "../lib/types";
 import {
-    getChronologicalDefaultPersonId,
+    getPreferredStartupPersonId,
     resolveSelectedPersonId,
 } from "../lib/selection";
 import { calculateStatsHelper } from "../lib/stats";
@@ -103,16 +103,16 @@ export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppP
     // --- Filtrar y ordenar ---
     const people: Person[] = useMemo(() => filterAndSortPeople(allPeople, filters), [allPeople, filters]);
 
-    const firstPersonId = useMemo(() => getChronologicalDefaultPersonId(allPeople), [allPeople]);
+    const startupPersonId = useMemo(() => getPreferredStartupPersonId(allPeople), [allPeople]);
 
-    // Auto-seleccionar el personaje inicial (cronológicamente más antiguo)
-    // Primero: si se acaba de cargar un nuevo dataset explícitamente, resetear filtros e ir al primero
+    // Auto-seleccionar el personaje inicial preferente.
+    // Primero: si se acaba de cargar un nuevo dataset explícitamente, resetear filtros e ir al inicio.
     useEffect(() => {
-        if (!datasetLoadedAt || !firstPersonId || handledDatasetLoadedAtRef.current === datasetLoadedAt) return;
+        if (!datasetLoadedAt || !startupPersonId || handledDatasetLoadedAtRef.current === datasetLoadedAt) return;
         handledDatasetLoadedAtRef.current = datasetLoadedAt;
         setFilters(DEFAULT_FILTERS);
-        setSelectedPersonId(firstPersonId);
-    }, [datasetLoadedAt, firstPersonId]);
+        setSelectedPersonId(startupPersonId);
+    }, [datasetLoadedAt, startupPersonId]);
 
     // Segundo: al cargar nuevos datos o si la selección actual no es válida por filtros
     useEffect(() => {

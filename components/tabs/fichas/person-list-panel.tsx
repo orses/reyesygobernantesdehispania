@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -43,6 +43,7 @@ interface PersonListPanelProps {
   sortOptions: Record<string, string>;
   selectedPersonId: string | null;
   setSelectedPersonId: (value: string | null) => void;
+  onSearchSubmit: (query: string) => void;
   reinos: string[];
   dinastias: string[];
   siglos: string[];
@@ -69,12 +70,27 @@ export function PersonListPanel({
   sortOptions,
   selectedPersonId,
   setSelectedPersonId,
+  onSearchSubmit,
   reinos,
   dinastias,
   siglos,
   mediaAssets,
   mediaPreviewUrls,
 }: PersonListPanelProps) {
+  const hasQuery = query.trim().length > 0;
+  const hasReinoFilter = filterReino !== "__all__";
+  const hasDinastiaFilter = filterDinastia !== "__all__";
+  const hasSigloFilter = filterSiglo !== "__all__";
+  const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
+  const filterLabelClass = (active: boolean) =>
+    `text-sm font-semibold ${active ? "text-amber-200" : "text-slate-200"}`;
+  const controlClass = (active: boolean) =>
+    `h-9 cursor-pointer rounded-[3px] text-slate-50 hover:bg-slate-900/60 ${
+      active
+        ? "border-amber-400/70 bg-amber-950/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.14)]"
+        : "border-slate-700/70 bg-slate-950/30"
+    }`;
+
   return (
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
       <CardHeader className="relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 pb-3">
@@ -85,31 +101,40 @@ export function PersonListPanel({
 
         <div className="mt-3 space-y-2">
           <div className="relative">
-            <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-300" />
+            <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${hasQuery ? "text-amber-200" : "text-slate-300"}`} />
             <Input
-              className="h-9 pl-10 pr-10 rounded-[3px] text-sm font-medium bg-slate-900/60 text-slate-50 placeholder:text-slate-400 border-slate-700/60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className={`h-9 rounded-[3px] pl-10 pr-11 text-sm font-medium text-slate-50 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                hasQuery
+                  ? "border-amber-400/70 bg-amber-950/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.14)]"
+                  : "border-slate-700/60 bg-slate-900/60"
+              }`}
               placeholder="buscar por nombre, dinastía, reino..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                onSearchSubmit(event.currentTarget.value);
+              }}
             />
             {query ? (
               <button
                 type="button"
-                className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-[3px] text-slate-200 hover:bg-slate-800 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-200 hover:bg-slate-800 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 onClick={() => setQuery("")}
-                aria-label="borrar búsqueda"
-                title="borrar"
+                aria-label="Borrar búsqueda"
+                title="Borrar"
               >
-                ×
+                <X className="h-4 w-4" />
               </button>
             ) : null}
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-slate-200">Reino</div>
+              <div className={filterLabelClass(hasReinoFilter)}>Reino</div>
               <Select value={filterReino} onValueChange={setFilterReino}>
-                <SelectTrigger className="h-9 cursor-pointer rounded-[3px] bg-slate-950/30 border-slate-700/70 text-slate-50 hover:bg-slate-900/60">
+                <SelectTrigger className={controlClass(hasReinoFilter)}>
                   <SelectValue>{filterReino === "__all__" ? "todos" : filterReino}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -124,9 +149,9 @@ export function PersonListPanel({
             </div>
 
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-slate-200">Dinastía</div>
+              <div className={filterLabelClass(hasDinastiaFilter)}>Dinastía</div>
               <Select value={filterDinastia} onValueChange={setFilterDinastia}>
-                <SelectTrigger className="h-9 cursor-pointer rounded-[3px] bg-slate-950/30 border-slate-700/70 text-slate-50 hover:bg-slate-900/60">
+                <SelectTrigger className={controlClass(hasDinastiaFilter)}>
                   <SelectValue>{filterDinastia === "__all__" ? "todas" : filterDinastia}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -142,9 +167,9 @@ export function PersonListPanel({
           </div>
 
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-slate-200">Siglo</div>
+            <div className={filterLabelClass(hasSigloFilter)}>Siglo</div>
             <Select value={filterSiglo} onValueChange={setFilterSiglo}>
-              <SelectTrigger className="h-9 cursor-pointer rounded-[3px] bg-slate-950/30 border-slate-700/70 text-slate-50 hover:bg-slate-900/60">
+              <SelectTrigger className={controlClass(hasSigloFilter)}>
                 <SelectValue>{filterSiglo === "__all__" ? "todos" : formatCenturyLabel(filterSiglo)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -159,7 +184,7 @@ export function PersonListPanel({
           </div>
 
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-slate-200">Orden</div>
+            <div className={filterLabelClass(hasSortFilter)}>Orden</div>
             <Select
               value={`${sortKey}:${sortDir}`}
               onValueChange={(value: string) => {
@@ -168,7 +193,7 @@ export function PersonListPanel({
                 setSortDir(direction);
               }}
             >
-              <SelectTrigger className="h-9 cursor-pointer rounded-[3px] bg-slate-950/30 border-slate-700/70 text-slate-50 hover:bg-slate-900/60">
+              <SelectTrigger className={controlClass(hasSortFilter)}>
                 <SelectValue>{sortOptions[`${sortKey}:${sortDir}`] || "ordenar..."}</SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -195,6 +220,7 @@ export function PersonListPanel({
               className="cursor-pointer rounded-[3px] bg-slate-950/30 border border-slate-700/70 text-slate-100 hover:bg-slate-900/60 hover:text-slate-100"
               title="restablecer filtros"
               onClick={() => {
+                setQuery("");
                 setFilterReino("__all__");
                 setFilterDinastia("__all__");
                 setFilterSiglo("__all__");

@@ -25,10 +25,13 @@ export function downloadBlobFile(filename: string, blob: Blob) {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Revocar tras un margen: si se revoca de inmediato, algunos navegadores
+  // cancelan o marcan la descarga (sobre todo con archivos grandes como el ZIP).
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 // --- Parsing CSV ---
