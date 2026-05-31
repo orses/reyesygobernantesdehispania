@@ -23,7 +23,7 @@ function ComparePortrait({ asset, previewUrls, name }: { asset: MediaAsset | nul
   }, [imageUrl]);
 
   if (!imageUrl || !ok) {
-    return <span className="text-xl font-semibold text-slate-600">{name.charAt(0)}</span>;
+    return <span className="text-xl font-medium text-slate-600">{name.charAt(0)}</span>;
   }
 
   return (
@@ -144,7 +144,7 @@ export function ComparativaTab({
                           <ComparePortrait asset={getPrimaryMediaAsset(mediaAssets, p.personId)} previewUrls={mediaPreviewUrls} name={p.nombrePrincipal} />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-slate-100 leading-tight pr-6">{p.nombrePrincipal}</h3>
+                          <h3 className="font-medium text-slate-100 leading-tight pr-6">{p.nombrePrincipal}</h3>
                           {p.apelativos.length > 0 && <p className="text-xs text-slate-400 mt-1 italic pr-6">{p.apelativos.join(', ')}</p>}
                         </div>
                       </div>
@@ -154,11 +154,11 @@ export function ComparativaTab({
                         <div className="grid grid-cols-2 gap-2 text-center">
                           <div className="bg-slate-900 p-2 rounded border border-slate-800/60">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Edad de Vida</p>
-                            <p className="font-semibold text-lg text-rose-300">{p.age !== null ? `${p.age} años` : '?'}</p>
+                            <p className="font-medium text-lg text-rose-300">{p.age !== null ? `${p.age} años` : '?'}</p>
                           </div>
                           <div className="bg-slate-900 p-2 rounded border border-slate-800/60">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Años en el Poder</p>
-                            <p className="font-semibold text-lg text-emerald-300">{formatNumber(durationGobierno)}</p>
+                            <p className="font-medium text-lg text-emerald-300">{formatNumber(durationGobierno)}</p>
                           </div>
                         </div>
 

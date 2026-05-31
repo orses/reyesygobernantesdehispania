@@ -28,7 +28,7 @@ export function EditorField({
 
     return (
         <div className={wrapperClass}>
-            <Label className="text-sm font-semibold text-slate-300">{label}</Label>
+            <Label className="text-sm font-medium text-slate-300">{label}</Label>
             {multiline ? (
                 <Textarea
                     className={`${FIELD_INPUT_CLASS} border min-h-[110px]`}

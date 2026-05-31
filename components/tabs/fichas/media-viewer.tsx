@@ -168,11 +168,11 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
     >
       <div className="flex min-h-14 items-center justify-between gap-3 border-b border-slate-800 bg-slate-950 px-3 py-2 sm:px-4">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-100">
+          <div className="truncate text-sm font-medium text-slate-100">
             {title}
             {asset.workDate ? <span className="ml-2 font-normal text-slate-400">({asset.workDate})</span> : null}
           </div>
-          <div className="text-xs font-semibold tabular-nums text-slate-400">{Math.round(zoom * 100)} %</div>
+          <div className="text-xs font-medium tabular-nums text-slate-400">{Math.round(zoom * 100)} %</div>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
@@ -187,7 +187,7 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <label className="flex h-9 items-center gap-1 rounded-[3px] border border-slate-700 bg-slate-950/60 px-2 text-xs font-semibold text-slate-300">
+          <label className="flex h-9 items-center gap-1 rounded-[3px] border border-slate-700 bg-slate-950/60 px-2 text-xs font-medium text-slate-300">
             <span className="sr-only">Zoom personalizado</span>
             <input
               type="number"
@@ -203,7 +203,7 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
                 commitZoomInput();
                 event.currentTarget.blur();
               }}
-              className="h-7 w-16 rounded-[3px] border border-slate-700 bg-slate-900 px-2 text-right text-xs font-semibold tabular-nums text-slate-100 outline-none focus:border-emerald-300"
+              className="h-7 w-16 rounded-[3px] border border-slate-700 bg-slate-900 px-2 text-right text-xs font-medium tabular-nums text-slate-100 outline-none focus:border-emerald-300"
               aria-label="Zoom personalizado"
             />
             <span>%</span>

@@ -134,7 +134,7 @@ export function TimelineTab() {
     <div className="space-y-4">
       <Card className="bg-slate-900/30 border border-slate-800 rounded-[3px]">
         <CardHeader>
-          <CardTitle className="text-xl text-slate-50 font-semibold">Línea de Tiempo Dinámica</CardTitle>
+          <CardTitle className="text-xl text-slate-50 font-medium">Línea de Tiempo Dinámica</CardTitle>
           <CardDescription className="text-slate-300">
             Disposición cronológica de periodos de gobierno desde el año {minYear} al {maxYear}
           </CardDescription>
@@ -152,7 +152,7 @@ export function TimelineTab() {
                   const leftPercentage = ((year - minYear) / totalYears) * 100;
                   return (
                     <div key={i} className="absolute h-full border-l border-slate-800/40" style={{ left: `${leftPercentage}%` }}>
-                      <span className="absolute -top-6 -translate-x-1/2 bg-slate-950 px-2 text-xs font-semibold text-slate-400 rounded">
+                      <span className="absolute -top-6 -translate-x-1/2 bg-slate-950 px-2 text-xs font-medium text-slate-400 rounded">
                         {year}
                       </span>
                     </div>
@@ -167,7 +167,7 @@ export function TimelineTab() {
                 return (
                   <div key={reino}>
                     {/* Etiqueta del reino */}
-                    <div className="absolute w-full px-4 text-sm font-semibold tracking-wide text-slate-100 uppercase sticky left-0 z-10" 
+                    <div className="absolute w-full px-4 text-sm font-medium tracking-wide text-slate-100 uppercase sticky left-0 z-10" 
                          style={{ top: `${offsetTop - 30}px`, textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
                       {reino}
                     </div>
@@ -190,7 +190,7 @@ export function TimelineTab() {
                                 backgroundColor: item.color,
                               }}
                             >
-                              <span className="truncate w-full block text-center text-[11px] text-white font-semibold drop-shadow-md px-1 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
+                              <span className="truncate w-full block text-center text-[11px] text-white font-medium drop-shadow-md px-1 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
                                 {item.name}
                               </span>
                               

@@ -16,7 +16,7 @@ export function Notification({ type, message, list, rawText, onClose }: Notifica
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-100">{title}</div>
+                    <div className="text-sm font-medium text-slate-100">{title}</div>
                     <div
                         className={`text-sm ${type === "error" ? "text-red-200" : "text-slate-200/90"}`}
                     >

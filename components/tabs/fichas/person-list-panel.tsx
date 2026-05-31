@@ -90,7 +90,7 @@ export function PersonListPanel({
     (hasSortFilter ? 1 : 0);
   const hasAnyFilter = activeFilterCount > 0;
   const filterLabelClass = (active: boolean) =>
-    `text-sm font-semibold ${active ? "text-amber-200" : "text-slate-200"}`;
+    `text-sm font-medium ${active ? "text-amber-200" : "text-slate-200"}`;
   const controlClass = (active: boolean) =>
     `h-9 cursor-pointer rounded-[3px] text-slate-50 hover:bg-slate-900/60 ${
       active
@@ -101,7 +101,7 @@ export function PersonListPanel({
   return (
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
       <CardHeader className="relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 pb-3">
-        <CardTitle className="text-lg font-semibold tracking-tight text-slate-50">Personajes</CardTitle>
+        <CardTitle className="text-lg font-medium tracking-tight text-slate-50">Personajes</CardTitle>
         <CardDescription className="text-base text-slate-200">
           {people.length} personajes, {rowsCount} gobiernos
         </CardDescription>
@@ -244,7 +244,7 @@ export function PersonListPanel({
               <RotateCcw className="mr-2 h-4 w-4" />
               restablecer filtros
               {hasAnyFilter ? (
-                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-xs font-bold text-slate-950">
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-xs font-semibold text-slate-950">
                   {activeFilterCount}
                 </span>
               ) : null}
@@ -277,8 +277,8 @@ export function PersonListPanel({
                       />
 
                       <div className="min-w-0 space-y-1">
-                        <div className="text-base font-bold leading-5 truncate text-emerald-200">{person.nombrePrincipal}</div>
-                        <div className="truncate text-sm font-semibold text-slate-300">{person.dinastia || "sin dinastía"}</div>
+                        <div className="text-base font-semibold leading-5 truncate text-emerald-200">{person.nombrePrincipal}</div>
+                        <div className="truncate text-sm font-medium text-slate-300">{person.dinastia || "sin dinastía"}</div>
                       </div>
                     </div>
 

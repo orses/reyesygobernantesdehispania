@@ -41,7 +41,7 @@ export function GovernmentList({
               className="flex items-center justify-between gap-3 rounded-[3px] border border-slate-700/80 bg-slate-950/25 px-3 py-2"
             >
               <div className="min-w-0">
-                <div className="truncate font-semibold text-slate-50">{period.reino}</div>
+                <div className="truncate font-medium text-slate-50">{period.reino}</div>
                 {period.tipoGobierno ? (
                   <div className="truncate text-xs text-slate-400">{String(period.tipoGobierno)}</div>
                 ) : null}
@@ -60,7 +60,7 @@ export function GovernmentList({
 
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                 <span
-                  className="inline-flex cursor-help items-center gap-1.5 rounded-[3px] border border-slate-700/70 bg-slate-950 px-2 py-1 text-sm font-semibold tabular-nums text-slate-100"
+                  className="inline-flex cursor-help items-center gap-1.5 rounded-[3px] border border-slate-700/70 bg-slate-950 px-2 py-1 text-sm font-medium tabular-nums text-slate-100"
                   title={governmentRangeMeta.tooltip}
                 >
                   {period.inicio ? String(period.inicio) : "—"}–{period.fin ? String(period.fin) : "—"}
@@ -68,7 +68,7 @@ export function GovernmentList({
                 </span>
                 {period.duration !== null ? (
                   <span
-                    className="inline-flex cursor-help items-center gap-1.5 rounded-[3px] border border-emerald-500/30 bg-emerald-950 px-2 py-1 text-sm font-semibold tabular-nums text-emerald-100"
+                    className="inline-flex cursor-help items-center gap-1.5 rounded-[3px] border border-emerald-500/30 bg-emerald-950 px-2 py-1 text-sm font-medium tabular-nums text-emerald-100"
                     title={governmentDurationMeta.tooltip}
                   >
                     {formatNumber(period.duration)} años

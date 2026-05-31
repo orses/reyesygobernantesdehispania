@@ -410,7 +410,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
             <div className="max-w-5xl">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 shrink-0" />
-                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
+                <h1 className="text-2xl font-medium tracking-tight sm:text-3xl xl:text-4xl">
                   Gobernantes de España
                 </h1>
               </div>
@@ -427,7 +427,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 </Button>
                 {showNoticeCenter && (
                   <div className="absolute right-0 mt-2 w-[320px] rounded-[3px] border border-slate-800 bg-slate-950/95 p-3 shadow-xl z-50">
-                    <div className="flex items-center justify-between text-sm mb-2 font-semibold">
+                    <div className="flex items-center justify-between text-sm mb-2 font-medium">
                       <span>notificaciones</span>
                       <button onClick={() => setShowNoticeCenter(false)}>
                         ×

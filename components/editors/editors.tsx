@@ -49,7 +49,7 @@ export function EditorDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-3xl w-[95vw] sm:w-full rounded-[3px] max-h-[90vh] overflow-y-auto bg-slate-950 text-slate-50 border border-slate-800">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">
+          <DialogTitle className="text-lg font-medium">
             {mode === "person" ? "Editar Personaje" : "Editar Gobierno (Fila)"}
           </DialogTitle>
           <DialogDescription className="text-base text-slate-300">
@@ -146,7 +146,7 @@ function PersonEditorContent({
 
       <div className="space-y-1 md:col-span-2">
         <div className="flex flex-col gap-2">
-          <Label className="text-sm font-semibold text-slate-300">
+          <Label className="text-sm font-medium text-slate-300">
             Información Verificada
           </Label>
           <div
@@ -187,7 +187,7 @@ function PersonEditorContent({
         Sucesión — déjalo en «automático» para calcular predecesor y sucesor por cronología; elige un personaje para forzarlo.
       </div>
       <label className="space-y-1">
-        <span className="text-sm font-semibold text-slate-300">Predecesor</span>
+        <span className="text-sm font-medium text-slate-300">Predecesor</span>
         <select
           className={successionSelectClass}
           value={String(draft["Predecesor"] ?? "")}
@@ -202,7 +202,7 @@ function PersonEditorContent({
         </select>
       </label>
       <label className="space-y-1">
-        <span className="text-sm font-semibold text-slate-300">Sucesor</span>
+        <span className="text-sm font-medium text-slate-300">Sucesor</span>
         <select
           className={successionSelectClass}
           value={String(draft["Sucesor"] ?? "")}
@@ -313,15 +313,15 @@ export function LoadDataDialog({
           <DialogDescription className="text-base text-slate-300">
             Vas a importar{" "}
             <span className="font-mono text-slate-100">{name || "(archivo)"}</span>. Esto{" "}
-            <span className="font-semibold text-slate-100">reemplaza por completo</span> los
+            <span className="font-medium text-slate-100">reemplaza por completo</span> los
             datos y la galería que tienes ahora en la aplicación.
           </DialogDescription>
         </DialogHeader>
 
         {willLoseImages ? (
           <div className="rounded-[3px] border border-amber-600/50 bg-amber-950/30 p-3 text-sm text-amber-200">
-            ⚠️ Tienes <span className="font-semibold">{uploadedCount}</span> imagen(es) subida(s)
-            que este archivo no contiene (solo el formato <span className="font-semibold">ZIP</span> las
+            ⚠️ Tienes <span className="font-medium">{uploadedCount}</span> imagen(es) subida(s)
+            que este archivo no contiene (solo el formato <span className="font-medium">ZIP</span> las
             incluye). Si continúas, desaparecerán de la galería. Para conservarlas, cancela y exporta
             antes un «ZIP completo».
           </div>
