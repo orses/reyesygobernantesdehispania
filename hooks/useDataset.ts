@@ -385,6 +385,7 @@ export function useDataset() {
                 personId,
                 url,
                 title: options?.title,
+                workDate: options?.workDate,
                 author: options?.author,
                 sourceName: options?.sourceName,
                 sourceUrl: options?.sourceUrl,
@@ -448,6 +449,7 @@ export function useDataset() {
                 src: "",
                 storageKey,
                 title: options?.title || file.name,
+                workDate: options?.workDate,
                 author: options?.author,
                 sourceName: options?.sourceName,
                 sourceUrl: options?.sourceUrl,
@@ -592,6 +594,34 @@ export function useDataset() {
         [rows.length]
     );
 
+    const addPerson = useCallback((): string => {
+        const numericIds = rows
+            .map((r) => Number(getPersonId(r)))
+            .filter((n) => Number.isFinite(n));
+        const personId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
+
+        const newRow: RawRow = {
+            ID: "",
+            PersonID: personId,
+            "Nº Reinado": "",
+            Nombre: "",
+            Apelativo: "",
+            Reino: "",
+            "Tipo de gobierno": "",
+            Dinastía: "",
+            "Inicio del reinado (año)": "",
+            "Final del reinado (año)": "",
+            "Información verificada": "no",
+        };
+        const withId = {
+            ...computeDerivedRow(newRow),
+            _rowId: createRuntimeId("row"),
+        };
+        setRows((prev) => [withId, ...prev]);
+        setDatasetLoadedAt(Date.now());
+        return personId;
+    }, [rows]);
+
     const removeRow = useCallback((rowId: string) => {
         setRows((prev) => prev.filter((r) => String(r._rowId) !== rowId));
     }, []);
@@ -683,6 +713,7 @@ export function useDataset() {
         handleFile,
         commitPersonDraft,
         commitRowDraft,
+        addPerson,
         addRowForPerson,
         removeRow,
         removePerson,

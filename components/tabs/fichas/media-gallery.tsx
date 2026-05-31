@@ -42,6 +42,7 @@ export function MediaGallery({
   const [rightsDraft, setRightsDraft] = useState<MediaRightsStatus>("unknown");
   const [licenseDraft, setLicenseDraft] = useState("");
   const [authorDraft, setAuthorDraft] = useState("");
+  const [workDateDraft, setWorkDateDraft] = useState("");
   const [viewerAssetId, setViewerAssetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerAsset = viewerAssetId ? assets.find((asset) => asset.id === viewerAssetId) ?? null : null;
@@ -50,18 +51,30 @@ export function MediaGallery({
     rightsStatus: rightsDraft,
     license: licenseDraft.trim() || undefined,
     author: authorDraft.trim() || undefined,
+    workDate: workDateDraft.trim() || undefined,
   });
+
+  const resetDrafts = () => {
+    setUrlDraft("");
+    setRightsDraft("unknown");
+    setLicenseDraft("");
+    setAuthorDraft("");
+    setWorkDateDraft("");
+  };
 
   const handleAddUrl = () => {
     const createdId = addMediaUrl?.(personId, urlDraft, mediaDraftOptions());
-    if (createdId) setUrlDraft("");
+    if (createdId) resetDrafts();
   };
 
   const handleUpload = async (files: FileList | null) => {
     if (!files?.length || !addUploadedMedia) return;
+    let added = false;
     for (const file of Array.from(files)) {
-      await addUploadedMedia(personId, file, mediaDraftOptions());
+      const createdId = await addUploadedMedia(personId, file, mediaDraftOptions());
+      if (createdId) added = true;
     }
+    if (added) resetDrafts();
   };
 
   return (
@@ -251,7 +264,17 @@ export function MediaGallery({
           />
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <label className="min-w-0 space-y-1">
+            <span className="text-[11px] font-black tracking-wide text-slate-500">Fecha de la obra</span>
+            <input
+              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
+              value={workDateDraft}
+              onChange={(event) => setWorkDateDraft(event.target.value)}
+              placeholder="1798, s. XV, c. 1650..."
+            />
+          </label>
+
           <label className="min-w-0 space-y-1">
             <span className="text-[11px] font-black tracking-wide text-slate-500">Licencia concreta</span>
             <input

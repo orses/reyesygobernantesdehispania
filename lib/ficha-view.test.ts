@@ -7,6 +7,8 @@ import {
   durationMeta,
   dynastyColor,
   dynastyBadgeStyle,
+  extractLeadingNumber,
+  extractYear,
   isApproxDate,
   kingdomBadgeStyle,
   kingdomColor,
@@ -58,6 +60,25 @@ describe("colores de fichas", () => {
 
   it("usa color de respaldo para reinos sin color conocido", () => {
     expect(kingdomBadgeStyle("Señorío sin catálogo").borderColor).toContain("#64748b");
+  });
+});
+
+describe("resaltado de cifras", () => {
+  it("extrae el año (3-4 cifras) ignorando el día y el mes", () => {
+    expect(extractYear("21 de agosto de 1157")).toBe("1157");
+    expect(extractYear("c. 1105")).toBe("1105");
+    expect(extractYear("718")).toBe("718");
+  });
+
+  it("devuelve null cuando no hay año numérico", () => {
+    expect(extractYear("s. VII")).toBeNull();
+    expect(extractYear("")).toBeNull();
+    expect(extractYear(null)).toBeNull();
+  });
+
+  it("extrae el primer número (p. ej. la edad)", () => {
+    expect(extractLeadingNumber("~52 años")).toBe("52");
+    expect(extractLeadingNumber("años")).toBeNull();
   });
 });
 

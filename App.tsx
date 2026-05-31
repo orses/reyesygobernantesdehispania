@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Bell,
   Download,
+  UserPlus,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -79,6 +80,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     handleFile,
     commitPersonDraft,
     commitRowDraft,
+    addPerson,
     addRowForPerson,
     removeRow,
     removePerson,
@@ -310,6 +312,35 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     addRowForPerson(selectedPerson.personId, selectedPerson.reinados[0] || {});
   }
 
+  function createNewPerson() {
+    const newId = addPerson();
+    selectPerson(String(newId));
+    setEditorMode("person");
+    setDraftPersonId(newId);
+    setDraftRowId(null);
+    setDraft({
+      PersonID: newId,
+      "Nombre principal": "",
+      "Información verificada": verifiedToText(false),
+      "Nacimiento (Fecha)": "",
+      "Nacimiento (lugar)": "",
+      "Nacimiento (ciudad)": "",
+      "Nacimiento (provincia)": "",
+      "Nacimiento (País)": "",
+      "Fallecimiento (Fecha)": "",
+      "Fallecimiento (lugar)": "",
+      "Fallecimiento (ciudad)": "",
+      "Fallecimiento (provincia)": "",
+      "Fallecimiento (País)": "",
+      Enterramiento: "",
+      "Imagen URL": "",
+      Galería: "",
+      "Ficha RAH URL": "",
+      Descripción: "",
+    });
+    setEditorOpen(true);
+  }
+
   function removeTarget() {
     if (deleteTarget.kind === "row") {
       removeRow(String(deleteTarget.id ?? ""));
@@ -340,7 +371,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
 
   return (
     <div className="min-h-screen w-full overflow-x-clip dark bg-slate-950 text-slate-50 text-[16px] leading-6">
-      <div className="mx-auto w-full max-w-[1920px] space-y-5 px-3 py-4 sm:px-5 lg:px-8 2xl:px-10">
+      <div className="mx-auto w-full max-w-[1920px] space-y-6 px-3 py-4 sm:px-5 lg:px-8 2xl:px-10">
         {/* Notificaciones */}
         <div className="fixed left-3 right-3 top-3 z-50 space-y-3 sm:left-auto sm:right-4 sm:w-[min(520px,calc(100vw-2rem))]">
           {showCsvNotice && detectedDelimiter && (
@@ -374,18 +405,13 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
           transition={{ duration: 0.35 }}
         >
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-5xl space-y-1">
+            <div className="max-w-5xl">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 shrink-0" />
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl xl:text-4xl">
                   Gobernantes de España
                 </h1>
               </div>
-              <p className="max-w-4xl text-sm text-slate-200 sm:text-base">
-                La aplicación solo procesa los datos que usted cargue. Si el
-                conjunto de datos incluye imágenes externas, el navegador las
-                solicita a su origen.
-              </p>
             </div>
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
               <div className="relative">
@@ -465,8 +491,17 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
               </Button>
               <Button
                 variant="outline"
+                onClick={createNewPerson}
+                title="Crear un rey/personaje nuevo desde cero"
+                className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
+              >
+                <UserPlus className="h-4 w-4 mr-2" /> nuevo rey
+              </Button>
+              <Button
+                variant="outline"
                 onClick={addRowForSelectedPerson}
                 disabled={!selectedPerson}
+                title="Añadir un gobierno/reino al rey seleccionado"
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" /> gobierno
@@ -494,7 +529,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
             </TabsTrigger>
           </TabsList>
 
-          <div className="mt-4 min-w-0">
+          <div className="mt-3 min-w-0">
             <Routes>
               <Route path="/" element={<Navigate to="/fichas" replace />} />
               <Route path="/fichas/*" element={
@@ -576,6 +611,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
         commitDraft={commitDraft}
         error={error}
         setError={setError}
+        people={allPeople}
       />
 
       <DeleteDialog

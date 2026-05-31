@@ -3,7 +3,6 @@ import { Card, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
 import { personDenominationsByKingdom } from "../../../lib/ficha-view";
 import type { MediaAsset, MediaInputOptions, Person } from "../../../lib/types";
-import { GovernmentList } from "./government-list";
 import { MediaGallery } from "./media-gallery";
 import { PersonDetailHeader } from "./person-detail-header";
 import { PersonSummary } from "./person-summary";
@@ -98,6 +97,9 @@ export function PersonDetailCard({
               setFilterDinastiaLocked={setFilterDinastiaLocked}
               filterSiglo={filterSiglo}
               setFilterSiglo={setFilterSiglo}
+              openRowEditor={openRowEditor}
+              setDeleteTarget={setDeleteTarget}
+              setDeleteOpen={setDeleteOpen}
             />
 
             <Separator />
@@ -117,15 +119,6 @@ export function PersonDetailCard({
               <SectionTitle>Descripción</SectionTitle>
               <div className="text-base whitespace-pre-wrap text-slate-100">{selectedPerson.reinados[0]?.Descripción || "—"}</div>
             </div>
-
-            <Separator />
-
-            <GovernmentList
-              selectedPerson={selectedPerson}
-              openRowEditor={openRowEditor}
-              setDeleteTarget={setDeleteTarget}
-              setDeleteOpen={setDeleteOpen}
-            />
 
             <Separator />
 

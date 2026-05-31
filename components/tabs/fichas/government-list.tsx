@@ -1,6 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "../../ui/button";
-import { Card, CardContent } from "../../ui/card";
 import { formatNumber } from "../../../lib/data";
 import {
   durationMeta,
@@ -8,11 +7,7 @@ import {
   rangeMeta,
 } from "../../../lib/ficha-view";
 import type { Person } from "../../../lib/types";
-import {
-  DataStatusPill,
-  Field,
-  SectionTitle,
-} from "./shared";
+import { DataStatusPill, SectionTitle } from "./shared";
 
 interface GovernmentListProps {
   selectedPerson: Person;
@@ -30,66 +25,82 @@ export function GovernmentList({
   const periods = personGovernmentPeriods(selectedPerson);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <SectionTitle>Gobiernos y periodos</SectionTitle>
-      <div className="grid grid-cols-1 gap-2 2xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2">
         {periods.map((period) => {
           const governmentRangeMeta = rangeMeta(period.inicio, period.fin);
           const governmentDurationMeta = durationMeta(period.durationSource);
+          const inicioFecha = String(period.row?.["Inicio Reinado (Fecha)"] ?? "").trim();
+          const finFecha = String(period.row?.["Fin Reinado (Fecha)"] ?? "").trim();
+          const hasFullDates = Boolean(inicioFecha || finFecha);
 
           return (
-            <Card key={period.rowId} className="rounded-[3px] shadow-sm bg-slate-950/25 border border-slate-700/80">
-              <CardContent className="p-4 space-y-2">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate text-slate-50">{period.reino}</div>
-                    <div className="text-sm font-bold text-emerald-200 truncate">{period.nombre}</div>
+            <div
+              key={period.rowId}
+              className="flex items-center justify-between gap-3 rounded-[3px] border border-slate-700/80 bg-slate-950/25 px-3 py-2"
+            >
+              <div className="min-w-0">
+                <div className="truncate font-semibold text-slate-50">{period.reino}</div>
+                {period.tipoGobierno ? (
+                  <div className="truncate text-xs text-slate-400">{String(period.tipoGobierno)}</div>
+                ) : null}
+                {hasFullDates ? (
+                  <div className="truncate text-xs text-slate-300">
+                    {inicioFecha && finFecha ? (
+                      <>{inicioFecha} <span className="text-slate-500">–</span> {finFecha}</>
+                    ) : inicioFecha ? (
+                      <>desde {inicioFecha}</>
+                    ) : (
+                      <>hasta {finFecha}</>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex cursor-help items-center gap-2 rounded-[3px] border border-slate-700/70 bg-slate-950 px-2 py-1 text-sm font-semibold text-slate-100 select-none" title={governmentRangeMeta.tooltip}>
-                      {period.inicio ? String(period.inicio) : "—"}–{period.fin ? String(period.fin) : "—"}
-                      <DataStatusPill meta={governmentRangeMeta} />
-                    </span>
-                    {period.duration !== null ? (
-                      <span className="inline-flex cursor-help items-center gap-2 rounded-[3px] border border-emerald-500/30 bg-emerald-950 px-2 py-1 text-sm font-semibold text-emerald-100 select-none" title={governmentDurationMeta.tooltip}>
-                        {formatNumber(period.duration)} años
-                        <DataStatusPill meta={governmentDurationMeta} />
-                      </span>
-                    ) : null}
+                ) : null}
+              </div>
 
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="cursor-pointer rounded-[3px] bg-slate-950/30 border border-slate-700/70 text-slate-100 hover:bg-slate-900/60 hover:text-slate-100"
-                      title="editar gobierno"
-                      aria-label="editar gobierno"
-                      onClick={() => openRowEditor(period.rowId)}
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="cursor-pointer rounded-[3px] hover:bg-red-600"
-                      title="eliminar gobierno"
-                      aria-label="eliminar gobierno"
-                      onClick={() => {
-                        setDeleteTarget({ kind: "row", id: period.rowId });
-                        setDeleteOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                <span
+                  className="inline-flex cursor-help items-center gap-1.5 rounded-[3px] border border-slate-700/70 bg-slate-950 px-2 py-1 text-sm font-semibold tabular-nums text-slate-100"
+                  title={governmentRangeMeta.tooltip}
+                >
+                  {period.inicio ? String(period.inicio) : "—"}–{period.fin ? String(period.fin) : "—"}
+                  <DataStatusPill meta={governmentRangeMeta} />
+                </span>
+                {period.duration !== null ? (
+                  <span
+                    className="inline-flex cursor-help items-center gap-1.5 rounded-[3px] border border-emerald-500/30 bg-emerald-950 px-2 py-1 text-sm font-semibold tabular-nums text-emerald-100"
+                    title={governmentDurationMeta.tooltip}
+                  >
+                    {formatNumber(period.duration)} años
+                    <DataStatusPill meta={governmentDurationMeta} />
+                  </span>
+                ) : null}
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-                  <Field label="Tipo de gobierno" value={period.tipoGobierno} />
-                  {period.nroReinado ? <Field label="N.º reinado" value={period.nroReinado} /> : null}
-                  <Field label="Dinastía" value={period.dinastia} />
-                </div>
-              </CardContent>
-            </Card>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7 cursor-pointer rounded-[3px] border border-slate-700/70 bg-slate-950/30 text-slate-100 hover:bg-slate-900/60 hover:text-slate-100"
+                  title="editar gobierno"
+                  aria-label="editar gobierno"
+                  onClick={() => openRowEditor(period.rowId)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-7 w-7 cursor-pointer rounded-[3px] hover:bg-red-600"
+                  title="eliminar gobierno"
+                  aria-label="eliminar gobierno"
+                  onClick={() => {
+                    setDeleteTarget({ kind: "row", id: period.rowId });
+                    setDeleteOpen(true);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
           );
         })}
       </div>

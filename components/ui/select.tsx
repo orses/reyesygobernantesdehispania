@@ -52,13 +52,13 @@ export const SelectTrigger = ({ className, children, ...props }: SelectTriggerPr
       type="button"
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex h-10 w-full items-center justify-between rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
     >
-      {children}
-      <ChevronDown className="h-4 w-4 opacity-50 text-slate-100" />
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
+      <ChevronDown className="h-4 w-4 shrink-0 opacity-50 text-slate-100" />
     </button>
   )
 }

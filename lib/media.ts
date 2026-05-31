@@ -41,6 +41,7 @@ export function createExternalMediaAsset({
     personId,
     url,
     title,
+    workDate,
     author,
     sourceName,
     sourceUrl,
@@ -53,6 +54,7 @@ export function createExternalMediaAsset({
     personId: string | number;
     url: unknown;
     title?: string;
+    workDate?: string;
     author?: string;
     sourceName?: string;
     sourceUrl?: string;
@@ -73,6 +75,7 @@ export function createExternalMediaAsset({
         kind: "external-url",
         src,
         title,
+        workDate,
         author,
         sourceName,
         sourceUrl,

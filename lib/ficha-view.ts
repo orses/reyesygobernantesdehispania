@@ -151,6 +151,19 @@ export function isApproxDate(raw: string | null): boolean {
   return !/^-?\d{1,4}$/.test(trimmed);
 }
 
+/** Extrae el año (primer número de 3-4 cifras) de una fecha en texto, para
+ * resaltarlo en la ficha. Devuelve null si no hay año numérico (p. ej. «s. VII»). */
+export function extractYear(text: unknown): string | null {
+  const match = String(text ?? "").match(/\d{3,4}/);
+  return match ? match[0] : null;
+}
+
+/** Extrae el primer número de un texto (p. ej. la edad en «~52 años»). */
+export function extractLeadingNumber(text: unknown): string | null {
+  const match = String(text ?? "").match(/\d+/);
+  return match ? match[0] : null;
+}
+
 export function mediaAssetSrc(asset: MediaAsset | null, previewUrls: Record<string, string>): string {
   if (!asset) return "";
   if (asset.kind === "uploaded-file") return previewUrls[asset.id] ?? "";

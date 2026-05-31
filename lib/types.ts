@@ -66,6 +66,11 @@ export interface RawRow {
     "Ficha RAH URL"?: string;
     "Información verificada"?: string;
 
+    // — Sucesión manual (override del cálculo cronológico automático).
+    // Guardan el PersonID del predecesor/sucesor elegido; vacío = automático.
+    Predecesor?: string;
+    Sucesor?: string;
+
     // — Campos derivados (calculados en runtime)
     _rowId?: string;
     _duracionCalc?: number | null;

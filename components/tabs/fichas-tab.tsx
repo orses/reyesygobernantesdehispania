@@ -103,11 +103,15 @@ export function FichasTab({
   const selectedMediaAssets = selectedPerson ? getPersonMediaAssets(mediaAssets, selectedPerson.personId) : [];
   const selectedPrimaryMediaAsset = selectedPerson ? getPrimaryMediaAsset(selectedMediaAssets, selectedPerson.personId) : null;
   const selectedNeighbors = getAdjacentPersonIds(chronologicalPeople, selectedPerson?.personId);
-  const predecessor = selectedNeighbors.predecessorId
-    ? chronologicalPeople.find((person) => String(person.personId) === selectedNeighbors.predecessorId) ?? null
+  const overridePredecessorId = String(selectedPerson?.reinados?.[0]?.Predecesor ?? "").trim();
+  const overrideSuccessorId = String(selectedPerson?.reinados?.[0]?.Sucesor ?? "").trim();
+  const predecessorId = overridePredecessorId || selectedNeighbors.predecessorId;
+  const successorId = overrideSuccessorId || selectedNeighbors.successorId;
+  const predecessor = predecessorId
+    ? chronologicalPeople.find((person) => String(person.personId) === String(predecessorId)) ?? null
     : null;
-  const successor = selectedNeighbors.successorId
-    ? chronologicalPeople.find((person) => String(person.personId) === selectedNeighbors.successorId) ?? null
+  const successor = successorId
+    ? chronologicalPeople.find((person) => String(person.personId) === String(successorId)) ?? null
     : null;
   const selectFirstSearchMatch = (searchText: string) => {
     const firstPersonId = getFirstMatchingPersonId(people, searchText);

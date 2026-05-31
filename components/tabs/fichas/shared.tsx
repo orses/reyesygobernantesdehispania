@@ -18,7 +18,7 @@ export function DataBadge({
 }) {
   return (
     <span
-      className="inline-flex max-w-full items-center rounded-[3px] border px-2 py-0.5 text-xs font-bold leading-5 text-slate-100"
+      className="inline-flex max-w-full items-center rounded-[3px] border px-2 py-0.5 text-xs font-medium leading-5 text-slate-100"
       style={style}
       title={title}
     >
@@ -297,6 +297,44 @@ export function Field({
         {meta ? <DataStatusPill meta={meta} /> : null}
       </div>
       <div className="mt-1 break-words text-base font-semibold text-slate-50">{displayValue}</div>
+    </div>
+  );
+}
+
+/**
+ * Campo de dato vital que resalta una cifra (año o edad) en grande y deja el
+ * texto completo como detalle secundario. Si no hay cifra, cae al estilo normal.
+ */
+export function VitalField({
+  label,
+  value,
+  emphasis,
+  fallback = "—",
+  meta,
+}: {
+  label: string;
+  value: unknown;
+  emphasis: string | null;
+  fallback?: string;
+  meta?: DataMeta;
+}) {
+  const displayValue = value ? String(value) : fallback;
+  const showDetail = emphasis !== null && displayValue.trim() !== emphasis;
+
+  return (
+    <div className="min-w-0 rounded-[3px] border border-slate-800/70 bg-slate-950/20 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-[11px] font-black tracking-wide text-slate-400">{label}</div>
+        {meta ? <DataStatusPill meta={meta} /> : null}
+      </div>
+      {emphasis !== null ? (
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-2xl font-black leading-none tabular-nums text-emerald-200">{emphasis}</span>
+          {showDetail ? <span className="min-w-0 truncate text-xs text-slate-400">{displayValue}</span> : null}
+        </div>
+      ) : (
+        <div className="mt-1 break-words text-base font-semibold text-slate-50">{displayValue}</div>
+      )}
     </div>
   );
 }

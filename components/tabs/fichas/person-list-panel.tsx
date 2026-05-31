@@ -1,4 +1,4 @@
-import { Search, X } from "lucide-react";
+import { RotateCcw, Search, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -17,10 +17,10 @@ import {
   SelectValue,
 } from "../../ui/select";
 import { firstNonEmpty, formatCenturyLabel } from "../../../lib/data";
-import { kingdomBadgeStyle, personReignRangeLabel } from "../../../lib/ficha-view";
+import { kingdomColor, personReignRangeLabel } from "../../../lib/ficha-view";
 import { getPrimaryMediaAsset } from "../../../lib/media";
 import type { MediaAsset, Person } from "../../../lib/types";
-import { DataBadge, MediaThumb, VerifiedBadge } from "./shared";
+import { MediaThumb, VerifiedBadge } from "./shared";
 
 type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
@@ -82,6 +82,13 @@ export function PersonListPanel({
   const hasDinastiaFilter = filterDinastia !== "__all__";
   const hasSigloFilter = filterSiglo !== "__all__";
   const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
+  const activeFilterCount =
+    (hasQuery ? 1 : 0) +
+    (hasReinoFilter ? 1 : 0) +
+    (hasDinastiaFilter ? 1 : 0) +
+    (hasSigloFilter ? 1 : 0) +
+    (hasSortFilter ? 1 : 0);
+  const hasAnyFilter = activeFilterCount > 0;
   const filterLabelClass = (active: boolean) =>
     `text-sm font-semibold ${active ? "text-amber-200" : "text-slate-200"}`;
   const controlClass = (active: boolean) =>
@@ -217,8 +224,13 @@ export function PersonListPanel({
             <Button
               type="button"
               variant="outline"
-              className="cursor-pointer rounded-[3px] bg-slate-950/30 border border-slate-700/70 text-slate-100 hover:bg-slate-900/60 hover:text-slate-100"
-              title="restablecer filtros"
+              disabled={!hasAnyFilter}
+              className={`rounded-[3px] border transition-colors ${
+                hasAnyFilter
+                  ? "cursor-pointer border-amber-400/70 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.18)]"
+                  : "border-slate-800 bg-slate-950/20 text-slate-500"
+              }`}
+              title={hasAnyFilter ? `Restablecer ${activeFilterCount} filtro(s) activo(s)` : "No hay filtros que restablecer"}
               onClick={() => {
                 setQuery("");
                 setFilterReino("__all__");
@@ -229,7 +241,13 @@ export function PersonListPanel({
                 setSortDir("asc");
               }}
             >
+              <RotateCcw className="mr-2 h-4 w-4" />
               restablecer filtros
+              {hasAnyFilter ? (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-xs font-black text-slate-950">
+                  {activeFilterCount}
+                </span>
+              ) : null}
             </Button>
           </div>
         </div>
@@ -261,29 +279,41 @@ export function PersonListPanel({
                       <div className="min-w-0 space-y-1">
                         <div className="text-base font-extrabold leading-5 truncate text-emerald-200">{person.nombrePrincipal}</div>
                         <div className="truncate text-sm font-semibold text-slate-300">{person.dinastia || "sin dinastía"}</div>
-                        <div className="flex min-w-0 flex-wrap gap-1">
-                          {person.reinos.length ? (
-                            person.reinos.slice(0, 3).map((reino) => (
-                              <DataBadge key={reino} style={kingdomBadgeStyle(reino)} title={`Reino: ${reino}`}>
-                                {reino}
-                              </DataBadge>
-                            ))
-                          ) : (
-                            <span className="text-sm text-slate-400">sin reino</span>
-                          )}
-                          {person.reinos.length > 3 ? (
-                            <span className="text-xs font-semibold text-slate-400">+{person.reinos.length - 3}</span>
-                          ) : null}
-                        </div>
                       </div>
                     </div>
 
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <VerifiedBadge verified={person.verifiedAll} />
-                      <span className="inline-flex items-center rounded-[3px] border border-emerald-400/45 bg-slate-950/80 px-2.5 py-1.5 text-sm font-black tabular-nums text-emerald-100 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.12)] cursor-default pointer-events-none select-none">
+                      <span className="inline-flex items-center rounded-[3px] border border-emerald-400/45 bg-slate-950/80 px-2.5 py-1 text-sm font-medium tabular-nums text-emerald-100 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.12)] cursor-default pointer-events-none select-none">
                         {rangeStr}
                       </span>
                     </div>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {person.reinos.length ? (
+                      person.reinos.slice(0, 4).map((reino) => {
+                        const color = kingdomColor(reino);
+                        return (
+                          <span
+                            key={reino}
+                            className="inline-flex max-w-full items-center truncate rounded-[3px] border px-2 py-0.5 text-xs font-medium text-white"
+                            style={{
+                              backgroundColor: color ? color + "cc" : "rgba(2,6,23,0.3)",
+                              borderColor: color || "rgba(100,116,139,0.7)",
+                            }}
+                            title={`Reino: ${reino}`}
+                          >
+                            {reino}
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-sm text-slate-400">sin reino</span>
+                    )}
+                    {person.reinos.length > 4 ? (
+                      <span className="text-xs font-medium text-slate-400">+{person.reinos.length - 4}</span>
+                    ) : null}
                   </div>
                 </button>
               );
