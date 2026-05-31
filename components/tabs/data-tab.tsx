@@ -39,7 +39,7 @@ export function DataTab({ rows, datasetName, setDatasetName, mediaAssets = [], e
   return (
     <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
       <CardHeader>
-        <CardTitle className="text-lg font-bold tracking-tight text-slate-50">control de datos</CardTitle>
+        <CardTitle className="text-lg font-semibold tracking-tight text-slate-50">control de datos</CardTitle>
         <CardDescription className="text-base text-slate-200">
           Exporta el estado actual. No se incorpora información externa.
         </CardDescription>

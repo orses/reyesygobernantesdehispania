@@ -119,7 +119,7 @@ export function MediaGallery({
 
                 <div className="mt-3 flex items-start gap-2 rounded-[3px] border border-slate-800/80 bg-slate-950/35 p-2">
                   <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-black tracking-wide text-slate-500">Ruta</div>
+                    <div className="text-[11px] font-bold tracking-wide text-slate-500">Ruta</div>
                     <div className="break-all text-xs leading-5 text-slate-300">{sourceText}</div>
                   </div>
                   <CopyIconButton value={copyValue} label="Copiar ruta de la imagen" />
@@ -127,7 +127,7 @@ export function MediaGallery({
 
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <label className="min-w-0 space-y-1">
-                    <span className="text-[11px] font-black tracking-wide text-slate-500">Nombre de la imagen</span>
+                    <span className="text-[11px] font-bold tracking-wide text-slate-500">Nombre de la imagen</span>
                     <input
                       className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
                       value={asset.title ?? ""}
@@ -137,7 +137,7 @@ export function MediaGallery({
                   </label>
 
                   <label className="min-w-0 space-y-1">
-                    <span className="text-[11px] font-black tracking-wide text-slate-500">Fecha de la obra</span>
+                    <span className="text-[11px] font-bold tracking-wide text-slate-500">Fecha de la obra</span>
                     <input
                       className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
                       value={asset.workDate ?? ""}
@@ -147,7 +147,7 @@ export function MediaGallery({
                   </label>
 
                   <label className="min-w-0 space-y-1">
-                    <span className="text-[11px] font-black tracking-wide text-slate-500">Licencia</span>
+                    <span className="text-[11px] font-bold tracking-wide text-slate-500">Licencia</span>
                     <input
                       className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
                       value={asset.license ?? ""}
@@ -157,7 +157,7 @@ export function MediaGallery({
                   </label>
 
                   <label className="min-w-0 space-y-1">
-                    <span className="text-[11px] font-black tracking-wide text-slate-500">Atribución / autor</span>
+                    <span className="text-[11px] font-bold tracking-wide text-slate-500">Atribución / autor</span>
                     <input
                       className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
                       value={asset.author ?? asset.sourceName ?? ""}
@@ -217,7 +217,7 @@ export function MediaGallery({
       <div className="rounded-[3px] border border-slate-700/70 bg-slate-950/25 p-4">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-base font-bold text-slate-100">Añadir imagen</div>
+            <div className="text-base font-semibold text-slate-100">Añadir imagen</div>
             <div className="text-sm text-slate-400">URL externa o archivo local</div>
           </div>
           <div className="text-xs text-slate-400">Derechos: {rightsLabel(rightsDraft)}</div>
@@ -266,7 +266,7 @@ export function MediaGallery({
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <label className="min-w-0 space-y-1">
-            <span className="text-[11px] font-black tracking-wide text-slate-500">Fecha de la obra</span>
+            <span className="text-[11px] font-bold tracking-wide text-slate-500">Fecha de la obra</span>
             <input
               className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
               value={workDateDraft}
@@ -276,7 +276,7 @@ export function MediaGallery({
           </label>
 
           <label className="min-w-0 space-y-1">
-            <span className="text-[11px] font-black tracking-wide text-slate-500">Licencia concreta</span>
+            <span className="text-[11px] font-bold tracking-wide text-slate-500">Licencia concreta</span>
             <input
               className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
               value={licenseDraft}
@@ -286,7 +286,7 @@ export function MediaGallery({
           </label>
 
           <label className="min-w-0 space-y-1">
-            <span className="text-[11px] font-black tracking-wide text-slate-500">Atribución / autor</span>
+            <span className="text-[11px] font-bold tracking-wide text-slate-500">Atribución / autor</span>
             <input
               className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
               value={authorDraft}

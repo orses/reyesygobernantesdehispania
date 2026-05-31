@@ -134,7 +134,7 @@ export function TimelineTab() {
     <div className="space-y-4">
       <Card className="bg-slate-900/30 border border-slate-800 rounded-[3px]">
         <CardHeader>
-          <CardTitle className="text-xl text-slate-50 font-bold">Línea de Tiempo Dinámica</CardTitle>
+          <CardTitle className="text-xl text-slate-50 font-semibold">Línea de Tiempo Dinámica</CardTitle>
           <CardDescription className="text-slate-300">
             Disposición cronológica de periodos de gobierno desde el año {minYear} al {maxYear}
           </CardDescription>
@@ -167,7 +167,7 @@ export function TimelineTab() {
                 return (
                   <div key={reino}>
                     {/* Etiqueta del reino */}
-                    <div className="absolute w-full px-4 text-sm font-bold tracking-wide text-slate-100 uppercase sticky left-0 z-10" 
+                    <div className="absolute w-full px-4 text-sm font-semibold tracking-wide text-slate-100 uppercase sticky left-0 z-10" 
                          style={{ top: `${offsetTop - 30}px`, textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
                       {reino}
                     </div>

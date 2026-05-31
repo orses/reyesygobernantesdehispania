@@ -121,7 +121,7 @@ export function PersonSummary({
               <Button
                 type="button"
                 variant={filterDinastia === String(selectedPerson.dinastia) ? "secondary" : "outline"}
-                className="cursor-pointer rounded-[3px] border font-bold hover:opacity-85"
+                className="cursor-pointer rounded-[3px] border font-semibold hover:opacity-85"
                 style={dynastyBadgeStyle(
                   String(selectedPerson.dinastia),
                   filterDinastia === String(selectedPerson.dinastia)
@@ -151,7 +151,7 @@ export function PersonSummary({
                   <Button
                     type="button"
                     variant={isCenturyActive ? "secondary" : "outline"}
-                    className="cursor-pointer rounded-[3px] border font-bold hover:opacity-85"
+                    className="cursor-pointer rounded-[3px] border font-semibold hover:opacity-85"
                     style={centuryBadgeStyle(String(selectedCenturies[0]), isCenturyActive)}
                     title="conmutar filtro por siglo"
                     onClick={() => {

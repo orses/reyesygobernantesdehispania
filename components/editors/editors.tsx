@@ -109,7 +109,10 @@ function PersonEditorContent({
   draftPersonId: string | number | null;
   people: Person[];
 }) {
-  const otherPeople = people.filter((p) => String(p.personId) !== String(draftPersonId));
+  const otherPeople = people
+    .filter((p) => String(p.personId) !== String(draftPersonId))
+    .slice()
+    .sort((a, b) => String(a.nombrePrincipal).localeCompare(String(b.nombrePrincipal), "es"));
   const successionSelectClass =
     "h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100";
   const toggleVerified = () => {

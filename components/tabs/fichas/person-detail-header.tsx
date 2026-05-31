@@ -38,7 +38,7 @@ export function PersonDetailHeader({
     <CardHeader className="gap-1.5 px-6 pt-4 pb-2">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <CardTitle className="text-2xl font-extrabold leading-tight text-emerald-200 sm:text-3xl 2xl:text-4xl">
+          <CardTitle className="text-2xl font-bold leading-tight text-emerald-200 sm:text-3xl 2xl:text-4xl">
             {selectedPerson?.nombrePrincipal || "sin selección"}
           </CardTitle>
           {selectedPerson ? <VerifiedBadge verified={selectedPerson.verifiedAll} /> : null}
@@ -78,7 +78,7 @@ export function PersonDetailHeader({
       {apelativo || hasNavigation ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {apelativo ? (
-            <span className="text-xl font-bold text-slate-100 sm:text-2xl 2xl:text-3xl">{String(apelativo)}</span>
+            <span className="text-xl font-semibold text-slate-100 sm:text-2xl 2xl:text-3xl">{String(apelativo)}</span>
           ) : null}
           {hasNavigation ? (
             <div className="flex flex-wrap gap-2">
@@ -93,7 +93,7 @@ export function PersonDetailHeader({
                   <ArrowLeft className="mr-2 h-4 w-4 shrink-0 self-center" />
                   <span className="flex min-w-0 items-baseline gap-1">
                     <span className="text-xs font-semibold text-slate-400">Predecesor</span>
-                    <span className="max-w-[14rem] truncate font-bold">{predecessor.nombrePrincipal}</span>
+                    <span className="max-w-[14rem] truncate font-semibold">{predecessor.nombrePrincipal}</span>
                   </span>
                 </Button>
               ) : null}
@@ -107,7 +107,7 @@ export function PersonDetailHeader({
                 >
                   <span className="flex min-w-0 items-baseline gap-1">
                     <span className="text-xs font-semibold text-slate-400">Sucesor</span>
-                    <span className="max-w-[14rem] truncate font-bold">{successor.nombrePrincipal}</span>
+                    <span className="max-w-[14rem] truncate font-semibold">{successor.nombrePrincipal}</span>
                   </span>
                   <ArrowRight className="ml-2 h-4 w-4 shrink-0 self-center" />
                 </Button>

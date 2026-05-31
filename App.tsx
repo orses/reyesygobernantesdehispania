@@ -270,6 +270,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       Galería: base["Galería"] ?? "",
       "Ficha RAH URL": base["Ficha RAH URL"] ?? "",
       Descripción: base["Descripción"] ?? "",
+      Predecesor: String(base["Predecesor"] ?? ""),
+      Sucesor: String(base["Sucesor"] ?? ""),
     };
     setEditorMode("person");
     setDraftPersonId(personId);
@@ -408,7 +410,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
             <div className="max-w-5xl">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 shrink-0" />
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl xl:text-4xl">
+                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
                   Gobernantes de España
                 </h1>
               </div>
