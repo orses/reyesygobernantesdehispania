@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import {
   getPersonMediaAssets,
   getPrimaryMediaAsset,
 } from "../../lib/media";
 import { getFirstMatchingPersonId } from "../../lib/people";
-import { getAdjacentPersonIds } from "../../lib/selection";
+import { buildGovernmentSuccession } from "../../lib/succession";
 import { PersonDetailCard } from "./fichas/person-detail-card";
 import { PersonListPanel } from "./fichas/person-list-panel";
 import type { MediaAsset, MediaInputOptions, Person, RawRow } from "../../lib/types";
@@ -102,17 +103,10 @@ export function FichasTab({
 }: FichasTabProps) {
   const selectedMediaAssets = selectedPerson ? getPersonMediaAssets(mediaAssets, selectedPerson.personId) : [];
   const selectedPrimaryMediaAsset = selectedPerson ? getPrimaryMediaAsset(selectedMediaAssets, selectedPerson.personId) : null;
-  const selectedNeighbors = getAdjacentPersonIds(chronologicalPeople, selectedPerson?.personId);
-  const overridePredecessorId = String(selectedPerson?.reinados?.[0]?.Predecesor ?? "").trim();
-  const overrideSuccessorId = String(selectedPerson?.reinados?.[0]?.Sucesor ?? "").trim();
-  const predecessorId = overridePredecessorId || selectedNeighbors.predecessorId;
-  const successorId = overrideSuccessorId || selectedNeighbors.successorId;
-  const predecessor = predecessorId
-    ? chronologicalPeople.find((person) => String(person.personId) === String(predecessorId)) ?? null
-    : null;
-  const successor = successorId
-    ? chronologicalPeople.find((person) => String(person.personId) === String(successorId)) ?? null
-    : null;
+  const governmentSuccession = useMemo(
+    () => buildGovernmentSuccession(chronologicalPeople),
+    [chronologicalPeople]
+  );
   const selectFirstSearchMatch = (searchText: string) => {
     const firstPersonId = getFirstMatchingPersonId(people, searchText);
     if (firstPersonId) setSelectedPersonId(firstPersonId);
@@ -122,6 +116,7 @@ export function FichasTab({
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(330px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(380px,460px)_minmax(0,1fr)]">
       <PersonListPanel
         people={people}
+        totalPeopleCount={chronologicalPeople.length}
         rowsCount={rows.length}
         query={query}
         setQuery={setQuery}
@@ -149,8 +144,7 @@ export function FichasTab({
 
       <PersonDetailCard
         selectedPerson={selectedPerson}
-        predecessor={predecessor}
-        successor={successor}
+        successionByRowId={governmentSuccession}
         selectedPrimaryMediaAsset={selectedPrimaryMediaAsset}
         selectedMediaAssets={selectedMediaAssets}
         mediaPreviewUrls={mediaPreviewUrls}

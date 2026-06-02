@@ -270,8 +270,6 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       Galería: base["Galería"] ?? "",
       "Ficha RAH URL": base["Ficha RAH URL"] ?? "",
       Descripción: base["Descripción"] ?? "",
-      Predecesor: String(base["Predecesor"] ?? ""),
-      Sucesor: String(base["Sucesor"] ?? ""),
     };
     setEditorMode("person");
     setDraftPersonId(personId);

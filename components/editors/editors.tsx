@@ -65,14 +65,15 @@ export function EditorDialog({
               draft={draft}
               setDraft={setDraft}
               draftPersonId={draftPersonId}
-              people={people}
             />
           ) : (
             <RowEditorContent
               draft={draft}
               setDraft={setDraft}
+              draftPersonId={draftPersonId}
               error={error}
               setError={setError}
+              people={people}
             />
           )
         ) : null}
@@ -102,19 +103,11 @@ function PersonEditorContent({
   draft,
   setDraft,
   draftPersonId,
-  people,
 }: {
   draft: RawRow;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
   draftPersonId: string | number | null;
-  people: Person[];
 }) {
-  const otherPeople = people
-    .filter((p) => String(p.personId) !== String(draftPersonId))
-    .slice()
-    .sort((a, b) => String(a.nombrePrincipal).localeCompare(String(b.nombrePrincipal), "es"));
-  const successionSelectClass =
-    "h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100";
   const toggleVerified = () => {
     const currentBool = boolFromVerified(
       draft["Información verificada"]
@@ -182,40 +175,6 @@ function PersonEditorContent({
       <EditorField label="Descripción" value={String(draft["Descripción"] ?? "")} onChange={upd("Descripción")} multiline colSpan2 />
       <EditorField label="Imagen URL" value={String(draft["Imagen URL"] ?? "")} onChange={upd("Imagen URL")} />
       <EditorField label="Ficha RAH URL" value={String(draft["Ficha RAH URL"] ?? "")} onChange={upd("Ficha RAH URL")} />
-
-      <div className="md:col-span-2 text-xs text-slate-400">
-        Sucesión — déjalo en «automático» para calcular predecesor y sucesor por cronología; elige un personaje para forzarlo.
-      </div>
-      <label className="space-y-1">
-        <span className="text-sm font-medium text-slate-300">Predecesor</span>
-        <select
-          className={successionSelectClass}
-          value={String(draft["Predecesor"] ?? "")}
-          onChange={(event) => upd("Predecesor")(event.target.value)}
-        >
-          <option value="">— automático (cronológico) —</option>
-          {otherPeople.map((person) => (
-            <option key={person.personId} value={String(person.personId)}>
-              {person.nombrePrincipal}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="space-y-1">
-        <span className="text-sm font-medium text-slate-300">Sucesor</span>
-        <select
-          className={successionSelectClass}
-          value={String(draft["Sucesor"] ?? "")}
-          onChange={(event) => upd("Sucesor")(event.target.value)}
-        >
-          <option value="">— automático (cronológico) —</option>
-          {otherPeople.map((person) => (
-            <option key={person.personId} value={String(person.personId)}>
-              {person.nombrePrincipal}
-            </option>
-          ))}
-        </select>
-      </label>
     </div>
   );
 }
@@ -227,13 +186,23 @@ function PersonEditorContent({
 function RowEditorContent({
   draft,
   setDraft,
+  draftPersonId,
   setError,
+  people,
 }: {
   draft: RawRow;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
+  draftPersonId: string | number | null;
   error: string | null;
   setError: (v: string | null) => void;
+  people: Person[];
 }) {
+  const otherPeople = people
+    .filter((p) => String(p.personId) !== String(draftPersonId))
+    .slice()
+    .sort((a, b) => String(a.nombrePrincipal).localeCompare(String(b.nombrePrincipal), "es"));
+  const successionSelectClass =
+    "h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100";
   const upd = (key: string) => (value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
 
@@ -252,6 +221,40 @@ function RowEditorContent({
       <EditorField label="Final del Reinado (Año)" value={String(draft?.["Final del reinado (año)"] ?? "")} onChange={upd("Final del reinado (año)")} />
       <EditorField label="Inicio Reinado (Fecha completa)" value={String(draft?.["Inicio Reinado (Fecha)"] ?? "")} onChange={upd("Inicio Reinado (Fecha)")} />
       <EditorField label="Fin Reinado (Fecha completa)" value={String(draft?.["Fin Reinado (Fecha)"] ?? "")} onChange={upd("Fin Reinado (Fecha)")} />
+
+      <div className="md:col-span-2 text-xs text-slate-400">
+        Sucesión del gobierno: déjalo en «automático» para calcularla por cronología dentro del mismo reino.
+      </div>
+      <label className="space-y-1">
+        <span className="text-sm font-medium text-slate-300">Predecesor</span>
+        <select
+          className={successionSelectClass}
+          value={String(draft["Predecesor"] ?? "")}
+          onChange={(event) => upd("Predecesor")(event.target.value)}
+        >
+          <option value="">— automático (por reino) —</option>
+          {otherPeople.map((person) => (
+            <option key={person.personId} value={String(person.personId)}>
+              {person.nombrePrincipal}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="space-y-1">
+        <span className="text-sm font-medium text-slate-300">Sucesor</span>
+        <select
+          className={successionSelectClass}
+          value={String(draft["Sucesor"] ?? "")}
+          onChange={(event) => upd("Sucesor")(event.target.value)}
+        >
+          <option value="">— automático (por reino) —</option>
+          {otherPeople.map((person) => (
+            <option key={person.personId} value={String(person.personId)}>
+              {person.nombrePrincipal}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <details className="md:col-span-2">
         <summary className="cursor-pointer text-sm text-slate-300">

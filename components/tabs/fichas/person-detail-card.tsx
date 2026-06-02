@@ -2,6 +2,7 @@ import { Badge } from "../../ui/badge";
 import { Card, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
 import { personDenominationsByKingdom } from "../../../lib/ficha-view";
+import type { GovernmentSuccession } from "../../../lib/succession";
 import type { MediaAsset, MediaInputOptions, Person } from "../../../lib/types";
 import { MediaGallery } from "./media-gallery";
 import { PersonDetailHeader } from "./person-detail-header";
@@ -12,8 +13,7 @@ type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
 interface PersonDetailCardProps {
   selectedPerson: Person | null;
-  predecessor: Person | null;
-  successor: Person | null;
+  successionByRowId: ReadonlyMap<string, GovernmentSuccession>;
   selectedPrimaryMediaAsset: MediaAsset | null;
   selectedMediaAssets: MediaAsset[];
   mediaPreviewUrls: Record<string, string>;
@@ -40,8 +40,7 @@ interface PersonDetailCardProps {
 
 export function PersonDetailCard({
   selectedPerson,
-  predecessor,
-  successor,
+  successionByRowId,
   selectedPrimaryMediaAsset,
   selectedMediaAssets,
   mediaPreviewUrls,
@@ -71,9 +70,6 @@ export function PersonDetailCard({
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
       <PersonDetailHeader
         selectedPerson={selectedPerson}
-        predecessor={predecessor}
-        successor={successor}
-        setSelectedPersonId={setSelectedPersonId}
         openPersonEditor={openPersonEditor}
         setDeleteTarget={setDeleteTarget}
         setDeleteOpen={setDeleteOpen}
@@ -97,6 +93,8 @@ export function PersonDetailCard({
               setFilterDinastiaLocked={setFilterDinastiaLocked}
               filterSiglo={filterSiglo}
               setFilterSiglo={setFilterSiglo}
+              successionByRowId={successionByRowId}
+              setSelectedPersonId={setSelectedPersonId}
               openRowEditor={openRowEditor}
               setDeleteTarget={setDeleteTarget}
               setDeleteOpen={setDeleteOpen}

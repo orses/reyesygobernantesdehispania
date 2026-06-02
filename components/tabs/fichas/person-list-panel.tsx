@@ -26,6 +26,7 @@ type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
 interface PersonListPanelProps {
   people: Person[];
+  totalPeopleCount: number;
   rowsCount: number;
   query: string;
   setQuery: StateSetter<string>;
@@ -53,6 +54,7 @@ interface PersonListPanelProps {
 
 export function PersonListPanel({
   people,
+  totalPeopleCount,
   rowsCount,
   query,
   setQuery,
@@ -89,6 +91,18 @@ export function PersonListPanel({
     (hasSigloFilter ? 1 : 0) +
     (hasSortFilter ? 1 : 0);
   const hasAnyFilter = activeFilterCount > 0;
+  const peopleCountLabel = hasAnyFilter
+    ? (
+      <>
+        <span className="inline-flex min-w-7 items-center justify-center rounded-[3px] border border-amber-400/70 bg-amber-400/90 px-1.5 font-semibold tabular-nums text-slate-950">
+          {people.length}
+        </span>{" "}
+        de {totalPeopleCount} personajes, {rowsCount} gobiernos
+      </>
+    )
+    : (
+      <>{people.length} personajes, {rowsCount} gobiernos</>
+    );
   const filterLabelClass = (active: boolean) =>
     `text-sm font-medium ${active ? "text-amber-200" : "text-slate-200"}`;
   const controlClass = (active: boolean) =>
@@ -103,7 +117,7 @@ export function PersonListPanel({
       <CardHeader className="relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 pb-3">
         <CardTitle className="text-lg font-medium tracking-tight text-slate-50">Personajes</CardTitle>
         <CardDescription className="text-base text-slate-200">
-          {people.length} personajes, {rowsCount} gobiernos
+          {peopleCountLabel}
         </CardDescription>
 
         <div className="mt-3 space-y-2">

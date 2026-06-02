@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { formatNumber } from "../../../lib/data";
 import {
@@ -6,18 +6,76 @@ import {
   personGovernmentPeriods,
   rangeMeta,
 } from "../../../lib/ficha-view";
+import type { GovernmentSuccession, SuccessionPersonRef, SuccessionSource } from "../../../lib/succession";
 import type { Person } from "../../../lib/types";
 import { DataStatusPill, SectionTitle } from "./shared";
 
 interface GovernmentListProps {
   selectedPerson: Person;
+  successionByRowId: ReadonlyMap<string, GovernmentSuccession>;
+  setSelectedPersonId: (value: string | null) => void;
   openRowEditor: (rowId: string | number) => void;
   setDeleteTarget: (target: { kind: string; id: string | number | null }) => void;
   setDeleteOpen: (value: boolean) => void;
 }
 
+function successionDisplayName(person: SuccessionPersonRef): string {
+  return person.nombreReinado || person.nombrePrincipal;
+}
+
+function successionTitle(
+  kind: "Predecesor" | "Sucesor",
+  reino: string,
+  person: SuccessionPersonRef,
+  source: SuccessionSource
+): string {
+  const sourceText = source === "manual" ? "manual" : "cronológico por reino";
+  const displayName = successionDisplayName(person);
+  const principalName = person.nombrePrincipal && person.nombrePrincipal !== displayName
+    ? ` (${person.nombrePrincipal})`
+    : "";
+  return `${kind} en ${reino}: ${displayName}${principalName} · ${sourceText}`;
+}
+
+function SuccessionButton({
+  kind,
+  reino,
+  person,
+  source,
+  setSelectedPersonId,
+}: {
+  kind: "predecessor" | "successor";
+  reino: string;
+  person: SuccessionPersonRef;
+  source: SuccessionSource;
+  setSelectedPersonId: (value: string | null) => void;
+}) {
+  const isPredecessor = kind === "predecessor";
+  const label = isPredecessor ? "Predecesor" : "Sucesor";
+  const Icon = isPredecessor ? ArrowLeft : ArrowRight;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-7 min-w-0 cursor-pointer rounded-[3px] border-slate-700/70 bg-slate-950/30 px-2 text-xs text-slate-100 hover:bg-slate-900/60 hover:text-slate-50"
+      title={successionTitle(label, reino, person, source)}
+      onClick={() => setSelectedPersonId(person.personId)}
+    >
+      {isPredecessor ? <Icon className="mr-1.5 h-3.5 w-3.5 shrink-0" /> : null}
+      <span className="min-w-0 truncate">
+        <span className="text-slate-400">{label}</span>{" "}
+        <span className="font-medium">{successionDisplayName(person)}</span>
+      </span>
+      {!isPredecessor ? <Icon className="ml-1.5 h-3.5 w-3.5 shrink-0" /> : null}
+    </Button>
+  );
+}
+
 export function GovernmentList({
   selectedPerson,
+  successionByRowId,
+  setSelectedPersonId,
   openRowEditor,
   setDeleteTarget,
   setDeleteOpen,
@@ -34,6 +92,8 @@ export function GovernmentList({
           const inicioFecha = String(period.row?.["Inicio Reinado (Fecha)"] ?? "").trim();
           const finFecha = String(period.row?.["Fin Reinado (Fecha)"] ?? "").trim();
           const hasFullDates = Boolean(inicioFecha || finFecha);
+          const succession = successionByRowId.get(period.rowId);
+          const hasSuccession = Boolean(succession?.predecessor || succession?.successor);
 
           return (
             <div
@@ -54,6 +114,28 @@ export function GovernmentList({
                     ) : (
                       <>hasta {finFecha}</>
                     )}
+                  </div>
+                ) : null}
+                {hasSuccession ? (
+                  <div className="mt-1 flex min-w-0 flex-wrap gap-1.5">
+                    {succession?.predecessor ? (
+                      <SuccessionButton
+                        kind="predecessor"
+                        reino={period.reino}
+                        person={succession.predecessor}
+                        source={succession.predecessorSource}
+                        setSelectedPersonId={setSelectedPersonId}
+                      />
+                    ) : null}
+                    {succession?.successor ? (
+                      <SuccessionButton
+                        kind="successor"
+                        reino={period.reino}
+                        person={succession.successor}
+                        source={succession.successorSource}
+                        setSelectedPersonId={setSelectedPersonId}
+                      />
+                    ) : null}
                   </div>
                 ) : null}
               </div>

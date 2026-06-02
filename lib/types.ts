@@ -66,8 +66,8 @@ export interface RawRow {
     "Ficha RAH URL"?: string;
     "Información verificada"?: string;
 
-    // — Sucesión manual (override del cálculo cronológico automático).
-    // Guardan el PersonID del predecesor/sucesor elegido; vacío = automático.
+    // — Sucesión manual por gobierno (override del cálculo cronológico automático).
+    // Guardan el PersonID del predecesor/sucesor elegido para esta fila; vacío = automático.
     Predecesor?: string;
     Sucesor?: string;
 

@@ -13,6 +13,7 @@ import {
   personLifeFields,
   personRahUrl,
 } from "../../../lib/ficha-view";
+import type { GovernmentSuccession } from "../../../lib/succession";
 import type { MediaAsset, Person } from "../../../lib/types";
 import { GovernmentList } from "./government-list";
 import {
@@ -37,6 +38,8 @@ interface PersonSummaryProps {
   setFilterDinastiaLocked: StateSetter<boolean>;
   filterSiglo: string;
   setFilterSiglo: StateSetter<string>;
+  successionByRowId: ReadonlyMap<string, GovernmentSuccession>;
+  setSelectedPersonId: (value: string | null) => void;
   openRowEditor: (rowId: string | number) => void;
   setDeleteTarget: (target: { kind: string; id: string | number | null }) => void;
   setDeleteOpen: (value: boolean) => void;
@@ -55,6 +58,8 @@ export function PersonSummary({
   setFilterDinastiaLocked,
   filterSiglo,
   setFilterSiglo,
+  successionByRowId,
+  setSelectedPersonId,
   openRowEditor,
   setDeleteTarget,
   setDeleteOpen,
@@ -205,6 +210,8 @@ export function PersonSummary({
 
         <GovernmentList
           selectedPerson={selectedPerson}
+          successionByRowId={successionByRowId}
+          setSelectedPersonId={setSelectedPersonId}
           openRowEditor={openRowEditor}
           setDeleteTarget={setDeleteTarget}
           setDeleteOpen={setDeleteOpen}

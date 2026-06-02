@@ -530,6 +530,7 @@ export function useDataset() {
             draft: RawRow
         ): string | null => {
             if (!pid) return "Validación: falta PersonID.";
+            const { Predecesor: _predecesor, Sucesor: _sucesor, ...personDraft } = draft;
             const vText = String(draft["Información verificada"] ?? "").trim();
             const vBool = boolFromVerified(vText);
 
@@ -539,7 +540,7 @@ export function useDataset() {
                         if (String(getPersonId(r)) !== pid) return r;
                         const next = {
                             ...r,
-                            ...draft,
+                            ...personDraft,
                             "Información verificada": verifiedToText(vBool),
                         };
                         return computeDerivedRow(next);
