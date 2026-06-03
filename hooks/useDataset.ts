@@ -477,6 +477,60 @@ export function useDataset() {
         [setError]
     );
 
+    const replaceMediaAssetFile = useCallback(
+        async (assetId: string, file: File): Promise<boolean> => {
+            const target = mediaAssets.find((asset) => asset.id === assetId);
+            if (!target) {
+                setError("Validación: no se ha encontrado la imagen que se quiere reemplazar.");
+                return false;
+            }
+            if (!file.type.startsWith("image/")) {
+                setError("Validación: el archivo de reemplazo debe ser una imagen.");
+                return false;
+            }
+
+            try {
+                const storageKey = target.storageKey || `reyes_media_blob_${target.id}`;
+                await set(storageKey, file);
+
+                setMediaAssets((prev) =>
+                    ensurePrimaryMediaAssets(
+                        prev.map((asset) => {
+                            if (asset.id !== assetId) return asset;
+
+                            const {
+                                packagePath: _packagePath,
+                                printPackagePath: _printPackagePath,
+                                printDpi: _printDpi,
+                                ...assetWithoutPackagePaths
+                            } = asset;
+                            const shouldUseFileNameAsTitle =
+                                !asset.title?.trim() || Boolean(asset.fileName && asset.title === asset.fileName);
+
+                            return {
+                                ...assetWithoutPackagePaths,
+                                kind: "uploaded-file",
+                                src: "",
+                                storageKey,
+                                title: shouldUseFileNameAsTitle ? file.name : asset.title,
+                                fileName: file.name,
+                                mimeType: file.type,
+                                size: file.size,
+                                updatedAt: new Date().toISOString(),
+                            };
+                        })
+                    )
+                );
+                setError(null);
+                return true;
+            } catch (err) {
+                setError(`Imagen: no se pudo reemplazar el archivo. ${errorMessage(err)}`);
+                return false;
+            }
+        },
+        [mediaAssets, setError]
+    );
+
     const updateMediaAsset = useCallback(
         (assetId: string, patch: Partial<MediaAsset>) => {
             setMediaAssets((prev) =>
@@ -728,6 +782,7 @@ export function useDataset() {
         removePerson,
         addMediaUrl,
         addUploadedMedia,
+        replaceMediaAssetFile,
         updateMediaAsset,
         removeMediaAsset,
         setPrimaryMediaAsset,

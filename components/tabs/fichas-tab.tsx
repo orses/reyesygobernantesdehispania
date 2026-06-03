@@ -44,6 +44,7 @@ interface FichasTabProps {
   mediaPreviewUrls?: Record<string, string>;
   addMediaUrl?: (personId: string | number, url: string, options?: MediaInputOptions) => string | null;
   addUploadedMedia?: (personId: string | number, file: File, options?: MediaInputOptions) => Promise<string | null>;
+  replaceMediaAssetFile?: (assetId: string, file: File) => Promise<boolean>;
   updateMediaAsset?: (assetId: string, patch: Partial<MediaAsset>) => void;
   removeMediaAsset?: (assetId: string) => Promise<void>;
   setPrimaryMediaAsset?: (personId: string | number, assetId: string) => void;
@@ -97,6 +98,7 @@ export function FichasTab({
   mediaPreviewUrls = {},
   addMediaUrl,
   addUploadedMedia,
+  replaceMediaAssetFile,
   updateMediaAsset,
   removeMediaAsset,
   setPrimaryMediaAsset,
@@ -164,6 +166,7 @@ export function FichasTab({
         setDeleteOpen={setDeleteOpen}
         addMediaUrl={addMediaUrl}
         addUploadedMedia={addUploadedMedia}
+        replaceMediaAssetFile={replaceMediaAssetFile}
         updateMediaAsset={updateMediaAsset}
         removeMediaAsset={removeMediaAsset}
         setPrimaryMediaAsset={setPrimaryMediaAsset}

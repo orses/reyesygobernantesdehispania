@@ -94,6 +94,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     mediaPreviewUrls,
     addMediaUrl,
     addUploadedMedia,
+    replaceMediaAssetFile,
     updateMediaAsset,
     removeMediaAsset,
     setPrimaryMediaAsset,
@@ -571,6 +572,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   mediaPreviewUrls={mediaPreviewUrls}
                   addMediaUrl={addMediaUrl}
                   addUploadedMedia={addUploadedMedia}
+                  replaceMediaAssetFile={replaceMediaAssetFile}
                   updateMediaAsset={updateMediaAsset}
                   removeMediaAsset={removeMediaAsset}
                   setPrimaryMediaAsset={setPrimaryMediaAsset}

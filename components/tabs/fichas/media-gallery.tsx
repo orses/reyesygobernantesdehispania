@@ -1,11 +1,10 @@
 import { useRef, useState } from "react";
-import { ImagePlus, Star, Trash2, Upload } from "lucide-react";
+import { ImagePlus, Replace, Star, Trash2, Upload } from "lucide-react";
 import { Button } from "../../ui/button";
 import {
   RIGHTS_OPTIONS,
   mediaAssetSrc,
   mediaAssetViewerSource,
-  rightsLabel,
 } from "../../../lib/ficha-view";
 import {
   getMediaAssetCopyValue,
@@ -23,6 +22,7 @@ interface MediaGalleryProps {
   previewUrls: Record<string, string>;
   addMediaUrl?: (personId: string | number, url: string, options?: MediaInputOptions) => string | null;
   addUploadedMedia?: (personId: string | number, file: File, options?: MediaInputOptions) => Promise<string | null>;
+  replaceMediaAssetFile?: (assetId: string, file: File) => Promise<boolean>;
   updateMediaAsset?: (assetId: string, patch: Partial<MediaAsset>) => void;
   removeMediaAsset?: (assetId: string) => Promise<void>;
   setPrimaryMediaAsset?: (personId: string | number, assetId: string) => void;
@@ -35,6 +35,7 @@ export function MediaGallery({
   previewUrls,
   addMediaUrl,
   addUploadedMedia,
+  replaceMediaAssetFile,
   updateMediaAsset,
   removeMediaAsset,
   setPrimaryMediaAsset,
@@ -46,6 +47,8 @@ export function MediaGallery({
   const [workDateDraft, setWorkDateDraft] = useState("");
   const [viewerAssetId, setViewerAssetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTargetIdRef = useRef<string | null>(null);
   const viewerAsset = viewerAssetId ? assets.find((asset) => asset.id === viewerAssetId) ?? null : null;
   const viewerSource = mediaAssetViewerSource(viewerAsset, previewUrls, personName);
 
@@ -77,6 +80,21 @@ export function MediaGallery({
       if (createdId) added = true;
     }
     if (added) resetDrafts();
+  };
+
+  const handleReplaceUpload = async (files: FileList | null) => {
+    const assetId = replaceTargetIdRef.current;
+    const file = files?.[0];
+    if (!assetId || !file || !replaceMediaAssetFile) return;
+    await replaceMediaAssetFile(assetId, file);
+  };
+
+  const openReplaceFilePicker = (assetId: string) => {
+    replaceTargetIdRef.current = assetId;
+    if (replaceInputRef.current) {
+      replaceInputRef.current.value = "";
+      replaceInputRef.current.click();
+    }
   };
 
   return (
@@ -139,7 +157,17 @@ export function MediaGallery({
                   </label>
 
                   <label className="min-w-0 space-y-1">
-                    <span className="text-[11px] font-semibold tracking-wide text-slate-500">Fecha de la obra</span>
+                    <span className="text-[11px] font-semibold tracking-wide text-slate-500">Autor</span>
+                    <input
+                      className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
+                      value={asset.author ?? asset.sourceName ?? ""}
+                      onChange={(event) => updateMediaAsset?.(asset.id, { author: event.target.value })}
+                      placeholder="Autor, institución o fuente"
+                    />
+                  </label>
+
+                  <label className="min-w-0 space-y-1">
+                    <span className="text-[11px] font-semibold tracking-wide text-slate-500">Fecha</span>
                     <input
                       className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
                       value={asset.workDate ?? ""}
@@ -159,46 +187,49 @@ export function MediaGallery({
                   </label>
 
                   <label className="min-w-0 space-y-1">
-                    <span className="text-[11px] font-semibold tracking-wide text-slate-500">Atribución / autor</span>
-                    <input
-                      className="h-9 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500"
-                      value={asset.author ?? asset.sourceName ?? ""}
-                      onChange={(event) => updateMediaAsset?.(asset.id, { author: event.target.value })}
-                      placeholder="Autor, institución o fuente"
-                    />
+                    <span className="text-[11px] font-semibold tracking-wide text-slate-500">Derechos</span>
+                    <select
+                      className="h-9 w-full min-w-0 rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+                      value={asset.rightsStatus}
+                      onChange={(event) => updateMediaAsset?.(asset.id, { rightsStatus: normalizeRightsStatus(event.target.value) })}
+                      aria-label="Estado de derechos"
+                    >
+                      {RIGHTS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
                   </label>
-                </div>
 
-                <div className="mt-3 grid grid-cols-1 items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
-                  <select
-                    className="h-8 min-w-0 rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
-                    value={asset.rightsStatus}
-                    onChange={(event) => updateMediaAsset?.(asset.id, { rightsStatus: normalizeRightsStatus(event.target.value) })}
-                    aria-label="Estado de derechos"
-                  >
-                    {RIGHTS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex min-w-0 items-end justify-end gap-1 self-end">
                     <Button
                       type="button"
                       variant={asset.isPrimary ? "secondary" : "outline"}
-                      className="h-8 rounded-[3px] px-2 text-xs"
-                      title={asset.isPrimary ? "Imagen principal" : "Marcar como principal"}
+                      size="icon"
+                      className="h-9 w-9 rounded-[3px]"
+                      title="Principal"
                       aria-label={asset.isPrimary ? "Imagen principal" : "Marcar como principal"}
                       onClick={() => setPrimaryMediaAsset?.(personId, asset.id)}
                     >
-                      <Star className="mr-1 h-4 w-4" />
-                      {asset.isPrimary ? "Principal" : "Hacer principal"}
+                      <Star className={`h-4 w-4 ${asset.isPrimary ? "fill-current" : ""}`} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-[3px] border-slate-700/70 bg-slate-950/35"
+                      title="Reemplazar"
+                      aria-label="Reemplazar imagen"
+                      disabled={!replaceMediaAssetFile}
+                      onClick={() => openReplaceFilePicker(asset.id)}
+                    >
+                      <Replace className="h-4 w-4" />
                     </Button>
                     <Button
                       type="button"
                       variant="destructive"
                       size="icon"
-                      className="h-8 w-8 rounded-[3px]"
-                      title="Eliminar imagen"
+                      className="h-9 w-9 rounded-[3px]"
+                      title="Eliminar"
                       aria-label="Eliminar imagen"
                       onClick={() => removeMediaAsset?.(asset.id)}
                     >
@@ -222,33 +253,69 @@ export function MediaGallery({
             <div className="text-base font-medium text-slate-100">Añadir imagen</div>
             <div className="text-sm text-slate-400">URL externa o archivo local</div>
           </div>
-          <div className="text-xs text-slate-400">Derechos: {rightsLabel(rightsDraft)}</div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_240px_220px]">
-          <input
-            className="h-10 rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-400"
-            value={urlDraft}
-            onChange={(event) => setUrlDraft(event.target.value)}
-            placeholder="URL directa de imagen"
-          />
-          <select
-            className="h-10 rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100"
-            value={rightsDraft}
-            onChange={(event) => setRightsDraft(normalizeRightsStatus(event.target.value))}
-            aria-label="Derechos de la imagen nueva"
-          >
-            {RIGHTS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 items-end gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_160px_minmax(190px,1fr)_220px_auto]">
+          <label className="min-w-0 space-y-1 lg:col-span-2 xl:col-span-5">
+            <span className="text-[11px] font-semibold tracking-wide text-slate-500">URL</span>
+            <input
+              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-400"
+              value={urlDraft}
+              onChange={(event) => setUrlDraft(event.target.value)}
+              placeholder="URL directa de imagen"
+            />
+          </label>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button type="button" className="h-10 rounded-[3px]" onClick={handleAddUrl} disabled={!urlDraft.trim()}>
+          <label className="min-w-0 space-y-1">
+            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Atribución</span>
+            <input
+              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
+              value={authorDraft}
+              onChange={(event) => setAuthorDraft(event.target.value)}
+              placeholder="Autor, institución o fuente"
+            />
+          </label>
+
+          <label className="min-w-0 space-y-1">
+            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Fecha</span>
+            <input
+              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
+              value={workDateDraft}
+              onChange={(event) => setWorkDateDraft(event.target.value)}
+              placeholder="1798, s. XV..."
+            />
+          </label>
+
+          <label className="min-w-0 space-y-1">
+            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Licencia</span>
+            <input
+              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
+              value={licenseDraft}
+              onChange={(event) => setLicenseDraft(event.target.value)}
+              placeholder="CC BY 4.0, dominio público..."
+            />
+          </label>
+
+          <label className="min-w-0 space-y-1">
+            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Derechos</span>
+            <select
+              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100"
+              value={rightsDraft}
+              onChange={(event) => setRightsDraft(normalizeRightsStatus(event.target.value))}
+              aria-label="Derechos de la imagen nueva"
+            >
+              {RIGHTS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="grid min-w-0 grid-cols-2 gap-2 justify-self-end">
+            <Button type="button" className="h-10 rounded-[3px] px-3" title="Añadir URL" onClick={handleAddUrl} disabled={!urlDraft.trim()}>
               <ImagePlus className="mr-2 h-4 w-4" />
-              Añadir URL
+              URL
             </Button>
-            <Button type="button" variant="outline" className="h-10 rounded-[3px] border-slate-700/70 bg-slate-950/35" onClick={() => fileInputRef.current?.click()}>
+            <Button type="button" variant="outline" className="h-10 rounded-[3px] border-slate-700/70 bg-slate-950/35 px-3" title="Subir archivo" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
               Subir
             </Button>
@@ -264,38 +331,17 @@ export function MediaGallery({
               event.target.value = "";
             }}
           />
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <label className="min-w-0 space-y-1">
-            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Fecha de la obra</span>
-            <input
-              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
-              value={workDateDraft}
-              onChange={(event) => setWorkDateDraft(event.target.value)}
-              placeholder="1798, s. XV, c. 1650..."
-            />
-          </label>
-
-          <label className="min-w-0 space-y-1">
-            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Licencia concreta</span>
-            <input
-              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
-              value={licenseDraft}
-              onChange={(event) => setLicenseDraft(event.target.value)}
-              placeholder="CC BY 4.0, CC BY-SA 3.0, dominio público..."
-            />
-          </label>
-
-          <label className="min-w-0 space-y-1">
-            <span className="text-[11px] font-semibold tracking-wide text-slate-500">Atribución / autor</span>
-            <input
-              className="h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500"
-              value={authorDraft}
-              onChange={(event) => setAuthorDraft(event.target.value)}
-              placeholder="Autor, institución o fuente"
-            />
-          </label>
+          <input
+            ref={replaceInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (event) => {
+              await handleReplaceUpload(event.target.files);
+              event.target.value = "";
+              replaceTargetIdRef.current = null;
+            }}
+          />
         </div>
       </div>
 
