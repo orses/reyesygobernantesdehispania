@@ -13,10 +13,12 @@ import {
   kingdomBadgeStyle,
   kingdomColor,
   mediaAssetSrc,
+  mediaAssetViewerSource,
   personDenominationsByKingdom,
   personGovernmentPeriods,
   personImageFallbackUrl,
   personLifeFields,
+  personMainImageViewerSource,
   personRahUrl,
   personReignRangeLabel,
   rangeMeta,
@@ -173,6 +175,40 @@ describe("metadatos visuales de imágenes", () => {
     expect(mediaAssetSrc(asset, { "media-1": "blob:http://local/media-1" })).toBe("blob:http://local/media-1");
     expect(mediaAssetSrc(asset, {})).toBe("");
   });
+
+  it("crea una fuente de visor desde un recurso de galería", () => {
+    const asset: MediaAsset = {
+      ...baseMediaAsset,
+      kind: "external-url",
+      src: "www.example.com/isabel.jpg",
+      title: "Retrato de Isabel I",
+      workDate: "c. 1500",
+    };
+
+    expect(mediaAssetViewerSource(asset, {}, "Isabel I")).toEqual({
+      id: "media-1",
+      src: "https://www.example.com/isabel.jpg",
+      title: "Retrato de Isabel I",
+      alt: "Retrato de Isabel I",
+      workDate: "c. 1500",
+    });
+  });
+
+  it("usa la imagen heredada de la ficha como fuente de visor si no hay recurso principal", () => {
+    expect(
+      personMainImageViewerSource({
+        asset: null,
+        previewUrls: {},
+        fallbackUrl: "www.example.com/ficha.jpg",
+        personName: "Isabel I",
+      })
+    ).toEqual({
+      id: "fallback:https://www.example.com/ficha.jpg",
+      src: "https://www.example.com/ficha.jpg",
+      title: "Isabel I",
+      alt: "imagen de Isabel I",
+    });
+  });
 });
 
 describe("tarjetas de personaje", () => {
@@ -203,7 +239,7 @@ describe("tarjetas de personaje", () => {
 });
 
 describe("detalle de ficha", () => {
-  it("prioriza fechas cronológicas sobre lugares en los campos vitales", () => {
+  it("compone fechas cronológicas con sus localizaciones en los campos vitales", () => {
     expect(
       personLifeFields({
         reinados: [
@@ -212,14 +248,55 @@ describe("detalle de ficha", () => {
             "Nacimiento (lugar)": "Versalles",
             "Fallecimiento (Fecha)": "9 de julio de 1746",
             "Fallecimiento (lugar)": "Madrid",
+            "Fallecimiento (provincia)": "Madrid",
           },
         ],
       })
     ).toEqual({
       birthRaw: "19 de diciembre de 1683",
       deathRaw: "9 de julio de 1746",
-      birthDisplay: "19 de diciembre de 1683",
-      deathDisplay: "9 de julio de 1746",
+      birthDateDisplay: "19 de diciembre de 1683",
+      deathDateDisplay: "9 de julio de 1746",
+      birthLocationDisplay: "Versalles",
+      deathLocationDisplay: "Madrid",
+      birthDisplay: "19 de diciembre de 1683, Versalles",
+      deathDisplay: "9 de julio de 1746, Madrid",
+    });
+  });
+
+  it("muestra provincia y país si existen y evita duplicar la localidad", () => {
+    expect(
+      personLifeFields({
+        reinados: [
+          {
+            "Fallecimiento (Fecha)": "26 de noviembre de 1504",
+            "Fallecimiento (lugar)": "Medina del Campo",
+            "Fallecimiento (provincia)": "Valladolid",
+            "Fallecimiento (País)": "España",
+          },
+        ],
+      })
+    ).toMatchObject({
+      deathRaw: "26 de noviembre de 1504",
+      deathDateDisplay: "26 de noviembre de 1504",
+      deathLocationDisplay: "Medina del Campo (Valladolid, España)",
+      deathDisplay: "26 de noviembre de 1504, Medina del Campo (Valladolid, España)",
+    });
+
+    expect(
+      personLifeFields({
+        reinados: [
+          {
+            "Fallecimiento (Fecha)": "26 de noviembre de 1504",
+            "Fallecimiento (lugar)": "Medina del Campo (Valladolid)",
+            "Fallecimiento (provincia)": "Valladolid",
+            "Fallecimiento (País)": "España",
+          },
+        ],
+      })
+    ).toMatchObject({
+      deathDisplay: "26 de noviembre de 1504, Medina del Campo (Valladolid, España)",
+      deathLocationDisplay: "Medina del Campo (Valladolid, España)",
     });
   });
 
@@ -236,6 +313,10 @@ describe("detalle de ficha", () => {
     ).toMatchObject({
       birthRaw: "",
       deathRaw: "",
+      birthDateDisplay: "",
+      deathDateDisplay: "",
+      birthLocationDisplay: "Sos",
+      deathLocationDisplay: "Madrigalejo",
       birthDisplay: "Sos",
       deathDisplay: "Madrigalejo",
     });
@@ -245,6 +326,10 @@ describe("detalle de ficha", () => {
     expect(personLifeFields(null)).toEqual({
       birthRaw: "",
       deathRaw: "",
+      birthDateDisplay: "",
+      deathDateDisplay: "",
+      birthLocationDisplay: "",
+      deathLocationDisplay: "",
       birthDisplay: "",
       deathDisplay: "",
     });

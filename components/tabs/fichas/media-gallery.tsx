@@ -4,6 +4,7 @@ import { Button } from "../../ui/button";
 import {
   RIGHTS_OPTIONS,
   mediaAssetSrc,
+  mediaAssetViewerSource,
   rightsLabel,
 } from "../../../lib/ficha-view";
 import {
@@ -46,6 +47,7 @@ export function MediaGallery({
   const [viewerAssetId, setViewerAssetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerAsset = viewerAssetId ? assets.find((asset) => asset.id === viewerAssetId) ?? null : null;
+  const viewerSource = mediaAssetViewerSource(viewerAsset, previewUrls, personName);
 
   const mediaDraftOptions = (): MediaInputOptions => ({
     rightsStatus: rightsDraft,
@@ -298,9 +300,7 @@ export function MediaGallery({
       </div>
 
       <MediaViewer
-        asset={viewerAsset}
-        previewUrls={previewUrls}
-        personName={personName}
+        source={viewerSource}
         onClose={() => setViewerAssetId(null)}
       />
     </div>

@@ -3,7 +3,6 @@ import type * as React from "react";
 import { createPortal } from "react-dom";
 import { RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "../../ui/button";
-import { mediaAssetSrc } from "../../../lib/ficha-view";
 import {
   DEFAULT_IMAGE_ZOOM,
   MAX_IMAGE_ZOOM_PERCENT,
@@ -13,16 +12,14 @@ import {
   imageZoomToPercent,
   nextImageZoom,
 } from "../../../lib/image-zoom";
-import type { MediaAsset } from "../../../lib/types";
+import type { ImageViewerSource } from "../../../lib/ficha-view";
 
 interface MediaViewerProps {
-  asset: MediaAsset | null;
-  previewUrls: Record<string, string>;
-  personName: string;
+  source: ImageViewerSource | null;
   onClose: () => void;
 }
 
-export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaViewerProps) {
+export function MediaViewer({ source, onClose }: MediaViewerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const panStateRef = useRef<{
     pointerId: number;
@@ -35,8 +32,8 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
   const [zoomInput, setZoomInput] = useState(String(imageZoomToPercent(DEFAULT_IMAGE_ZOOM)));
   const [naturalWidth, setNaturalWidth] = useState<number | null>(null);
   const [isPanning, setIsPanning] = useState(false);
-  const src = useMemo(() => mediaAssetSrc(asset, previewUrls), [asset, previewUrls]);
-  const title = asset?.title || asset?.fileName || personName;
+  const src = useMemo(() => source?.src ?? "", [source]);
+  const title = source?.title ?? "";
 
   useEffect(() => {
     setZoom(DEFAULT_IMAGE_ZOOM);
@@ -44,14 +41,14 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
     setNaturalWidth(null);
     setIsPanning(false);
     panStateRef.current = null;
-  }, [asset?.id, src]);
+  }, [source?.id, src]);
 
   useEffect(() => {
     setZoomInput(String(imageZoomToPercent(zoom)));
   }, [zoom]);
 
   useEffect(() => {
-    if (!asset || !src || typeof document === "undefined") return;
+    if (!source || !src || typeof document === "undefined") return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -96,9 +93,9 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("wheel", handleWheel);
     };
-  }, [asset, src, onClose]);
+  }, [source, src, onClose]);
 
-  if (!asset || !src || typeof document === "undefined") return null;
+  if (!source || !src || typeof document === "undefined") return null;
 
   const commitZoomInput = () => {
     const nextPercent = Number.parseFloat(zoomInput.replace(",", "."));
@@ -170,7 +167,7 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
         <div className="min-w-0">
           <div className="truncate text-sm font-medium text-slate-100">
             {title}
-            {asset.workDate ? <span className="ml-2 font-normal text-slate-400">({asset.workDate})</span> : null}
+            {source.workDate ? <span className="ml-2 font-normal text-slate-400">({source.workDate})</span> : null}
           </div>
           <div className="text-xs font-medium tabular-nums text-slate-400">{Math.round(zoom * 100)} %</div>
         </div>
@@ -257,7 +254,7 @@ export function MediaViewer({ asset, previewUrls, personName, onClose }: MediaVi
         <div className="min-h-full min-w-full p-4">
           <img
             src={src}
-            alt={asset.title || `imagen de ${personName}`}
+            alt={source.alt}
             className="pointer-events-none mx-auto h-auto max-w-none select-none"
             draggable={false}
             style={{ width: imageWidth }}

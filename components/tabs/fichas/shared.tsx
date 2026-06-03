@@ -221,11 +221,13 @@ export function MediaFigure({
   previewUrls,
   fallbackUrl,
   alt = "imagen",
+  onOpen,
 }: {
   asset: MediaAsset | null;
   previewUrls: Record<string, string>;
   fallbackUrl?: string;
   alt?: string;
+  onOpen?: () => void;
 }) {
   const u = mediaAssetSrc(asset, previewUrls) || normalizeUrl(fallbackUrl);
   const [ok, setOk] = useState(true);
@@ -241,6 +243,21 @@ export function MediaFigure({
   }
 
   const image = <img src={u} alt={alt} className="w-full max-h-[min(56vh,560px)] object-contain object-top bg-slate-950/40" onError={() => setOk(false)} />;
+  const frameClassName = "block w-full rounded-[3px] border border-slate-700/70 bg-slate-950/25 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950";
+
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        className={`${frameClassName} cursor-zoom-in text-left`}
+        title="abrir imagen"
+        aria-label="abrir imagen"
+        onClick={onOpen}
+      >
+        {image}
+      </button>
+    );
+  }
 
   if (!asset || asset.kind === "external-url") {
     return (
@@ -248,7 +265,7 @@ export function MediaFigure({
         href={u}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-[3px] border border-slate-700/70 bg-slate-950/25 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        className={frameClassName}
         title="abrir imagen en una pestaña nueva"
       >
         {image}
@@ -309,17 +326,20 @@ export function VitalField({
   label,
   value,
   emphasis,
+  location,
   fallback = "—",
   meta,
 }: {
   label: string;
   value: unknown;
   emphasis: string | null;
+  location?: unknown;
   fallback?: string;
   meta?: DataMeta;
 }) {
   const displayValue = value ? String(value) : fallback;
   const showDetail = emphasis !== null && displayValue.trim() !== emphasis;
+  const locationValue = location ? String(location).trim() : "";
 
   return (
     <div className="min-w-0 rounded-[3px] border border-slate-800/70 bg-slate-950/20 p-3">
@@ -328,12 +348,18 @@ export function VitalField({
         {meta ? <DataStatusPill meta={meta} /> : null}
       </div>
       {emphasis !== null ? (
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-2xl font-semibold leading-none tabular-nums text-emerald-200">{emphasis}</span>
-          {showDetail ? <span className="min-w-0 truncate text-xs text-slate-400">{displayValue}</span> : null}
+        <div className="mt-1 min-w-0">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="text-2xl font-semibold leading-none tabular-nums text-emerald-200">{emphasis}</span>
+            {showDetail ? <span className="min-w-0 truncate text-xs text-slate-400">{displayValue}</span> : null}
+          </div>
+          {locationValue ? <div className="mt-1 break-words text-xs leading-5 text-slate-400">{locationValue}</div> : null}
         </div>
       ) : (
-        <div className="mt-1 break-words text-base font-medium text-slate-50">{displayValue}</div>
+        <>
+          <div className="mt-1 break-words text-base font-medium text-slate-50">{displayValue}</div>
+          {locationValue ? <div className="mt-1 break-words text-xs leading-5 text-slate-400">{locationValue}</div> : null}
+        </>
       )}
     </div>
   );

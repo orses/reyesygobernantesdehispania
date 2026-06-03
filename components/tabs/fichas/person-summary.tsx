@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "../../ui/button";
 import { asNumberOrNull } from "../../../lib/data";
@@ -11,11 +12,13 @@ import {
   kingdomColor,
   personImageFallbackUrl,
   personLifeFields,
+  personMainImageViewerSource,
   personRahUrl,
 } from "../../../lib/ficha-view";
 import type { GovernmentSuccession } from "../../../lib/succession";
 import type { MediaAsset, Person } from "../../../lib/types";
 import { GovernmentList } from "./government-list";
+import { MediaViewer } from "./media-viewer";
 import {
   CopyIconButton,
   Field,
@@ -66,6 +69,18 @@ export function PersonSummary({
 }: PersonSummaryProps) {
   const lifeFields = personLifeFields(selectedPerson);
   const rahUrl = personRahUrl(selectedPerson);
+  const mainImageFallbackUrl = personImageFallbackUrl(selectedPerson);
+  const mainImageViewerSource = useMemo(
+    () =>
+      personMainImageViewerSource({
+        asset: selectedPrimaryMediaAsset,
+        previewUrls: mediaPreviewUrls,
+        fallbackUrl: mainImageFallbackUrl,
+        personName: selectedPerson.nombrePrincipal,
+      }),
+    [mainImageFallbackUrl, mediaPreviewUrls, selectedPerson.nombrePrincipal, selectedPrimaryMediaAsset]
+  );
+  const [isMainImageViewerOpen, setMainImageViewerOpen] = useState(false);
   const hasClassification = Boolean(selectedPerson.dinastia) || selectedCenturies.length > 0;
 
   return (
@@ -74,8 +89,14 @@ export function PersonSummary({
         <MediaFigure
           asset={selectedPrimaryMediaAsset}
           previewUrls={mediaPreviewUrls}
-          fallbackUrl={personImageFallbackUrl(selectedPerson)}
+          fallbackUrl={mainImageFallbackUrl}
           alt={`imagen de ${selectedPerson.nombrePrincipal}`}
+          onOpen={mainImageViewerSource ? () => setMainImageViewerOpen(true) : undefined}
+        />
+
+        <MediaViewer
+          source={isMainImageViewerOpen ? mainImageViewerSource : null}
+          onClose={() => setMainImageViewerOpen(false)}
         />
 
         {rahUrl ? (
@@ -180,14 +201,16 @@ export function PersonSummary({
         <div className="grid grid-cols-1 gap-3 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-2">
           <VitalField
             label="Nacimiento"
-            value={lifeFields.birthDisplay}
-            emphasis={extractYear(lifeFields.birthDisplay)}
+            value={lifeFields.birthDateDisplay || lifeFields.birthLocationDisplay}
+            emphasis={extractYear(lifeFields.birthDateDisplay || lifeFields.birthLocationDisplay)}
+            location={lifeFields.birthDateDisplay ? lifeFields.birthLocationDisplay : ""}
             meta={chronologyMeta(lifeFields.birthRaw)}
           />
           <VitalField
             label="Fallecimiento"
-            value={lifeFields.deathDisplay}
-            emphasis={extractYear(lifeFields.deathDisplay)}
+            value={lifeFields.deathDateDisplay || lifeFields.deathLocationDisplay}
+            emphasis={extractYear(lifeFields.deathDateDisplay || lifeFields.deathLocationDisplay)}
+            location={lifeFields.deathDateDisplay ? lifeFields.deathLocationDisplay : ""}
             meta={chronologyMeta(lifeFields.deathRaw)}
           />
 

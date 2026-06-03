@@ -25,8 +25,20 @@ export interface DataMeta {
 export interface PersonLifeFields {
   birthRaw: string;
   deathRaw: string;
+  birthDateDisplay: string;
+  deathDateDisplay: string;
+  birthLocationDisplay: string;
+  deathLocationDisplay: string;
   birthDisplay: string;
   deathDisplay: string;
+}
+
+export interface ImageViewerSource {
+  id: string;
+  src: string;
+  title: string;
+  alt: string;
+  workDate?: string;
 }
 
 export interface PersonDenomination {
@@ -170,6 +182,48 @@ export function mediaAssetSrc(asset: MediaAsset | null, previewUrls: Record<stri
   return normalizeUrl(asset.src);
 }
 
+export function mediaAssetViewerSource(
+  asset: MediaAsset | null,
+  previewUrls: Record<string, string>,
+  personName: string
+): ImageViewerSource | null {
+  const src = mediaAssetSrc(asset, previewUrls);
+  if (!asset || !src) return null;
+
+  return {
+    id: asset.id,
+    src,
+    title: firstNonEmpty(asset.title, asset.fileName, personName),
+    alt: asset.title || `imagen de ${personName}`,
+    workDate: asset.workDate,
+  };
+}
+
+export function personMainImageViewerSource({
+  asset,
+  previewUrls,
+  fallbackUrl,
+  personName,
+}: {
+  asset: MediaAsset | null;
+  previewUrls: Record<string, string>;
+  fallbackUrl?: string;
+  personName: string;
+}): ImageViewerSource | null {
+  const assetSource = mediaAssetViewerSource(asset, previewUrls, personName);
+  if (assetSource) return assetSource;
+
+  const src = normalizeUrl(fallbackUrl);
+  if (!src) return null;
+
+  return {
+    id: `fallback:${src}`,
+    src,
+    title: personName,
+    alt: `imagen de ${personName}`,
+  };
+}
+
 export function personReignRangeLabel(person: Pick<Person, "reinados">): string {
   const years = person.reinados
     .flatMap((row) => [row?.["Inicio del reinado (año)"], row?.["Final del reinado (año)"]])
@@ -182,32 +236,117 @@ export function personReignRangeLabel(person: Pick<Person, "reinados">): string 
   return `${Math.min(...years)} - ${Math.max(...years)}`;
 }
 
+function uniqueLifeParts(values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+
+  for (const value of values) {
+    const part = String(value ?? "").trim();
+    const key = colorKey(part);
+    if (!part || seen.has(key)) continue;
+    seen.add(key);
+    parts.push(part);
+  }
+
+  return parts;
+}
+
+function splitParentheticalLocation(value: string): { main: string; parentLocations: string[] } {
+  const match = value.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  if (!match) return { main: value, parentLocations: [] };
+
+  return {
+    main: match[1].trim() || value,
+    parentLocations: match[2].split(",").map((part) => part.trim()),
+  };
+}
+
+function personLocationDisplay({
+  place,
+  city,
+  province,
+  country,
+}: {
+  place: unknown;
+  city: unknown;
+  province: unknown;
+  country: unknown;
+}): string {
+  const mainLocationRaw = firstNonEmpty(place, city);
+  const parsedMainLocation = splitParentheticalLocation(mainLocationRaw);
+  const mainLocation = parsedMainLocation.main;
+  const normalizedMainLocation = colorKey(mainLocation);
+  const parentLocations = uniqueLifeParts([
+    ...parsedMainLocation.parentLocations,
+    province,
+    country,
+  ]).filter((part) => {
+    const normalizedPart = colorKey(part);
+    return !normalizedMainLocation || (
+      normalizedPart !== normalizedMainLocation &&
+      !normalizedMainLocation.includes(normalizedPart)
+    );
+  });
+
+  if (mainLocation && parentLocations.length) {
+    return `${mainLocation} (${parentLocations.join(", ")})`;
+  }
+
+  return mainLocation || parentLocations.join(", ");
+}
+
+function lifeDisplay(date: string, location: string): string {
+  return uniqueLifeParts([date, location]).join(", ");
+}
+
 export function personLifeFields(person: Pick<Person, "reinados"> | null | undefined): PersonLifeFields {
   const firstRow = person?.reinados?.[0] ?? {};
   const birthRaw = firstNonEmpty(
     firstRow?.["Nacimiento (Fecha)"],
     firstRow?.["Nacimiento (año)"],
-    firstRow?.["Nacimiento (Año)"]
+    firstRow?.["Nacimiento (Año)"],
+    firstRow?.Nacimiento
   );
   const deathRaw = firstNonEmpty(
     firstRow?.["Fallecimiento (Fecha)"],
     firstRow?.["Fallecimiento (año)"],
-    firstRow?.["Fallecimiento (Año)"]
+    firstRow?.["Fallecimiento (Año)"],
+    firstRow?.Fallecimiento,
+    firstRow?.Defunción,
+    firstRow?.Muerte
   );
+  const birthLocation = personLocationDisplay({
+    place: firstRow?.["Nacimiento (lugar)"],
+    city: firstRow?.["Nacimiento (ciudad)"],
+    province: firstRow?.["Nacimiento (provincia)"],
+    country: firstNonEmpty(
+      firstRow?.["Nacimiento (País)"],
+      firstRow?.["Nacimiento (Pais)"],
+      firstRow?.["Nacimiento (país)"],
+      firstRow?.["Nacimiento (pais)"]
+    ),
+  });
+  const deathLocation = personLocationDisplay({
+    place: firstRow?.["Fallecimiento (lugar)"],
+    city: firstRow?.["Fallecimiento (ciudad)"],
+    province: firstRow?.["Fallecimiento (provincia)"],
+    country: firstNonEmpty(
+      firstRow?.["Fallecimiento (País)"],
+      firstRow?.["Fallecimiento (Pais)"],
+      firstRow?.["Fallecimiento (país)"],
+      firstRow?.["Fallecimiento (pais)"]
+    ),
+  });
 
   return {
     birthRaw,
     deathRaw,
-    birthDisplay: firstNonEmpty(
-      birthRaw,
-      firstRow?.["Nacimiento (lugar)"],
-      firstRow?.["Nacimiento (ciudad)"]
-    ),
-    deathDisplay: firstNonEmpty(
-      deathRaw,
-      firstRow?.["Fallecimiento (lugar)"],
-      firstRow?.["Fallecimiento (ciudad)"]
-    ),
+    birthDateDisplay: birthRaw,
+    deathDateDisplay: deathRaw,
+    birthLocationDisplay: birthLocation,
+    deathLocationDisplay: deathLocation,
+    birthDisplay: lifeDisplay(birthRaw, birthLocation),
+    deathDisplay: lifeDisplay(deathRaw, deathLocation),
   };
 }
 
