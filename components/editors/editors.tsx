@@ -99,6 +99,21 @@ export function EditorDialog({
 // Editor de persona
 // ---------------------------------------------------------------------------
 
+function EditorSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 border-t border-slate-800 pt-4 first:border-t-0 first:pt-0">
+      <h3 className="text-sm font-medium text-slate-100">{title}</h3>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
 function PersonEditorContent({
   draft,
   setDraft,
@@ -122,59 +137,71 @@ function PersonEditorContent({
     setDraft((d) => (d ? { ...d, [key]: value } : d));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <EditorField
-        label="PersonID (solo lectura)"
-        value={String(draftPersonId ?? "")}
-        readOnly
-        colSpan2
-      />
+    <div className="space-y-5">
+      <EditorSection title="Identidad">
+        <EditorField
+          label="Nombre principal"
+          value={String(draft["Nombre principal"] ?? "")}
+          onChange={upd("Nombre principal")}
+        />
+        <EditorField
+          label="Apelativo"
+          value={String(draft.Apelativo ?? "")}
+          onChange={upd("Apelativo")}
+        />
 
-      <EditorField
-        label="Nombre principal"
-        value={String(draft["Nombre principal"] ?? "")}
-        onChange={upd("Nombre principal")}
-        colSpan2
-      />
+        <EditorField
+          label="PersonID (solo lectura)"
+          value={String(draftPersonId ?? "")}
+          readOnly
+        />
 
-      <div className="space-y-1 md:col-span-2">
-        <div className="flex flex-col gap-2">
-          <Label className="text-sm font-medium text-slate-300">
-            Información Verificada
-          </Label>
-          <div
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={toggleVerified}
-          >
-            <Checkbox
-              checked={boolFromVerified(draft["Información verificada"])}
-              className="pointer-events-none"
-            />
-            <span className="text-sm text-slate-300 select-none">
-              {verifiedToText(
-                boolFromVerified(draft["Información verificada"])
-              )}
-            </span>
+        <div className="space-y-1">
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm font-medium text-slate-300">
+              Información verificada
+            </Label>
+            <button
+              type="button"
+              className="flex h-10 cursor-pointer items-center gap-2 rounded-[3px] border border-slate-700/60 bg-slate-900/40 px-3"
+              onClick={toggleVerified}
+            >
+              <Checkbox
+                checked={boolFromVerified(draft["Información verificada"])}
+                className="pointer-events-none"
+              />
+              <span className="select-none text-sm text-slate-200">
+                {verifiedToText(
+                  boolFromVerified(draft["Información verificada"])
+                )}
+              </span>
+            </button>
           </div>
         </div>
-      </div>
+      </EditorSection>
 
-      <EditorField label="Nacimiento (Fecha)" value={String(draft["Nacimiento (Fecha)"] ?? "")} onChange={upd("Nacimiento (Fecha)")} />
-      <EditorField label="Nacimiento (Lugar)" value={String(draft["Nacimiento (lugar)"] ?? "")} onChange={upd("Nacimiento (lugar)")} />
-      <EditorField label="Nacimiento (Ciudad)" value={String(draft["Nacimiento (ciudad)"] ?? "")} onChange={upd("Nacimiento (ciudad)")} />
-      <EditorField label="Nacimiento (Provincia)" value={String(draft["Nacimiento (provincia)"] ?? "")} onChange={upd("Nacimiento (provincia)")} />
-      <EditorField label="Nacimiento (País)" value={String(draft["Nacimiento (País)"] ?? "")} onChange={upd("Nacimiento (País)")} />
+      <EditorSection title="Nacimiento">
+        <EditorField label="Fecha" value={String(draft["Nacimiento (Fecha)"] ?? "")} onChange={upd("Nacimiento (Fecha)")} />
+        <EditorField label="Lugar" value={String(draft["Nacimiento (lugar)"] ?? "")} onChange={upd("Nacimiento (lugar)")} />
+        <EditorField label="Ciudad" value={String(draft["Nacimiento (ciudad)"] ?? "")} onChange={upd("Nacimiento (ciudad)")} />
+        <EditorField label="Provincia" value={String(draft["Nacimiento (provincia)"] ?? "")} onChange={upd("Nacimiento (provincia)")} />
+        <EditorField label="País" value={String(draft["Nacimiento (País)"] ?? "")} onChange={upd("Nacimiento (País)")} />
+      </EditorSection>
 
-      <EditorField label="Fallecimiento (Fecha)" value={String(draft["Fallecimiento (Fecha)"] ?? "")} onChange={upd("Fallecimiento (Fecha)")} />
-      <EditorField label="Fallecimiento (Lugar)" value={String(draft["Fallecimiento (lugar)"] ?? "")} onChange={upd("Fallecimiento (lugar)")} />
-      <EditorField label="Fallecimiento (Ciudad)" value={String(draft["Fallecimiento (ciudad)"] ?? "")} onChange={upd("Fallecimiento (ciudad)")} />
-      <EditorField label="Fallecimiento (Provincia)" value={String(draft["Fallecimiento (provincia)"] ?? "")} onChange={upd("Fallecimiento (provincia)")} />
-      <EditorField label="Fallecimiento (País)" value={String(draft["Fallecimiento (País)"] ?? "")} onChange={upd("Fallecimiento (País)")} />
+      <EditorSection title="Fallecimiento y enterramiento">
+        <EditorField label="Fecha" value={String(draft["Fallecimiento (Fecha)"] ?? "")} onChange={upd("Fallecimiento (Fecha)")} />
+        <EditorField label="Lugar" value={String(draft["Fallecimiento (lugar)"] ?? "")} onChange={upd("Fallecimiento (lugar)")} />
+        <EditorField label="Ciudad" value={String(draft["Fallecimiento (ciudad)"] ?? "")} onChange={upd("Fallecimiento (ciudad)")} />
+        <EditorField label="Provincia" value={String(draft["Fallecimiento (provincia)"] ?? "")} onChange={upd("Fallecimiento (provincia)")} />
+        <EditorField label="País" value={String(draft["Fallecimiento (País)"] ?? "")} onChange={upd("Fallecimiento (País)")} />
+        <EditorField label="Enterramiento" value={String(draft["Enterramiento"] ?? "")} onChange={upd("Enterramiento")} />
+      </EditorSection>
 
-      <EditorField label="Enterramiento" value={String(draft["Enterramiento"] ?? "")} onChange={upd("Enterramiento")} colSpan2 />
-      <EditorField label="Descripción" value={String(draft["Descripción"] ?? "")} onChange={upd("Descripción")} multiline colSpan2 />
-      <EditorField label="Imagen URL" value={String(draft["Imagen URL"] ?? "")} onChange={upd("Imagen URL")} />
-      <EditorField label="Ficha RAH URL" value={String(draft["Ficha RAH URL"] ?? "")} onChange={upd("Ficha RAH URL")} />
+      <EditorSection title="Descripción y enlaces">
+        <EditorField label="Descripción" value={String(draft["Descripción"] ?? "")} onChange={upd("Descripción")} multiline colSpan2 />
+        <EditorField label="Imagen URL" value={String(draft["Imagen URL"] ?? "")} onChange={upd("Imagen URL")} />
+        <EditorField label="Ficha RAH URL" value={String(draft["Ficha RAH URL"] ?? "")} onChange={upd("Ficha RAH URL")} />
+      </EditorSection>
     </div>
   );
 }

@@ -260,6 +260,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     const personDraft: RawRow = {
       PersonID: personId,
       "Nombre principal": p.nombrePrincipal === "(sin nombre)" ? "" : p.nombrePrincipal,
+      Apelativo: p.apelativos?.[0] ?? base.Apelativo ?? base.apelativo ?? "",
       "Información verificada": verifiedToText(p.verifiedAll),
       "Nacimiento (Fecha)": base["Nacimiento (Fecha)"] ?? "",
       "Nacimiento (lugar)": base["Nacimiento (lugar)"] ?? "",
@@ -327,6 +328,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     setDraft({
       PersonID: newId,
       "Nombre principal": "",
+      Apelativo: "",
       "Información verificada": verifiedToText(false),
       "Nacimiento (Fecha)": "",
       "Nacimiento (lugar)": "",

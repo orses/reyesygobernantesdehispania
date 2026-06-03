@@ -14,6 +14,7 @@ export const DATASET_PACKAGE_VERSION = 1;
 
 export interface DatasetPackagePayload {
     version: typeof DATASET_PACKAGE_VERSION;
+    datasetName: string;
     exportedAt: string;
     datos: Record<string, unknown>[];
     mediaAssets: MediaAsset[];
@@ -38,6 +39,28 @@ const MIME_EXTENSIONS: Record<string, string> = {
     "image/svg+xml": ".svg",
 };
 
+const FALLBACK_DATASET_NAME = "datos";
+const GENERIC_IMPORT_BASE_NAMES = new Set([
+    "backup",
+    "copia",
+    "completa",
+    "completo",
+    "data",
+    "dataset",
+    "datos",
+    "export",
+    "exportacion",
+    "exportación",
+    "respaldo",
+    "zip completo",
+]);
+
+interface ResolveImportedDatasetNameInput {
+    currentDatasetName?: string | null;
+    fileName?: string | null;
+    payloadDatasetName?: unknown;
+}
+
 export function cleanRowsForExport(rows: RawRow[]): Record<string, unknown>[] {
     return rows.map((row) => {
         const { _duracionCalc, _duracionFuente, _rowId, ...rest } = row;
@@ -45,13 +68,119 @@ export function cleanRowsForExport(rows: RawRow[]): Record<string, unknown>[] {
     });
 }
 
-export function getExportFileName(datasetName: string, extension: "json" | "csv" | "zip"): string {
-    const base = String(datasetName || "datos")
+function stripKnownExportExtension(value: string): string {
+    return value.replace(/\.(json|csv|zip)$/i, "").trim();
+}
+
+function stripBrowserDuplicateSuffix(value: string): string {
+    return value.replace(/\s+\(\d+\)$/u, "").trim();
+}
+
+function stripTimestampSuffix(value: string): string {
+    return value
+        .replace(
+            /(?:[\s_-]+)(?:19|20)\d{2}[01]\d[0-3]\d(?:\s*[-_]\s*(?:\d{1,4}))?$/u,
+            ""
+        )
+        .replace(
+            /(?:[\s_-]+)(?:19|20)\d{2}[-.][01]\d[-.][0-3]\d(?:\s*[-_]\s*(?:\d{1,4}))?$/u,
+            ""
+        )
+        .trim();
+}
+
+function cleanDatasetFileNameCharacters(value: string): string {
+    return value
+        .replace(/[<>:"/\\|?*]/g, "-")
+        .split("")
+        .map((character) => (character.charCodeAt(0) < 32 ? "-" : character))
+        .join("")
+        .replace(/\s+/g, " ")
+        .replace(/^\.+|\.+$/g, "")
+        .trim();
+}
+
+function isGenericImportBaseName(value: string): boolean {
+    const normalized = value
         .trim()
-        .replace(/\.(json|csv|zip)$/i, "")
-        .trim() || "datos";
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
+
+    return GENERIC_IMPORT_BASE_NAMES.has(normalized);
+}
+
+function padDatePart(value: number): string {
+    return String(value).padStart(2, "0");
+}
+
+function timestampParts(date: Date): { date: string; time: string } {
+    return {
+        date: [
+            date.getFullYear(),
+            padDatePart(date.getMonth() + 1),
+            padDatePart(date.getDate()),
+        ].join(""),
+        time: [
+            padDatePart(date.getHours()),
+            padDatePart(date.getMinutes()),
+        ].join(""),
+    };
+}
+
+export function normalizeDatasetBaseName(value: unknown, fallback = FALLBACK_DATASET_NAME): string {
+    const fallbackName =
+        cleanDatasetFileNameCharacters(String(fallback || FALLBACK_DATASET_NAME)) || FALLBACK_DATASET_NAME;
+    const raw = String(value ?? "").trim();
+    if (!raw) return fallbackName;
+
+    const cleaned = cleanDatasetFileNameCharacters(
+        stripTimestampSuffix(stripBrowserDuplicateSuffix(stripKnownExportExtension(raw)))
+    );
+
+    return cleaned || fallbackName;
+}
+
+export function getExportFileName(datasetName: string, extension: "json" | "csv" | "zip"): string {
+    const base = normalizeDatasetBaseName(datasetName);
 
     return `${base}.${extension}`;
+}
+
+export function getTimestampedExportFileName(
+    datasetName: string,
+    extension: "json" | "csv" | "zip",
+    exportedAt: Date = new Date()
+): string {
+    const base = normalizeDatasetBaseName(datasetName);
+    const { date, time } = timestampParts(exportedAt);
+
+    return `${base} ${date} - ${time}.${extension}`;
+}
+
+export function readDatasetNameFromPayload(value: unknown): string | undefined {
+    if (!value || typeof value !== "object") return undefined;
+    const datasetName = (value as { datasetName?: unknown }).datasetName;
+    if (typeof datasetName !== "string" || !datasetName.trim()) return undefined;
+
+    return normalizeDatasetBaseName(datasetName);
+}
+
+export function resolveImportedDatasetName({
+    currentDatasetName,
+    fileName,
+    payloadDatasetName,
+}: ResolveImportedDatasetNameInput): string {
+    const payloadName = readDatasetNameFromPayload({ datasetName: payloadDatasetName });
+    if (payloadName) return payloadName;
+
+    const currentBaseName = normalizeDatasetBaseName(currentDatasetName);
+    const fileBaseName = normalizeDatasetBaseName(fileName);
+    if (isGenericImportBaseName(fileBaseName)) return currentBaseName;
+
+    return fileBaseName;
 }
 
 export function safePackageFileName(value: unknown, fallback: string): string {
@@ -125,17 +254,25 @@ export function toPortableMediaAsset(
 export function createDatasetPayload(
     rows: RawRow[],
     mediaAssets: MediaAsset[],
-    exportedAt = new Date().toISOString()
+    exportedAt = new Date().toISOString(),
+    datasetName = FALLBACK_DATASET_NAME
 ): DatasetPackagePayload {
     return {
         version: DATASET_PACKAGE_VERSION,
+        datasetName: normalizeDatasetBaseName(datasetName),
         exportedAt,
         datos: cleanRowsForExport(rows),
         // Las imágenes subidas llevan su ruta estable (packagePath), aunque el JSON
         // suelto no contenga el archivo: así la referencia no depende del nombre editable.
         mediaAssets: mediaAssets.map((asset) =>
             asset.kind === "uploaded-file"
-                ? toPortableMediaAsset(asset, createMediaPackagePath(asset))
+                ? toPortableMediaAsset(
+                    asset,
+                    asset.packagePath || createMediaPackagePath(asset),
+                    asset.printPackagePath && typeof asset.printDpi === "number"
+                        ? { printPackagePath: asset.printPackagePath, printDpi: asset.printDpi }
+                        : undefined
+                )
                 : toPortableMediaAsset(asset)
         ),
     };

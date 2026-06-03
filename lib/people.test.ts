@@ -140,6 +140,27 @@ describe("buildPeople", () => {
             age: 87,
         });
     });
+
+    it("consolida el Apelativo como dato de persona sin duplicados", () => {
+        const people = buildPeople(groupRowsByPerson([
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso X",
+                Apelativo: "el Sabio",
+                Reino: "Reino de León",
+                "Inicio del reinado (año)": 1252,
+            },
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso X",
+                Apelativo: "el Sabio",
+                Reino: "Reino de Castilla",
+                "Inicio del reinado (año)": 1252,
+            },
+        ]));
+
+        expect(people.find((person) => person.personId === "alfonso")?.apelativos).toEqual(["el Sabio"]);
+    });
 });
 
 describe("filterAndSortPeople", () => {
@@ -216,6 +237,32 @@ describe("filterAndSortPeople", () => {
         expect(getFirstMatchingPersonId(people, "trastamara")).toBe("isabel");
         expect(getFirstMatchingPersonId(people, "")).toBeNull();
         expect(personMatchesSearch(people[0], "corona")).toBe(true);
+    });
+
+    it("busca por Apelativo de la persona", () => {
+        const { allPeople } = derivePeopleFromRows([
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso X",
+                Apelativo: "el Sabio",
+                Reino: "Reino de Castilla",
+                "Inicio del reinado (año)": 1252,
+            },
+            {
+                PersonID: "sancho",
+                Nombre: "Sancho IV",
+                Apelativo: "el Bravo",
+                Reino: "Reino de Castilla",
+                "Inicio del reinado (año)": 1284,
+            },
+        ]);
+
+        const people = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            query: "sabio",
+        });
+
+        expect(people.map((person) => person.personId)).toEqual(["alfonso"]);
     });
 });
 

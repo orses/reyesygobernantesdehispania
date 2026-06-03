@@ -10,6 +10,10 @@ import {
     createMediaPrintPackagePath,
     createUploadedMediaPackage,
     getExportFileName,
+    getTimestampedExportFileName,
+    normalizeDatasetBaseName,
+    readDatasetNameFromPayload,
+    resolveImportedDatasetName,
     safePackageFileName,
     toPortableMediaAsset,
 } from "./dataset-package";
@@ -88,6 +92,143 @@ describe("getExportFileName", () => {
         expect(getExportFileName("datos.json", "zip")).toBe("datos.zip");
         expect(getExportFileName("", "csv")).toBe("datos.csv");
     });
+
+    it("no arrastra fechas antiguas aunque el nombre persistido venga de una exportación previa", () => {
+        expect(getExportFileName("CRONOLOGÍA_FICHAS 20260217 - 01.zip", "zip")).toBe(
+            "CRONOLOGÍA_FICHAS.zip"
+        );
+    });
+});
+
+describe("normalizeDatasetBaseName", () => {
+    it("elimina extensiones de exportación sin tocar el nombre legible", () => {
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS.zip")).toBe("CRONOLOGÍA_FICHAS");
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS.csv")).toBe("CRONOLOGÍA_FICHAS");
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS.json")).toBe("CRONOLOGÍA_FICHAS");
+    });
+
+    it("elimina sufijos de fecha y contador heredados", () => {
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS 20260217 - 01.zip")).toBe(
+            "CRONOLOGÍA_FICHAS"
+        );
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS_20260217_01.zip")).toBe(
+            "CRONOLOGÍA_FICHAS"
+        );
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS 2026-02-17 - 01.zip")).toBe(
+            "CRONOLOGÍA_FICHAS"
+        );
+    });
+
+    it("elimina sufijos de fecha y hora generados por la aplicación", () => {
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS 20260603 - 1842.zip")).toBe(
+            "CRONOLOGÍA_FICHAS"
+        );
+        expect(normalizeDatasetBaseName("CRONOLOGÍA_FICHAS 20260603 - 1842 (1).zip")).toBe(
+            "CRONOLOGÍA_FICHAS"
+        );
+    });
+
+    it("preserva años significativos que no son marcas de exportación", () => {
+        expect(normalizeDatasetBaseName("Gobernantes 1492")).toBe("Gobernantes 1492");
+        expect(normalizeDatasetBaseName("Serie 2026")).toBe("Serie 2026");
+    });
+
+    it("limpia caracteres incompatibles con nombres de archivo y aplica fallback", () => {
+        expect(normalizeDatasetBaseName(" Cronología:/Fichas? ")).toBe("Cronología--Fichas-");
+        expect(normalizeDatasetBaseName("...", "respaldo")).toBe("respaldo");
+        expect(normalizeDatasetBaseName("", "respaldo")).toBe("respaldo");
+    });
+});
+
+describe("getTimestampedExportFileName", () => {
+    it("genera nombres fechados con fecha y hora locales", () => {
+        expect(
+            getTimestampedExportFileName("CRONOLOGÍA_FICHAS", "zip", new Date(2026, 5, 3, 18, 42))
+        ).toBe("CRONOLOGÍA_FICHAS 20260603 - 1842.zip");
+    });
+
+    it("rellena ceros en mes, día, hora y minuto", () => {
+        expect(
+            getTimestampedExportFileName("CRONOLOGÍA_FICHAS", "json", new Date(2026, 0, 2, 3, 4))
+        ).toBe("CRONOLOGÍA_FICHAS 20260102 - 0304.json");
+    });
+
+    it("sustituye una fecha vieja por la fecha nueva del momento de exportación", () => {
+        expect(
+            getTimestampedExportFileName(
+                "CRONOLOGÍA_FICHAS 20260217 - 01.zip",
+                "zip",
+                new Date(2026, 5, 3, 18, 42)
+            )
+        ).toBe("CRONOLOGÍA_FICHAS 20260603 - 1842.zip");
+    });
+
+    it("usa fallback si el nombre base está vacío", () => {
+        expect(getTimestampedExportFileName("", "csv", new Date(2026, 5, 3, 18, 42))).toBe(
+            "datos 20260603 - 1842.csv"
+        );
+    });
+});
+
+describe("readDatasetNameFromPayload", () => {
+    it("lee y normaliza el nombre interno del paquete", () => {
+        expect(readDatasetNameFromPayload({ datasetName: "CRONOLOGÍA_FICHAS 20260217 - 01.zip" })).toBe(
+            "CRONOLOGÍA_FICHAS"
+        );
+    });
+
+    it("ignora payloads antiguos sin nombre interno", () => {
+        expect(readDatasetNameFromPayload({ version: 1, datos: [] })).toBeUndefined();
+        expect(readDatasetNameFromPayload(null)).toBeUndefined();
+    });
+});
+
+describe("resolveImportedDatasetName", () => {
+    it("prioriza el datasetName interno frente a un archivo de transporte genérico", () => {
+        expect(
+            resolveImportedDatasetName({
+                currentDatasetName: "CRONOLOGÍA_FICHAS",
+                fileName: "completa.zip",
+                payloadDatasetName: "REYES_HISPANOS",
+            })
+        ).toBe("REYES_HISPANOS");
+    });
+
+    it("conserva el nombre actual al importar un ZIP genérico sin metadato interno", () => {
+        expect(
+            resolveImportedDatasetName({
+                currentDatasetName: "CRONOLOGÍA_FICHAS",
+                fileName: "completa.zip",
+            })
+        ).toBe("CRONOLOGÍA_FICHAS");
+    });
+
+    it("infiere el nombre base desde paquetes antiguos con fecha en el nombre", () => {
+        expect(
+            resolveImportedDatasetName({
+                currentDatasetName: "datos",
+                fileName: "CRONOLOGÍA_FICHAS 20260217 - 01.zip",
+            })
+        ).toBe("CRONOLOGÍA_FICHAS");
+    });
+
+    it("usa el archivo no genérico como nombre base cuando no hay metadato interno", () => {
+        expect(
+            resolveImportedDatasetName({
+                currentDatasetName: "CRONOLOGÍA_FICHAS",
+                fileName: "Monarquía visigoda.json",
+            })
+        ).toBe("Monarquía visigoda");
+    });
+
+    it("normaliza nombres persistidos antiguos antes de conservarlos con archivos genéricos", () => {
+        expect(
+            resolveImportedDatasetName({
+                currentDatasetName: "CRONOLOGÍA_FICHAS 20260217 - 01.zip",
+                fileName: "respaldo.zip",
+            })
+        ).toBe("CRONOLOGÍA_FICHAS");
+    });
 });
 
 describe("safePackageFileName", () => {
@@ -154,13 +295,43 @@ describe("toPortableMediaAsset y createDatasetPayload", () => {
         });
     });
 
-    it("genera un payload JSON portable", () => {
-        const payload = createDatasetPayload([{ Nombre: "Pelayo", _rowId: "row-1" }], [uploadedAsset], "2026-01-01T00:00:00.000Z");
+    it("genera un payload JSON portable con nombre base estable", () => {
+        const payload = createDatasetPayload(
+            [{ Nombre: "Pelayo", _rowId: "row-1" }],
+            [uploadedAsset],
+            "2026-01-01T00:00:00.000Z",
+            "CRONOLOGÍA_FICHAS 20260217 - 01.zip"
+        );
 
         expect(payload).toMatchObject({
             version: 1,
+            datasetName: "CRONOLOGÍA_FICHAS",
             exportedAt: "2026-01-01T00:00:00.000Z",
             datos: [{ Nombre: "Pelayo" }],
+        });
+        expect(payload.mediaAssets[0].storageKey).toBeUndefined();
+    });
+
+    it("conserva rutas portables y variante documental ya preparadas para el ZIP completo", () => {
+        const payload = createDatasetPayload(
+            [{ Nombre: "Pelayo", _rowId: "row-1" }],
+            [
+                {
+                    ...uploadedAsset,
+                    storageKey: undefined,
+                    packagePath: "media/media-101-Pelayo original.png",
+                    printPackagePath: "media-documento/300dpi/media-101-Pelayo original.png",
+                    printDpi: 300,
+                },
+            ],
+            "2026-01-01T00:00:00.000Z",
+            "CRONOLOGÍA_FICHAS"
+        );
+
+        expect(payload.mediaAssets[0]).toMatchObject({
+            packagePath: "media/media-101-Pelayo original.png",
+            printPackagePath: "media-documento/300dpi/media-101-Pelayo original.png",
+            printDpi: 300,
         });
         expect(payload.mediaAssets[0].storageKey).toBeUndefined();
     });

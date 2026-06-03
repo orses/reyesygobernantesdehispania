@@ -13,17 +13,17 @@ import {
     getRowId,
     getPersonId,
     asYearOrNull,
-    boolFromVerified,
-    verifiedToText,
     downloadTextFile,
     downloadBlobFile,
     generateCsv,
 } from "../lib/data";
 import {
-    cleanRowsForExport,
+    createDatasetPayload,
     createUploadedMediaPackage,
-    DATASET_PACKAGE_VERSION,
-    getExportFileName,
+    getTimestampedExportFileName,
+    normalizeDatasetBaseName,
+    readDatasetNameFromPayload,
+    resolveImportedDatasetName,
     toPortableMediaAsset,
 } from "../lib/dataset-package";
 import {
@@ -33,6 +33,7 @@ import {
     ensurePrimaryMediaAssets,
     normalizeRightsStatus,
 } from "../lib/media";
+import { applyPersonDraftToRows } from "../lib/person-draft";
 import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
 import { createStoredZip, parseStoredZip } from "../lib/zip";
 
@@ -124,7 +125,7 @@ export function useDataset() {
     );
     const [mediaPreviewUrls, setMediaPreviewUrls] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
-    const [datasetName, setDatasetName] = useState("datos.json");
+    const [datasetName, setDatasetName] = useState("datos");
     const [idbLoaded, setIdbLoaded] = useState(false);
     const [datasetLoadedAt, setDatasetLoadedAt] = useState<number | null>(null);
 
@@ -139,7 +140,7 @@ export function useDataset() {
                     setRows(storedRows);
                 }
                 if (storedName) {
-                    setDatasetName(storedName);
+                    setDatasetName(normalizeDatasetBaseName(storedName));
                 }
                 if (storedMediaAssets && storedMediaAssets.length > 0) {
                     setMediaAssets(normalizeStoredMediaAssets(storedMediaAssets));
@@ -244,7 +245,7 @@ export function useDataset() {
                     : deriveMediaAssetsFromRows(next)
             );
             setError(null);
-            if (nameHint) setDatasetName(nameHint);
+            if (nameHint) setDatasetName(normalizeDatasetBaseName(nameHint));
             setDatasetLoadedAt(Date.now());
         },
         []
@@ -324,12 +325,20 @@ export function useDataset() {
 
                 setDetectedDelimiter(null);
                 setDetectedQuotes(null);
-                setDatasetFromRows(norm.value!, file?.name || null, restoredMediaAssets);
+                setDatasetFromRows(
+                    norm.value!,
+                    resolveImportedDatasetName({
+                        currentDatasetName: datasetName,
+                        fileName: file?.name,
+                        payloadDatasetName: readDatasetNameFromPayload(parsed.value),
+                    }),
+                    restoredMediaAssets
+                );
             } catch (err) {
                 setError(`ZIP inválido: ${errorMessage(err)}`);
             }
         },
-        [mediaAssets, setDatasetFromRows]
+        [datasetName, mediaAssets, setDatasetFromRows]
     );
 
     const handleFile = useCallback(
@@ -353,7 +362,13 @@ export function useDataset() {
                     }
                     setDetectedDelimiter(parsed.delimiter || null);
                     setDetectedQuotes(parsed.usesQuotes || false);
-                    setDatasetFromRows(parsed.value as RawRow[], nameHint);
+                    setDatasetFromRows(
+                        parsed.value as RawRow[],
+                        resolveImportedDatasetName({
+                            currentDatasetName: datasetName,
+                            fileName: nameHint,
+                        })
+                    );
                     return;
                 }
 
@@ -369,11 +384,19 @@ export function useDataset() {
                 }
                 const mediaAssetsFromJson =
                     readMediaAssetsFromPayload(parsed.value);
-                setDatasetFromRows(norm.value!, nameHint, mediaAssetsFromJson);
+                setDatasetFromRows(
+                    norm.value!,
+                    resolveImportedDatasetName({
+                        currentDatasetName: datasetName,
+                        fileName: nameHint,
+                        payloadDatasetName: readDatasetNameFromPayload(parsed.value),
+                    }),
+                    mediaAssetsFromJson
+                );
             };
             reader.readAsText(file, "utf-8");
         },
-        [importDatasetPackage, setDatasetFromRows]
+        [datasetName, importDatasetPackage, setDatasetFromRows]
     );
 
     const addMediaUrl = useCallback(
@@ -585,23 +608,7 @@ export function useDataset() {
             draft: RawRow
         ): string | null => {
             if (!pid) return "Validación: falta PersonID.";
-            const { Predecesor: _predecesor, Sucesor: _sucesor, ...personDraft } = draft;
-            const vText = String(draft["Información verificada"] ?? "").trim();
-            const vBool = boolFromVerified(vText);
-
-            setRows((prev) =>
-                prev
-                    .map((r) => {
-                        if (String(getPersonId(r)) !== pid) return r;
-                        const next = {
-                            ...r,
-                            ...personDraft,
-                            "Información verificada": verifiedToText(vBool),
-                        };
-                        return computeDerivedRow(next);
-                    })
-                    .map((r) => ({ ...r }))
-            );
+            setRows((prev) => applyPersonDraftToRows(prev, pid, draft));
             return null;
         },
         []
@@ -691,7 +698,8 @@ export function useDataset() {
     // --- Exportación ---
     const exportDatasetPackage = useCallback(async (printProfile: ImagePrintResolutionProfile = "original") => {
         try {
-            const exportedAt = new Date().toISOString();
+            const exportedDate = new Date();
+            const exportedAt = exportedDate.toISOString();
             const portableMediaAssets: MediaAsset[] = [];
             const mediaEntries: { path: string; data: Uint8Array }[] = [];
             let missingUploadedFiles = 0;
@@ -723,19 +731,14 @@ export function useDataset() {
                 portableMediaAssets.push(toPortableMediaAsset(asset));
             }
 
-            const payload = {
-                version: DATASET_PACKAGE_VERSION,
-                exportedAt,
-                datos: cleanRowsForExport(rows),
-                mediaAssets: portableMediaAssets,
-            };
+            const payload = createDatasetPayload(rows, portableMediaAssets, exportedAt, datasetName);
             const zip = createStoredZip([
                 { path: "datos.json", data: JSON.stringify(payload, null, 2) },
                 ...mediaEntries,
             ]);
 
             downloadBlobFile(
-                getExportFileName(datasetName, "zip"),
+                getTimestampedExportFileName(datasetName, "zip", exportedDate),
                 new Blob([zip], { type: "application/zip" })
             );
 
@@ -756,7 +759,7 @@ export function useDataset() {
 
     const exportCsv = useCallback(() => {
         const text = generateCsv(applyMediaAssetsToRows(rows, mediaAssets));
-        const base = getExportFileName(datasetName, "csv");
+        const base = getTimestampedExportFileName(datasetName, "csv");
         downloadTextFile(base, text, "text/csv;charset=utf-8");
     }, [rows, mediaAssets, datasetName]);
 

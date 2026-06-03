@@ -1,6 +1,6 @@
 import { Copy, Download } from "lucide-react";
 import { downloadTextFile, generateCsv } from "../../lib/data";
-import { cleanRowsForExport, createDatasetPayload, getExportFileName, toPortableMediaAsset } from "../../lib/dataset-package";
+import { cleanRowsForExport, createDatasetPayload, getTimestampedExportFileName, toPortableMediaAsset } from "../../lib/dataset-package";
 import { applyMediaAssetsToRows } from "../../lib/media";
 import {
   PRINT_RESOLUTION_PROFILE_OPTIONS,
@@ -45,14 +45,15 @@ export function DataTab({
   exportDatasetPackage,
 }: DataTabProps) {
   const exportJson = () => {
-    const payload = createDatasetPayload(rows, mediaAssets);
+    const exportedDate = new Date();
+    const payload = createDatasetPayload(rows, mediaAssets, exportedDate.toISOString(), datasetName);
     const text = JSON.stringify(payload, null, 2);
-    downloadTextFile(getExportFileName(datasetName, "json"), text, "application/json;charset=utf-8");
+    downloadTextFile(getTimestampedExportFileName(datasetName, "json", exportedDate), text, "application/json;charset=utf-8");
   };
 
   const exportCsv = () => {
     const text = generateCsv(applyMediaAssetsToRows(rows, mediaAssets));
-    downloadTextFile(getExportFileName(datasetName, "csv"), text, "text/csv;charset=utf-8");
+    downloadTextFile(getTimestampedExportFileName(datasetName, "csv"), text, "text/csv;charset=utf-8");
   };
 
   const uploadedCount = mediaAssets.filter((asset) => asset.kind === "uploaded-file").length;
@@ -124,7 +125,7 @@ export function DataTab({
                 variant="secondary"
                 className="rounded-[3px]"
                 onClick={() => {
-                  navigator.clipboard?.writeText(JSON.stringify(createDatasetPayload(rows, mediaAssets), null, 2));
+                  navigator.clipboard?.writeText(JSON.stringify(createDatasetPayload(rows, mediaAssets, undefined, datasetName), null, 2));
                 }}
                 title="Copia el JSON de datos al portapapeles (sin los archivos subidos)."
               >
