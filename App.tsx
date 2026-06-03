@@ -23,6 +23,10 @@ import {
   resolveStartupAwareRouteSelectedPersonId,
 } from "./lib/selection";
 import type { RawRow } from "./lib/types";
+import {
+  printResolutionProfileLabel,
+  type ImagePrintResolutionProfile,
+} from "./lib/print-resolution";
 
 // Componentes
 import { Notification } from "./components/ui/notification";
@@ -214,6 +218,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   // --- Carga de datos (con confirmación) ---
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [loadConfirmOpen, setLoadConfirmOpen] = useState(false);
+  const [imagePrintProfile, setImagePrintProfile] = useState<ImagePrintResolutionProfile>("original");
   const uploadedMediaCount = useMemo(
     () => mediaAssets.filter((asset) => asset.kind === "uploaded-file").length,
     [mediaAssets]
@@ -483,8 +488,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
               </Button>
               <Button
                 variant="outline"
-                onClick={exportDatasetPackage}
-                title="Descarga un ZIP con TODO: datos, URLs y las imágenes que has subido. La forma segura de no perder nada. (Para CSV o JSON sueltos, ve a la pestaña «datos».)"
+                onClick={() => exportDatasetPackage(imagePrintProfile)}
+                title={`Descarga un ZIP con TODO. Perfil de imágenes: ${printResolutionProfileLabel(imagePrintProfile)}.`}
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
                 <Download className="h-4 w-4 mr-2" /> guardar todo
@@ -587,6 +592,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   datasetName={datasetName}
                   setDatasetName={setDatasetName}
                   mediaAssets={mediaAssets}
+                  imagePrintProfile={imagePrintProfile}
+                  setImagePrintProfile={setImagePrintProfile}
                   exportDatasetPackage={exportDatasetPackage}
                 />
               } />

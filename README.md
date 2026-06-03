@@ -15,7 +15,7 @@ Aplicación web enfocada en investigadores, historiadores y estudiantes, que per
 *   **Línea del Tiempo (Timeline):** Visualización interactiva temporal donde los períodos se distribuyen en vías para evitar colisiones visuales. Asignación algorítmica de colores según el reino.
 *   **Comparativa (Cara a Cara):** Selector interactivo múltiple para colocar a diversas figuras históricas una junto a otra, contrastando ágilmente parámetros clave.
 *   **Persistencia Local:** La aplicación guarda de forma transparente todo el conjunto de datos en el navegador del usuario utilizando `IndexedDB`.
-*   **Edición y Exportación:** Herramienta de edición rápida en memoria que permite corregir datos sobre la marcha y descargar el set optimizado y corregido de vuelta como archivo `CSV`.
+*   **Edición y exportación:** Herramienta de edición rápida en memoria que permite corregir datos sobre la marcha y descargar el conjunto optimizado como archivo `CSV` o como paquete `ZIP` completo con imágenes.
 
 ## Tecnologías Utilizadas
 
@@ -53,3 +53,13 @@ Este repositorio está preparado nativamente para publicarse como página estát
 ## Uso y Origen de los Datos
 
 El núcleo de esta aplicación es puramente interpretativo y requiere de la inserción inicial de fuentes. Puede importar cualquier tabla de datos guardada en formato **`.csv`** (con delimitadores estándares o automáticos como `;`, `|`, `,` o `\t`) o archivos exportados previamente en formato **`.json`**.
+
+## Exportación de imágenes para documentación
+
+La exportación completa en formato `ZIP` conserva siempre las imágenes originales sin remuestrear ni alterar sus dimensiones de píxel. Además, permite elegir un perfil documental para añadir una copia con metadatos de resolución de impresión:
+
+*   **Original:** mantiene únicamente los archivos originales en la carpeta `media/`.
+*   **300 ppp:** añade variantes preparadas para documentos en `media-documento/300dpi/`.
+*   **600 ppp:** añade variantes preparadas para documentos de mayor exigencia en `media-documento/600dpi/`.
+
+Estos perfiles solo escriben metadatos de resolución para impresión; no incrementan ni reducen la calidad real de la imagen. La operación está soportada para imágenes `PNG` y `JPEG`. Si un formato no admite esta actualización automática, el archivo original se conserva igualmente y la aplicación muestra una advertencia en la exportación.

@@ -2,6 +2,10 @@ import { Copy, Download } from "lucide-react";
 import { downloadTextFile, generateCsv } from "../../lib/data";
 import { cleanRowsForExport, createDatasetPayload, getExportFileName, toPortableMediaAsset } from "../../lib/dataset-package";
 import { applyMediaAssetsToRows } from "../../lib/media";
+import {
+  PRINT_RESOLUTION_PROFILE_OPTIONS,
+  type ImagePrintResolutionProfile,
+} from "../../lib/print-resolution";
 import type { MediaAsset, RawRow } from "../../lib/types";
 import { Button } from "../ui/button";
 import {
@@ -12,6 +16,13 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Input } from "../ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Separator } from "../ui/separator";
 
 interface DataTabProps {
@@ -19,10 +30,20 @@ interface DataTabProps {
   datasetName: string;
   setDatasetName: (value: string) => void;
   mediaAssets?: MediaAsset[];
-  exportDatasetPackage?: () => Promise<void> | void;
+  imagePrintProfile: ImagePrintResolutionProfile;
+  setImagePrintProfile: (value: ImagePrintResolutionProfile) => void;
+  exportDatasetPackage?: (profile?: ImagePrintResolutionProfile) => Promise<void> | void;
 }
 
-export function DataTab({ rows, datasetName, setDatasetName, mediaAssets = [], exportDatasetPackage }: DataTabProps) {
+export function DataTab({
+  rows,
+  datasetName,
+  setDatasetName,
+  mediaAssets = [],
+  imagePrintProfile,
+  setImagePrintProfile,
+  exportDatasetPackage,
+}: DataTabProps) {
   const exportJson = () => {
     const payload = createDatasetPayload(rows, mediaAssets);
     const text = JSON.stringify(payload, null, 2);
@@ -49,13 +70,35 @@ export function DataTab({ rows, datasetName, setDatasetName, mediaAssets = [], e
           <div className="space-y-2">
             <div className="text-sm text-slate-300">nombre base de archivo</div>
             <Input className="rounded-[3px] text-base font-medium bg-slate-900/60 text-slate-50 placeholder:text-slate-400 border-slate-700/60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" value={datasetName} onChange={(e) => setDatasetName(e.target.value)} />
+            <div className="space-y-1">
+              <div className="text-sm text-slate-300">imágenes en ZIP</div>
+              <Select
+                value={imagePrintProfile}
+                onValueChange={(value) => setImagePrintProfile(value as ImagePrintResolutionProfile)}
+              >
+                <SelectTrigger className="h-9 cursor-pointer rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-50 hover:bg-slate-900/60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
+                  {PRINT_RESOLUTION_PROFILE_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      className="text-slate-100 focus:bg-slate-800 focus:text-slate-50"
+                      value={option.value}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="space-y-2">
             <div className="text-sm text-slate-300">exportación</div>
             <div className="flex flex-wrap gap-2">
               <Button
                 className="rounded-[3px]"
-                onClick={exportDatasetPackage}
+                onClick={() => exportDatasetPackage?.(imagePrintProfile)}
                 disabled={!exportDatasetPackage}
                 title="Guarda TODO: datos, URLs y los archivos de imagen que has subido. Es el único formato que no pierde nada; úsalo como respaldo y para reimportar completo."
               >

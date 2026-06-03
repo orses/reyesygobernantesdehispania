@@ -21,7 +21,7 @@ import {
 } from "../lib/data";
 import {
     cleanRowsForExport,
-    createMediaPackagePath,
+    createUploadedMediaPackage,
     DATASET_PACKAGE_VERSION,
     getExportFileName,
     toPortableMediaAsset,
@@ -33,6 +33,7 @@ import {
     ensurePrimaryMediaAssets,
     normalizeRightsStatus,
 } from "../lib/media";
+import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
 import { createStoredZip, parseStoredZip } from "../lib/zip";
 
 // Datos de ejemplo
@@ -634,12 +635,13 @@ export function useDataset() {
     }, []);
 
     // --- Exportación ---
-    const exportDatasetPackage = useCallback(async () => {
+    const exportDatasetPackage = useCallback(async (printProfile: ImagePrintResolutionProfile = "original") => {
         try {
             const exportedAt = new Date().toISOString();
             const portableMediaAssets: MediaAsset[] = [];
             const mediaEntries: { path: string; data: Uint8Array }[] = [];
             let missingUploadedFiles = 0;
+            let skippedPrintVariants = 0;
 
             for (const asset of mediaAssets) {
                 if (asset.kind === "uploaded-file") {
@@ -656,10 +658,11 @@ export function useDataset() {
                         continue;
                     }
 
-                    const packagePath = createMediaPackagePath(asset);
                     const data = new Uint8Array(await blob.arrayBuffer());
-                    mediaEntries.push({ path: packagePath, data });
-                    portableMediaAssets.push(toPortableMediaAsset(asset, packagePath));
+                    const packaged = createUploadedMediaPackage(asset, data, printProfile);
+                    mediaEntries.push(...packaged.entries);
+                    portableMediaAssets.push(packaged.portableAsset);
+                    if (packaged.skippedPrintVariant) skippedPrintVariants++;
                     continue;
                 }
 
@@ -683,9 +686,14 @@ export function useDataset() {
             );
 
             setError(
-                missingUploadedFiles
-                    ? `Exportación ZIP: ${missingUploadedFiles} archivo(s) subido(s) no se encontraron en IndexedDB.`
-                    : null
+                [
+                    missingUploadedFiles
+                        ? `Exportación ZIP: ${missingUploadedFiles} archivo(s) subido(s) no se encontraron en IndexedDB.`
+                        : "",
+                    skippedPrintVariants
+                        ? `Exportación ZIP: ${skippedPrintVariants} imagen(es) no admiten metadatos automáticos de impresión.`
+                        : "",
+                ].filter(Boolean).join(" ") || null
             );
         } catch (err) {
             setError(`Exportación ZIP: ${errorMessage(err)}`);

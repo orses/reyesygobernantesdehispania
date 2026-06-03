@@ -122,6 +122,8 @@ export interface MediaAsset {
     mimeType?: string;
     size?: number;
     packagePath?: string;
+    printPackagePath?: string;
+    printDpi?: number;
     isPrimary: boolean;
     createdAt: string;
     updatedAt?: string;

@@ -3,6 +3,11 @@
 // ---------------------------------------------------------------------------
 
 import type { MediaAsset, RawRow } from "./types";
+import {
+    dpiForPrintResolutionProfile,
+    setPrintResolutionDpi,
+    type ImagePrintResolutionProfile,
+} from "./print-resolution";
 import { validateZipPath } from "./zip";
 
 export const DATASET_PACKAGE_VERSION = 1;
@@ -12,6 +17,17 @@ export interface DatasetPackagePayload {
     exportedAt: string;
     datos: Record<string, unknown>[];
     mediaAssets: MediaAsset[];
+}
+
+export interface MediaPackageEntry {
+    path: string;
+    data: Uint8Array;
+}
+
+export interface UploadedMediaPackageResult {
+    portableAsset: MediaAsset;
+    entries: MediaPackageEntry[];
+    skippedPrintVariant: boolean;
 }
 
 const MIME_EXTENSIONS: Record<string, string> = {
@@ -75,9 +91,35 @@ export function createMediaPackagePath(asset: MediaAsset): string {
     return validateZipPath(`media/${safeId}-${safeName}${extension}`);
 }
 
-export function toPortableMediaAsset(asset: MediaAsset, packagePath?: string): MediaAsset {
-    const { storageKey: _storageKey, packagePath: _packagePath, ...portable } = asset;
-    return packagePath ? { ...portable, packagePath } : portable;
+export function createMediaPrintPackagePath(asset: MediaAsset, dpi: number): string {
+    const safeId = safePackageFileName(asset.id, "media");
+    const safeName = safePackageFileName(asset.fileName || asset.title || asset.id, "imagen");
+    const hasExtension = /\.[a-z0-9]{2,8}$/i.test(safeName);
+    const extension = hasExtension
+        ? ""
+        : extensionFromFileName(asset.fileName) || extensionFromMimeType(asset.mimeType) || ".bin";
+
+    return validateZipPath(`media-documento/${dpi}dpi/${safeId}-${safeName}${extension}`);
+}
+
+export function toPortableMediaAsset(
+    asset: MediaAsset,
+    packagePath?: string,
+    print?: { printPackagePath: string; printDpi: number }
+): MediaAsset {
+    const {
+        storageKey: _storageKey,
+        packagePath: _packagePath,
+        printPackagePath: _printPackagePath,
+        printDpi: _printDpi,
+        ...portable
+    } = asset;
+
+    return {
+        ...portable,
+        ...(packagePath ? { packagePath } : {}),
+        ...(print ? { printPackagePath: print.printPackagePath, printDpi: print.printDpi } : {}),
+    };
 }
 
 export function createDatasetPayload(
@@ -96,5 +138,34 @@ export function createDatasetPayload(
                 ? toPortableMediaAsset(asset, createMediaPackagePath(asset))
                 : toPortableMediaAsset(asset)
         ),
+    };
+}
+
+export function createUploadedMediaPackage(
+    asset: MediaAsset,
+    data: Uint8Array,
+    printProfile: ImagePrintResolutionProfile = "original"
+): UploadedMediaPackageResult {
+    const packagePath = createMediaPackagePath(asset);
+    const entries: MediaPackageEntry[] = [{ path: packagePath, data }];
+    const printDpi = dpiForPrintResolutionProfile(printProfile);
+    let printPackage: { printPackagePath: string; printDpi: number } | undefined;
+    let skippedPrintVariant = false;
+
+    if (printDpi !== null) {
+        const printResult = setPrintResolutionDpi(data, asset.mimeType, printDpi);
+        if (printResult.ok) {
+            const printPackagePath = createMediaPrintPackagePath(asset, printDpi);
+            entries.push({ path: printPackagePath, data: printResult.data });
+            printPackage = { printPackagePath, printDpi };
+        } else {
+            skippedPrintVariant = true;
+        }
+    }
+
+    return {
+        entries,
+        portableAsset: toPortableMediaAsset(asset, packagePath, printPackage),
+        skippedPrintVariant,
     };
 }
