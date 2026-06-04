@@ -161,7 +161,7 @@ export function filterAndSortPeople(allPeople: Person[], filters: FilterState): 
 }
 
 export function comparePeopleByFilter(a: Person, b: Person, sortKey: string, sortDir: string): number {
-    let comparison = 0;
+    let comparison: number;
 
     switch (sortKey) {
         case "cronologia": {

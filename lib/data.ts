@@ -86,7 +86,7 @@ export function parseCsv(text: string) {
     return count;
   };
 
-  let sep = "|";
+  let sep: string;
   const hasPipe = countSepUnquoted(firstRecord, "|") > 0;
   const hasSemi = countSepUnquoted(firstRecord, ";") > 0;
 
