@@ -8,7 +8,7 @@ export const PRINT_RESOLUTION_PROFILE_OPTIONS: {
     value: ImagePrintResolutionProfile;
     label: string;
 }[] = [
-    { value: "original", label: "original" },
+    { value: "original", label: "Original" },
     { value: "300dpi", label: "300 ppp" },
     { value: "600dpi", label: "600 ppp" },
 ];
@@ -35,7 +35,7 @@ export function dpiForPrintResolutionProfile(profile: ImagePrintResolutionProfil
 }
 
 export function printResolutionProfileLabel(profile: ImagePrintResolutionProfile): string {
-    return PRINT_RESOLUTION_PROFILE_OPTIONS.find((option) => option.value === profile)?.label ?? "original";
+    return PRINT_RESOLUTION_PROFILE_OPTIONS.find((option) => option.value === profile)?.label ?? "Original";
 }
 
 function normalizeMimeType(value: unknown): string {

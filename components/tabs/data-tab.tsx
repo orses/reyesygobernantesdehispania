@@ -1,4 +1,4 @@
-import { Copy, Download } from "lucide-react";
+import { Copy, Database, Download } from "lucide-react";
 import { downloadTextFile, generateCsv } from "../../lib/data";
 import { cleanRowsForExport, createDatasetPayload, getTimestampedExportFileName, toPortableMediaAsset } from "../../lib/dataset-package";
 import { applyMediaAssetsToRows } from "../../lib/media";
@@ -60,8 +60,11 @@ export function DataTab({
 
   return (
     <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
-      <CardHeader>
-        <CardTitle className="text-lg font-medium tracking-tight text-slate-50">control de datos</CardTitle>
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-xl font-medium tracking-tight text-slate-50">
+          <Database className="h-5 w-5 text-emerald-300" />
+          Control de datos
+        </CardTitle>
         <CardDescription className="text-base text-slate-200">
           Exporta el estado actual. No se incorpora información externa.
         </CardDescription>
@@ -69,10 +72,10 @@ export function DataTab({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(260px,360px)_minmax(0,1fr)_minmax(280px,420px)]">
           <div className="space-y-2">
-            <div className="text-sm text-slate-300">nombre base de archivo</div>
+            <div className="text-sm text-slate-300">Nombre base de archivo</div>
             <Input className="rounded-[3px] text-base font-medium bg-slate-900/60 text-slate-50 placeholder:text-slate-400 border-slate-700/60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" value={datasetName} onChange={(e) => setDatasetName(e.target.value)} />
             <div className="space-y-1">
-              <div className="text-sm text-slate-300">imágenes en ZIP</div>
+              <div className="text-sm text-slate-300">Imágenes en ZIP</div>
               <Select
                 value={imagePrintProfile}
                 onValueChange={(value) => setImagePrintProfile(value as ImagePrintResolutionProfile)}
@@ -95,7 +98,7 @@ export function DataTab({
             </div>
           </div>
           <div className="space-y-2">
-            <div className="text-sm text-slate-300">exportación</div>
+            <div className="text-sm text-slate-300">Exportación</div>
             <div className="flex flex-wrap gap-2">
               <Button
                 className="rounded-[3px]"
@@ -130,7 +133,7 @@ export function DataTab({
                 title="Copia el JSON de datos al portapapeles (sin los archivos subidos)."
               >
                 <Copy className="h-4 w-4 mr-2" />
-                copiar JSON
+                Copiar JSON
               </Button>
             </div>
           </div>
@@ -147,7 +150,7 @@ export function DataTab({
         <Separator />
 
         <div className="space-y-2">
-          <div className="text-sm text-slate-200">vista previa JSON (primeros 3 registros, solo lectura)</div>
+          <div className="text-sm text-slate-200">Vista previa JSON (primeros 3 registros, solo lectura)</div>
           <pre className="max-h-72 overflow-auto rounded-[3px] border border-slate-800 p-4 text-sm bg-slate-950/60 text-slate-100">
             {JSON.stringify(
               {

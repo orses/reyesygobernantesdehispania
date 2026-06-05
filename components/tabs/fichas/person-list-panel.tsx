@@ -111,6 +111,7 @@ export function PersonListPanel({
         ? "border-amber-400/70 bg-amber-950/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.14)]"
         : "border-slate-700/70 bg-slate-950/30"
     }`;
+  const clearSearch = () => setQuery("");
 
   return (
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
@@ -129,10 +130,19 @@ export function PersonListPanel({
                   ? "border-amber-400/70 bg-amber-950/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.14)]"
                   : "border-slate-700/60 bg-slate-900/60"
               }`}
-              placeholder="buscar por nombre, dinastía, reino..."
+              placeholder="Buscar: reino:Castilla, siglo>=15, NO Aragón..."
+              title="Búsqueda avanzada: OR/O, AND/Y, espacio como AND, NO/NOT/- y campos como reino:, dinastia:, año>=, inicio>=, fin<=, siglo=."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  if (query) {
+                    event.preventDefault();
+                    clearSearch();
+                  }
+                  return;
+                }
+
                 if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
                 event.preventDefault();
                 onSearchSubmit(event.currentTarget.value);
@@ -142,7 +152,7 @@ export function PersonListPanel({
               <button
                 type="button"
                 className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-200 hover:bg-slate-800 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                onClick={() => setQuery("")}
+                onClick={clearSearch}
                 aria-label="Borrar búsqueda"
                 title="Borrar"
               >

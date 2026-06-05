@@ -6,6 +6,7 @@ import {
     getPersonId,
     personPrincipalName,
 } from "./data";
+import { normalizeSearchText, personMatchesAdvancedSearch } from "./person-search";
 import { compareChronologicalPersonCandidates } from "./selection";
 
 export function groupRowsByPerson(rows: RawRow[]): Map<string, RawRow[]> {
@@ -104,24 +105,11 @@ export function derivePeopleFromRows(rows: RawRow[]): {
 }
 
 export function normalizePersonSearchText(value: unknown): string {
-    return String(value ?? "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
+    return normalizeSearchText(value);
 }
 
 export function personMatchesSearch(person: Person, searchText: string): boolean {
-    const query = normalizePersonSearchText(searchText);
-    if (!query) return true;
-
-    return [
-        person.nombrePrincipal,
-        ...person.nombres,
-        ...person.apelativos,
-        ...person.reinos,
-        person.dinastia,
-    ].some((value) => normalizePersonSearchText(value).includes(query));
+    return personMatchesAdvancedSearch(person, searchText);
 }
 
 export function getFirstMatchingPersonId(people: Person[], searchText: string): string | null {

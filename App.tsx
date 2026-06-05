@@ -487,7 +487,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 title="Importa un archivo .csv, .json o .zip. Reemplaza por completo los datos actuales (te pedimos confirmación antes)."
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
-                <Upload className="h-4 w-4 mr-2" /> cargar datos
+                <Upload className="h-4 w-4 mr-2" /> Cargar datos
               </Button>
               <Button
                 variant="outline"
@@ -495,7 +495,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 title={`Descarga un ZIP con TODO. Perfil de imágenes: ${printResolutionProfileLabel(imagePrintProfile)}.`}
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
-                <Download className="h-4 w-4 mr-2" /> guardar todo
+                <Download className="h-4 w-4 mr-2" /> Guardar todo
               </Button>
               <Button
                 variant="outline"
@@ -503,7 +503,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 title="Crear un rey/personaje nuevo desde cero"
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
-                <UserPlus className="h-4 w-4 mr-2" /> nuevo rey
+                <UserPlus className="h-4 w-4 mr-2" /> Nuevo rey
               </Button>
               <Button
                 variant="outline"
@@ -512,7 +512,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                 title="Añadir un gobierno/reino al rey seleccionado"
                 className="w-full rounded-[3px] bg-slate-950/30 border border-slate-700/70 sm:w-auto"
               >
-                <Plus className="h-4 w-4 mr-2" /> gobierno
+                <Plus className="h-4 w-4 mr-2" /> Gobierno
               </Button>
             </div>
           </div>
@@ -521,19 +521,19 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-[3px] bg-slate-900/40 border border-slate-800 p-1">
             <TabsTrigger value="fichas" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
-              fichas
+              Fichas
             </TabsTrigger>
             <TabsTrigger value="estadistica" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
-              estadística
+              Estadística
             </TabsTrigger>
             <TabsTrigger value="timeline" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
-              timeline
+              Línea temporal
             </TabsTrigger>
             <TabsTrigger value="comparativa" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
-              comparativa
+              Comparativa
             </TabsTrigger>
             <TabsTrigger value="datos" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
-              datos
+              Datos
             </TabsTrigger>
           </TabsList>
 
