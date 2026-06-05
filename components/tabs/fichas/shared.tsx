@@ -280,20 +280,6 @@ export function MediaFigure({
   );
 }
 
-export function VerifiedBadge({ verified }: { verified: boolean }) {
-  if (verified) return null;
-
-  return (
-    <div className="flex items-center justify-center" title="no verificado" aria-label="no verificado">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-red-500">
-        <circle cx="12" cy="12" r="10" strokeOpacity="0.8" />
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <path d="M12 17h.01" />
-      </svg>
-    </div>
-  );
-}
-
 export function Field({
   label,
   value,

@@ -35,7 +35,7 @@ import {
 } from "../lib/media";
 import { applyPersonDraftToRows } from "../lib/person-draft";
 import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
-import { createStoredZip, parseStoredZip } from "../lib/zip";
+import { createStoredZip, parseZip } from "../lib/zip";
 
 // Datos de ejemplo
 const SAMPLE_ROWS: RawRow[] = [
@@ -255,7 +255,7 @@ export function useDataset() {
         async (file: File) => {
             try {
                 const bytes = new Uint8Array(await file.arrayBuffer());
-                const entries = parseStoredZip(bytes);
+                const entries = await parseZip(bytes);
                 const entryByPath = new Map(entries.map((entry) => [entry.path, entry]));
                 const dataEntry = entryByPath.get("datos.json");
 

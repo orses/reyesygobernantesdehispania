@@ -3,6 +3,7 @@ import { useAppContext } from "../../context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Button } from "../ui/button";
 import { Search, X, UserPlus, Scale } from "lucide-react";
+import { VerifiedBadge } from "../ui/verified-badge";
 import { formatNumber, normalizeUrl } from "../../lib/data";
 import { getPrimaryMediaAsset } from "../../lib/media";
 import { personMatchesSearch } from "../../lib/people";
@@ -137,7 +138,7 @@ export function ComparativaTab({
                 <Scale className="h-6 w-6 text-emerald-300" /> Análisis comparativo
               </CardTitle>
               <CardDescription className="text-slate-300 mt-1">
-                Seleccione múltiples figuras históricas para contrastar su esperanza de vida, tiempo en el poder y verificabilidad.
+                Seleccione múltiples figuras históricas para contrastar su esperanza de vida, tiempo en el poder y soporte documental.
               </CardDescription>
             </div>
             <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
@@ -233,18 +234,21 @@ export function ComparativaTab({
                         <X className="h-4 w-4" />
                       </Button>
                       
-                      {/* Portada Mini */}
+                      {/* Portada mini */}
                       <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
                         <div className="h-12 w-12 rounded-full border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                           <ComparePortrait asset={getPrimaryMediaAsset(mediaAssets, p.personId)} previewUrls={mediaPreviewUrls} name={p.nombrePrincipal} />
                         </div>
-                        <div>
-                          <h3 className="font-medium text-slate-100 leading-tight pr-6">{p.nombrePrincipal}</h3>
+                        <div className="min-w-0 flex-1 pr-6">
+                          <div className="flex min-w-0 items-start gap-2">
+                            <h3 className="min-w-0 font-medium leading-tight text-slate-100">{p.nombrePrincipal}</h3>
+                            <VerifiedBadge verified={p.verifiedAll} />
+                          </div>
                           {p.apelativos.length > 0 && <p className="text-xs text-slate-400 mt-1 italic pr-6">{p.apelativos.join(', ')}</p>}
                         </div>
                       </div>
 
-                      {/* Stats */}
+                      {/* Estadísticas */}
                       <div className="p-4 space-y-4 flex-grow text-sm">
                         <div className="grid grid-cols-2 gap-2 text-center">
                           <div className="bg-slate-900 p-2 rounded border border-slate-800/60">
@@ -270,16 +274,12 @@ export function ComparativaTab({
                           <p className="text-slate-300 mt-1"><span className="text-slate-400">Inicio mandatos:</span> {activeYears || '-'}</p>
                         </div>
 
-                        <div>
-                          <p className="text-[11px] text-slate-500 tracking-wider uppercase border-b border-slate-800 pb-1 mb-2">Soporte Biográfico</p>
-                           <p className="text-slate-300 flex justify-between">
-                            <span className="text-slate-400">Verificado Wikipedia:</span> 
-                            {p.verifiedAll ? <span className="text-emerald-400">Sí</span> : <span className="text-rose-400">No</span>}
-                           </p>
-                           {p.reinados[0]?.["Ficha RAH URL"] && (
-                             <p className="text-slate-300 mt-1"><a href={String(p.reinados[0]["Ficha RAH URL"])} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Ficha Real Academia</a></p>
-                           )}
-                        </div>
+                        {p.reinados[0]?.["Ficha RAH URL"] && (
+                          <div>
+                            <p className="text-[11px] text-slate-500 tracking-wider uppercase border-b border-slate-800 pb-1 mb-2">Soporte biográfico</p>
+                            <p className="text-slate-300 mt-1"><a href={String(p.reinados[0]["Ficha RAH URL"])} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Ficha Real Academia</a></p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

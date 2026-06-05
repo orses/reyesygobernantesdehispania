@@ -8,7 +8,7 @@ import {
 } from "../../ui/card";
 import { Button } from "../../ui/button";
 import type { Person } from "../../../lib/types";
-import { VerifiedBadge } from "./shared";
+import { VerifiedBadge } from "../../ui/verified-badge";
 
 interface PersonDetailHeaderProps {
   selectedPerson: Person | null;
@@ -66,11 +66,11 @@ export function PersonDetailHeader({
         </div>
       </div>
 
-      {apelativo ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="text-xl font-medium text-slate-100 sm:text-2xl 2xl:text-3xl">{String(apelativo)}</span>
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="text-xl font-medium text-slate-100 sm:text-2xl 2xl:text-3xl">
+          {apelativo ? String(apelativo) : <span aria-hidden="true">&nbsp;</span>}
+        </span>
+      </div>
     </CardHeader>
   );
 }

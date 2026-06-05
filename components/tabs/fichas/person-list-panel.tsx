@@ -20,7 +20,7 @@ import { firstNonEmpty, formatCenturyLabel } from "../../../lib/data";
 import { kingdomColor, personReignRangeLabel } from "../../../lib/ficha-view";
 import { getPrimaryMediaAsset } from "../../../lib/media";
 import type { MediaAsset, Person } from "../../../lib/types";
-import { MediaThumb, VerifiedBadge } from "./shared";
+import { MediaThumb } from "./shared";
 
 type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
@@ -307,7 +307,6 @@ export function PersonListPanel({
                     </div>
 
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <VerifiedBadge verified={person.verifiedAll} />
                       <span className="inline-flex items-center rounded-[3px] border border-emerald-400/45 bg-slate-950/80 px-2.5 py-1 text-sm font-medium tabular-nums text-emerald-100 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.12)] cursor-default pointer-events-none select-none">
                         {rangeStr}
                       </span>

@@ -16,7 +16,14 @@ const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054b50;
 const STORE_METHOD = 0;
+const DEFLATE_METHOD = 8;
 const UTF8_FLAG = 0x0800;
+
+// Tope frente a "bombas de descompresión": una entrada DEFLATE puede declarar
+// un tamaño pequeño y expandirse a gigabytes. Se aplica tanto al tamaño
+// declarado en la cabecera como al real durante el streaming (la cabecera
+// puede mentir). 256 MiB da margen holgado a datasets con imágenes.
+export const MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024;
 const DOS_DATE_1980_01_01 = (1 << 5) | 1;
 
 const encoder = new TextEncoder();
@@ -39,7 +46,7 @@ function getCrcTable(): Uint32Array {
     return table;
 }
 
-function crc32(data: Uint8Array): number {
+export function crc32(data: Uint8Array): number {
     const table = getCrcTable();
     let crc = 0xffffffff;
 
@@ -236,7 +243,19 @@ function findEndOfCentralDirectory(data: Uint8Array): number {
     throw new Error("ZIP inválido: no se encontró el directorio central.");
 }
 
-export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
+interface RawZipEntry {
+    path: string;
+    method: number;
+    crc: number;
+    compressedSize: number;
+    uncompressedSize: number;
+    compressed: Uint8Array;
+}
+
+// Recorre el directorio central y devuelve las entradas en crudo, sin
+// descomprimir ni juzgar el método. Lo comparten el lector estricto (STORED) y
+// el general (STORED + DEFLATE) para no duplicar el parseo de cabeceras.
+function readCentralEntries(data: Uint8Array): RawZipEntry[] {
     const eocdOffset = findEndOfCentralDirectory(data);
     const entryCount = readUint16(data, eocdOffset + 10);
     const centralSize = readUint32(data, eocdOffset + 12);
@@ -246,7 +265,7 @@ export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
         throw new Error("ZIP inválido: directorio central fuera de rango.");
     }
 
-    const entries: ZipEntryOutput[] = [];
+    const entries: RawZipEntry[] = [];
     let offset = centralOffset;
 
     for (let i = 0; i < entryCount; i++) {
@@ -255,10 +274,7 @@ export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
         }
 
         const method = readUint16(data, offset + 10);
-        if (method !== STORE_METHOD) {
-            throw new Error("ZIP no admitido: solo se aceptan entradas sin compresión.");
-        }
-
+        const crc = readUint32(data, offset + 16);
         const compressedSize = readUint32(data, offset + 20);
         const uncompressedSize = readUint32(data, offset + 24);
         const nameLength = readUint16(data, offset + 28);
@@ -269,11 +285,19 @@ export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
         const nameEnd = nameStart + nameLength;
 
         if (nameEnd > data.length) throw new Error("ZIP inválido: nombre de archivo fuera de rango.");
-        const path = validateZipPath(decoder.decode(data.slice(nameStart, nameEnd)));
+        const rawName = decoder.decode(data.slice(nameStart, nameEnd));
 
-        if (compressedSize !== uncompressedSize) {
-            throw new Error("ZIP no admitido: la entrada declara tamaños incompatibles.");
+        // Las herramientas externas (p. ej. el diálogo "Crear archivo" de
+        // Windows 11) añaden entradas de directorio: nombre terminado en "/" y
+        // sin datos. No aportan contenido, así que se omiten en lugar de
+        // invalidar todo el paquete.
+        if (rawName.endsWith("/")) {
+            offset = nameEnd + extraLength + commentLength;
+            continue;
         }
+
+        const path = validateZipPath(rawName);
+
         if (readUint32(data, localOffset) !== LOCAL_FILE_HEADER_SIGNATURE) {
             throw new Error("ZIP inválido: cabecera local no reconocida.");
         }
@@ -286,11 +310,99 @@ export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
 
         entries.push({
             path,
-            data: data.slice(dataStart, dataEnd),
+            method,
+            crc,
+            compressedSize,
+            uncompressedSize,
+            compressed: data.slice(dataStart, dataEnd),
         });
 
         offset = nameEnd + extraLength + commentLength;
     }
 
     return entries;
+}
+
+// Lector estricto: solo acepta entradas STORED. Síncrono y sin dependencias.
+export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
+    return readCentralEntries(data).map((entry) => {
+        if (entry.method !== STORE_METHOD) {
+            throw new Error("ZIP no admitido: solo se aceptan entradas sin compresión.");
+        }
+        if (entry.compressedSize !== entry.uncompressedSize) {
+            throw new Error("ZIP no admitido: la entrada declara tamaños incompatibles.");
+        }
+        return { path: entry.path, data: entry.compressed };
+    });
+}
+
+// Descomprime un bloque DEFLATE en crudo con la API nativa del navegador,
+// abortando si la salida supera `maxBytes` (defensa anti-bomba en streaming).
+export async function inflateRaw(
+    data: Uint8Array,
+    maxBytes: number = MAX_DECOMPRESSED_BYTES,
+): Promise<Uint8Array> {
+    if (typeof DecompressionStream === "undefined") {
+        throw new Error("ZIP comprimido: este entorno no admite la descompresión nativa.");
+    }
+
+    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done || value === undefined) break;
+        total += value.length;
+        if (total > maxBytes) {
+            await reader.cancel();
+            throw new Error("ZIP no admitido: la entrada descomprimida supera el tamaño permitido.");
+        }
+        chunks.push(value);
+    }
+
+    const out = new Uint8Array(total);
+    let pos = 0;
+    for (const chunk of chunks) {
+        out.set(chunk, pos);
+        pos += chunk.length;
+    }
+    return out;
+}
+
+// Lector general: acepta entradas STORED y DEFLATE (el método por defecto del
+// Explorador de Windows, 7-Zip o WinRAR). Verifica integridad por CRC-32 y
+// aplica el tope anti-bomba de descompresión.
+export async function parseZip(data: Uint8Array): Promise<ZipEntryOutput[]> {
+    const out: ZipEntryOutput[] = [];
+
+    for (const entry of readCentralEntries(data)) {
+        let bytes: Uint8Array;
+
+        if (entry.method === STORE_METHOD) {
+            if (entry.compressedSize !== entry.uncompressedSize) {
+                throw new Error("ZIP no admitido: la entrada declara tamaños incompatibles.");
+            }
+            bytes = entry.compressed;
+        } else if (entry.method === DEFLATE_METHOD) {
+            if (entry.uncompressedSize > MAX_DECOMPRESSED_BYTES) {
+                throw new Error("ZIP no admitido: la entrada descomprimida supera el tamaño permitido.");
+            }
+            bytes = await inflateRaw(entry.compressed);
+            if (bytes.length !== entry.uncompressedSize) {
+                throw new Error("ZIP inválido: el tamaño descomprimido no coincide con la cabecera.");
+            }
+        } else {
+            throw new Error("ZIP no admitido: método de compresión no soportado.");
+        }
+
+        if (crc32(bytes) !== entry.crc) {
+            throw new Error("ZIP inválido: comprobación CRC fallida (datos corruptos).");
+        }
+
+        out.push({ path: entry.path, data: bytes });
+    }
+
+    return out;
 }
