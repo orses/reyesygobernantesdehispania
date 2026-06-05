@@ -390,6 +390,19 @@ function personContainsText(person: Person, query: string, exact: boolean): bool
   return textValuesForPerson(person).some((value) => containsNormalizedText(value, query, exact));
 }
 
+function termAsYear(value: string): number | null {
+  const trimmed = normalizeSearchText(value);
+  if (!/^\d{1,4}$/.test(trimmed)) return null;
+  return Number(trimmed);
+}
+
+function personMatchesTerm(person: Person, query: string, exact: boolean): boolean {
+  if (personContainsText(person, query, exact)) return true;
+  if (exact) return false;
+  const year = termAsYear(query);
+  return year !== null && person.reinados.some((row) => rowSpansYear(row, year));
+}
+
 function rowStartYear(row: RawRow): number | null {
   return asYearOrNull(row?.["Inicio del reinado (año)"] ?? row?.["Inicio del reinado (aÃ±o)"] ?? row?.inicioAnio);
 }
@@ -525,7 +538,7 @@ function matchesField(person: Person, field: string, operator: ComparisonOperato
 }
 
 function evaluateNode(person: Person, node: SearchNode): boolean {
-  if (node.type === "term") return personContainsText(person, node.value, node.exact);
+  if (node.type === "term") return personMatchesTerm(person, node.value, node.exact);
   if (node.type === "field") return matchesField(person, node.field, node.operator, node.value, node.exact);
   if (node.type === "not") return !evaluateNode(person, node.child);
   if (node.type === "and") return evaluateNode(person, node.left) && evaluateNode(person, node.right);

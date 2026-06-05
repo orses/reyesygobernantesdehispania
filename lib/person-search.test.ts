@@ -124,6 +124,12 @@ describe("personMatchesAdvancedSearch", () => {
     expect(matchingIds("fin<=737")).toEqual(["pelayo"]);
   });
 
+  it("interpreta un número suelto como año dentro del tramo de reinado", () => {
+    expect(matchingIds("1500")).toEqual(["isabel", "fernando"]);
+    expect(matchingIds("737")).toEqual(["pelayo"]);
+    expect(matchingIds("1812")).toEqual(["cortes"]);
+  });
+
   it("filtra por siglos en número romano o arábigo", () => {
     expect(matchingIds("siglo=VIII")).toEqual(["pelayo"]);
     expect(matchingIds("century=15")).toEqual(["isabel", "fernando"]);
