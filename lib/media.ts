@@ -1,4 +1,4 @@
-import type { MediaAsset, MediaRightsStatus, RawRow } from "./types";
+import type { MediaAsset, MediaAssetMoveDirection, MediaRightsStatus, RawRow } from "./types";
 import { getPersonId, normalizeUrl } from "./data";
 import { createMediaPackagePath } from "./dataset-package";
 
@@ -102,6 +102,36 @@ export function getPrimaryMediaAsset(
 ): MediaAsset | null {
     const personAssets = getPersonMediaAssets(assets, personId);
     return personAssets.find((asset) => asset.isPrimary) ?? personAssets[0] ?? null;
+}
+
+export function movePersonMediaAsset(
+    assets: MediaAsset[],
+    personId: string | number,
+    assetId: string,
+    direction: MediaAssetMoveDirection
+): MediaAsset[] {
+    const normalizedPersonId = normalizePersonId(personId);
+    if (!normalizedPersonId || !assetId) return assets;
+
+    const personAssets = assets.filter((asset) => asset.personId === normalizedPersonId);
+    const currentIndex = personAssets.findIndex((asset) => asset.id === assetId);
+    if (currentIndex < 0) return assets;
+
+    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= personAssets.length) return assets;
+
+    const reorderedPersonAssets = [...personAssets];
+    [reorderedPersonAssets[currentIndex], reorderedPersonAssets[nextIndex]] = [
+        reorderedPersonAssets[nextIndex],
+        reorderedPersonAssets[currentIndex],
+    ];
+
+    let personAssetIndex = 0;
+    return assets.map((asset) =>
+        asset.personId === normalizedPersonId
+            ? reorderedPersonAssets[personAssetIndex++]
+            : asset
+    );
 }
 
 export function getMediaAssetRouteLabel(asset: MediaAsset): string {

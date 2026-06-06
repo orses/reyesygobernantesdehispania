@@ -9,6 +9,7 @@ import {
     parseCsv,
     safeJsonParse,
     normalizeRows,
+    normalizeUrl,
     computeDerivedRow,
     getRowId,
     getPersonId,
@@ -31,6 +32,7 @@ import {
     createExternalMediaAsset,
     deriveMediaAssetsFromRows,
     ensurePrimaryMediaAssets,
+    movePersonMediaAsset,
     normalizeRightsStatus,
 } from "../lib/media";
 import { applyPersonDraftToRows } from "../lib/person-draft";
@@ -554,6 +556,84 @@ export function useDataset() {
         [mediaAssets, setError]
     );
 
+    const replaceMediaAssetUrl = useCallback(
+        async (assetId: string, url: string): Promise<boolean> => {
+            const target = mediaAssets.find((asset) => asset.id === assetId);
+            if (!target) {
+                setError("Validación: no se ha encontrado la imagen que se quiere reemplazar.");
+                return false;
+            }
+
+            const src = normalizeUrl(url);
+            if (!src) {
+                setError("Validación: falta URL de reemplazo.");
+                return false;
+            }
+
+            const duplicate = mediaAssets.some(
+                (asset) =>
+                    asset.id !== assetId &&
+                    asset.personId === target.personId &&
+                    asset.kind === "external-url" &&
+                    normalizeUrl(asset.src) === src
+            );
+            if (duplicate) {
+                setError("Validación: esa URL ya está asociada a este personaje.");
+                return false;
+            }
+
+            try {
+                if (target.storageKey) {
+                    await del(target.storageKey);
+                }
+
+                setMediaAssets((prev) =>
+                    ensurePrimaryMediaAssets(
+                        prev.map((asset) => {
+                            if (asset.id !== assetId) return asset;
+
+                            const {
+                                storageKey: _storageKey,
+                                fileName: _fileName,
+                                mimeType: _mimeType,
+                                size: _size,
+                                packagePath: _packagePath,
+                                printPackagePath: _printPackagePath,
+                                printDpi: _printDpi,
+                                ...assetWithoutFileData
+                            } = asset;
+                            const shouldClearFileNameTitle =
+                                Boolean(asset.fileName) && asset.title === asset.fileName;
+
+                            return {
+                                ...assetWithoutFileData,
+                                kind: "external-url",
+                                src,
+                                title: shouldClearFileNameTitle ? undefined : asset.title,
+                                updatedAt: new Date().toISOString(),
+                            };
+                        })
+                    )
+                );
+                setError(null);
+                return true;
+            } catch (err) {
+                setError(`Imagen: no se pudo reemplazar por URL. ${errorMessage(err)}`);
+                return false;
+            }
+        },
+        [mediaAssets, setError]
+    );
+
+    const moveMediaAsset = useCallback(
+        (personId: string | number, assetId: string, direction: "up" | "down") => {
+            setMediaAssets((prev) =>
+                movePersonMediaAsset(prev, personId, assetId, direction)
+            );
+        },
+        []
+    );
+
     const updateMediaAsset = useCallback(
         (assetId: string, patch: Partial<MediaAsset>) => {
             setMediaAssets((prev) =>
@@ -791,6 +871,8 @@ export function useDataset() {
         addMediaUrl,
         addUploadedMedia,
         replaceMediaAssetFile,
+        replaceMediaAssetUrl,
+        moveMediaAsset,
         updateMediaAsset,
         removeMediaAsset,
         setPrimaryMediaAsset,

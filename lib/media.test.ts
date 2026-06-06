@@ -9,8 +9,10 @@ import {
     deriveMediaAssetsFromRows,
     ensurePrimaryMediaAssets,
     getMediaAssetCopyValue,
+    getPersonMediaAssets,
     getMediaAssetRouteLabel,
     getPrimaryMediaAsset,
+    movePersonMediaAsset,
     splitGalleryUrls,
     UPLOADED_MEDIA_CSV_COLUMN,
 } from "./media";
@@ -190,6 +192,40 @@ describe("ensurePrimaryMediaAssets", () => {
 
         expect(normalized.filter((asset) => asset.isPrimary)).toHaveLength(1);
         expect(getPrimaryMediaAsset(normalized, "1")?.id).toBe("b");
+    });
+});
+
+describe("movePersonMediaAsset", () => {
+    const asset = (id: string, personId: string): MediaAsset => ({
+        id,
+        personId,
+        kind: "external-url",
+        src: `https://img.test/${id}.jpg`,
+        rightsStatus: "unknown",
+        isPrimary: false,
+        createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    it("reordena solo las imágenes del personaje indicado", () => {
+        const assets: MediaAsset[] = [
+            asset("a1", "1"),
+            asset("b1", "2"),
+            asset("a2", "1"),
+            asset("a3", "1"),
+        ];
+
+        const moved = movePersonMediaAsset(assets, "1", "a3", "up");
+
+        expect(moved.map((item) => item.id)).toEqual(["a1", "b1", "a3", "a2"]);
+        expect(getPersonMediaAssets(moved, "1").map((item) => item.id)).toEqual(["a1", "a3", "a2"]);
+        expect(getPersonMediaAssets(moved, "2").map((item) => item.id)).toEqual(["b1"]);
+    });
+
+    it("mantiene la misma referencia si el movimiento no es posible", () => {
+        const assets: MediaAsset[] = [asset("a1", "1"), asset("a2", "1")];
+
+        expect(movePersonMediaAsset(assets, "1", "a1", "up")).toBe(assets);
+        expect(movePersonMediaAsset(assets, "1", "desconocida", "down")).toBe(assets);
     });
 });
 

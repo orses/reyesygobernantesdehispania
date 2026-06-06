@@ -90,6 +90,9 @@ export type MediaRightsStatus =
 /** Origen técnico de una imagen asociada a un personaje. */
 export type MediaKind = "external-url" | "uploaded-file";
 
+/** Dirección de movimiento dentro de la galería de un personaje. */
+export type MediaAssetMoveDirection = "up" | "down";
+
 /** Metadatos opcionales al crear una imagen asociada a un personaje. */
 export interface MediaInputOptions {
     rightsStatus?: MediaRightsStatus;

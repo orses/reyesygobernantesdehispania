@@ -3,7 +3,7 @@ import { Card, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
 import { personDenominationsByKingdom } from "../../../lib/ficha-view";
 import type { GovernmentSuccession } from "../../../lib/succession";
-import type { MediaAsset, MediaInputOptions, Person } from "../../../lib/types";
+import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person } from "../../../lib/types";
 import { MediaGallery } from "./media-gallery";
 import { PersonDetailHeader } from "./person-detail-header";
 import { PersonSummary } from "./person-summary";
@@ -34,6 +34,8 @@ interface PersonDetailCardProps {
   addMediaUrl?: (personId: string | number, url: string, options?: MediaInputOptions) => string | null;
   addUploadedMedia?: (personId: string | number, file: File, options?: MediaInputOptions) => Promise<string | null>;
   replaceMediaAssetFile?: (assetId: string, file: File) => Promise<boolean>;
+  replaceMediaAssetUrl?: (assetId: string, url: string) => Promise<boolean>;
+  moveMediaAsset?: (personId: string | number, assetId: string, direction: MediaAssetMoveDirection) => void;
   updateMediaAsset?: (assetId: string, patch: Partial<MediaAsset>) => void;
   removeMediaAsset?: (assetId: string) => Promise<void>;
   setPrimaryMediaAsset?: (personId: string | number, assetId: string) => void;
@@ -62,6 +64,8 @@ export function PersonDetailCard({
   addMediaUrl,
   addUploadedMedia,
   replaceMediaAssetFile,
+  replaceMediaAssetUrl,
+  moveMediaAsset,
   updateMediaAsset,
   removeMediaAsset,
   setPrimaryMediaAsset,
@@ -130,6 +134,8 @@ export function PersonDetailCard({
               addMediaUrl={addMediaUrl}
               addUploadedMedia={addUploadedMedia}
               replaceMediaAssetFile={replaceMediaAssetFile}
+              replaceMediaAssetUrl={replaceMediaAssetUrl}
+              moveMediaAsset={moveMediaAsset}
               updateMediaAsset={updateMediaAsset}
               removeMediaAsset={removeMediaAsset}
               setPrimaryMediaAsset={setPrimaryMediaAsset}

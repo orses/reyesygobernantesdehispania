@@ -7,7 +7,7 @@ import { getFirstMatchingPersonId } from "../../lib/people";
 import { buildGovernmentSuccession } from "../../lib/succession";
 import { PersonDetailCard } from "./fichas/person-detail-card";
 import { PersonListPanel } from "./fichas/person-list-panel";
-import type { MediaAsset, MediaInputOptions, Person, RawRow } from "../../lib/types";
+import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person, RawRow } from "../../lib/types";
 
 type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
@@ -45,6 +45,8 @@ interface FichasTabProps {
   addMediaUrl?: (personId: string | number, url: string, options?: MediaInputOptions) => string | null;
   addUploadedMedia?: (personId: string | number, file: File, options?: MediaInputOptions) => Promise<string | null>;
   replaceMediaAssetFile?: (assetId: string, file: File) => Promise<boolean>;
+  replaceMediaAssetUrl?: (assetId: string, url: string) => Promise<boolean>;
+  moveMediaAsset?: (personId: string | number, assetId: string, direction: MediaAssetMoveDirection) => void;
   updateMediaAsset?: (assetId: string, patch: Partial<MediaAsset>) => void;
   removeMediaAsset?: (assetId: string) => Promise<void>;
   setPrimaryMediaAsset?: (personId: string | number, assetId: string) => void;
@@ -99,6 +101,8 @@ export function FichasTab({
   addMediaUrl,
   addUploadedMedia,
   replaceMediaAssetFile,
+  replaceMediaAssetUrl,
+  moveMediaAsset,
   updateMediaAsset,
   removeMediaAsset,
   setPrimaryMediaAsset,
@@ -167,6 +171,8 @@ export function FichasTab({
         addMediaUrl={addMediaUrl}
         addUploadedMedia={addUploadedMedia}
         replaceMediaAssetFile={replaceMediaAssetFile}
+        replaceMediaAssetUrl={replaceMediaAssetUrl}
+        moveMediaAsset={moveMediaAsset}
         updateMediaAsset={updateMediaAsset}
         removeMediaAsset={removeMediaAsset}
         setPrimaryMediaAsset={setPrimaryMediaAsset}
