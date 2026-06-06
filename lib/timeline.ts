@@ -137,6 +137,25 @@ export interface TimelinePeriodPosition {
 
 const DEFAULT_MIN_VISUAL_DURATION_YEARS = 1;
 const DEFAULT_GROUP_COLOR = "#64748b";
+const KINGDOM_GROUP_ORDER = new Map<string, number>([
+  ["asturias", 10],
+  ["reino de asturias", 10],
+  ["reino de leon", 30],
+  ["reino de galicia", 40],
+  ["condado de castilla", 45],
+  ["reino de castilla", 50],
+  ["corona de castilla", 60],
+  ["monarquia hispanica", 70],
+  ["monarquia hispanica / espana", 70],
+  ["espana", 75],
+  ["reino de espana", 75],
+  ["condado de barcelona", 80],
+  ["aragon", 90],
+  ["reino de aragon", 90],
+  ["corona de aragon", 100],
+  ["navarra", 110],
+  ["reino de navarra", 110],
+]);
 
 function firstChronologyValue(...values: unknown[]): unknown {
   for (const value of values) {
@@ -253,6 +272,45 @@ function groupSortValue(group: TimelineGroup): number {
 
 function groupEndValue(group: TimelineGroup): number {
   return group.periods.reduce((max, period) => Math.max(max, period.visualEndYear), Number.NEGATIVE_INFINITY);
+}
+
+function kingdomGroupSortRank(label: string): number | null {
+  const key = normalizedGroupKey(label);
+  const direct = KINGDOM_GROUP_ORDER.get(key);
+  if (direct !== undefined) return direct;
+
+  const partial = Array.from(KINGDOM_GROUP_ORDER.entries()).find(([candidate]) =>
+    key.includes(candidate) || candidate.includes(key)
+  );
+  return partial?.[1] ?? null;
+}
+
+function compareTimelineGroups(
+  a: TimelineGroup,
+  b: TimelineGroup,
+  groupMode: TimelineGroupMode
+): number {
+  if (groupMode === "century") {
+    const centuryA = Number.parseInt(a.key.replace("century:", ""), 10);
+    const centuryB = Number.parseInt(b.key.replace("century:", ""), 10);
+    if (Number.isFinite(centuryA) && Number.isFinite(centuryB) && centuryA !== centuryB) {
+      return centuryA - centuryB;
+    }
+  }
+
+  if (groupMode === "kingdom") {
+    const rankA = kingdomGroupSortRank(a.label);
+    const rankB = kingdomGroupSortRank(b.label);
+    if (rankA !== null || rankB !== null) {
+      if (rankA !== null && rankB !== null && rankA !== rankB) return rankA - rankB;
+      if (rankA !== null && rankB === null) return -1;
+      if (rankA === null && rankB !== null) return 1;
+    }
+  }
+
+  const byStart = a.startYear - b.startYear;
+  if (byStart !== 0) return byStart;
+  return a.label.localeCompare(b.label, "es");
 }
 
 function chooseTickStep(totalYears: number): number {
@@ -463,19 +521,7 @@ export function buildTimelineGroups(
         endYear: groupEndValue({ ...group, periods: periodsInGroup }),
       };
     })
-    .sort((a, b) => {
-      if (groupMode === "century") {
-        const centuryA = Number.parseInt(a.key.replace("century:", ""), 10);
-        const centuryB = Number.parseInt(b.key.replace("century:", ""), 10);
-        if (Number.isFinite(centuryA) && Number.isFinite(centuryB) && centuryA !== centuryB) {
-          return centuryA - centuryB;
-        }
-      }
-
-      const byStart = a.startYear - b.startYear;
-      if (byStart !== 0) return byStart;
-      return a.label.localeCompare(b.label, "es");
-    });
+    .sort((a, b) => compareTimelineGroups(a, b, groupMode));
 }
 
 export function buildTimelineScale(

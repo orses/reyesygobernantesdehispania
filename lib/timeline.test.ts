@@ -302,6 +302,47 @@ describe("buildTimelineGroups", () => {
     expect(groups.map((group) => group.label)).toEqual(["Z Reino temprano", "A Reino tardío"]);
   });
 
+  it("ordena las entidades políticas relacionadas por continuidad histórica", () => {
+    const rows = [
+      ["asturias", "Reino de Asturias", 718],
+      ["barcelona", "Condado de Barcelona", 801],
+      ["navarra", "Reino de Navarra", 824],
+      ["castilla-condado", "Condado de Castilla", 850],
+      ["leon", "Reino de León", 910],
+      ["galicia", "Reino de Galicia", 910],
+      ["aragon-reino", "Reino de Aragón", 1035],
+      ["castilla-reino", "Reino de Castilla", 1065],
+      ["aragon-corona", "Corona de Aragón", 1164],
+      ["castilla-corona", "Corona de Castilla", 1479],
+      ["hispanica", "Monarquía Hispánica", 1516],
+    ] as const;
+    const people = peopleFromRows(rows.map(([id, kingdom, startYear]) => ({
+      PersonID: id,
+      "Nombre principal": kingdom,
+      Nombre: kingdom,
+      Reino: kingdom,
+      "Inicio del reinado (año)": startYear,
+      "Final del reinado (año)": startYear + 1,
+    })));
+    const { periods } = buildTimelinePeriods(people);
+
+    const groups = buildTimelineGroups(periods, "kingdom");
+
+    expect(groups.map((group) => group.label)).toEqual([
+      "Reino de Asturias",
+      "Reino de León",
+      "Reino de Galicia",
+      "Condado de Castilla",
+      "Reino de Castilla",
+      "Corona de Castilla",
+      "Monarquía Hispánica",
+      "Condado de Barcelona",
+      "Reino de Aragón",
+      "Corona de Aragón",
+      "Reino de Navarra",
+    ]);
+  });
+
   it("agrupa por dinastía con una paleta estable", () => {
     const people = peopleFromRows([
       {

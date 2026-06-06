@@ -621,9 +621,13 @@ export function useDataset() {
             const b = asYearOrNull(draft?.["Final del reinado (año)"]);
             if (a !== null && b !== null && a > b) return "Validación: inicio > fin.";
 
-            const next = computeDerivedRow({ ...draft, _rowId: rowId });
             setRows((prev) =>
-                prev.map((r) => (String(r._rowId) === rowId ? next : r))
+                prev.map((r) => {
+                    if (String(r._rowId) !== rowId) return r;
+
+                    const stableId = String(r.ID ?? "").trim() || rowId;
+                    return computeDerivedRow({ ...draft, ID: stableId, _rowId: rowId });
+                })
             );
             return null;
         },
@@ -632,8 +636,9 @@ export function useDataset() {
 
     const addRowForPerson = useCallback(
         (personId: string | number, baseRow: RawRow) => {
+            const id = createRuntimeId("government");
             const newRow: RawRow = {
-                ID: "",
+                ID: id,
                 PersonID: personId,
                 "Nº Reinado": "",
                 Nombre: String(baseRow?.Nombre ?? ""),
@@ -647,14 +652,13 @@ export function useDataset() {
                     baseRow?.["Información verificada"] ?? "no"
                 ),
             };
-            const idx = rows.length;
             const withId = {
                 ...computeDerivedRow(newRow),
-                _rowId: getRowId(newRow, idx),
+                _rowId: id,
             };
             setRows((prev) => [withId, ...prev]);
         },
-        [rows.length]
+        []
     );
 
     const addPerson = useCallback((): string => {
@@ -663,8 +667,9 @@ export function useDataset() {
             .filter((n) => Number.isFinite(n));
         const personId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
 
+        const id = createRuntimeId("government");
         const newRow: RawRow = {
-            ID: "",
+            ID: id,
             PersonID: personId,
             "Nº Reinado": "",
             Nombre: "",
@@ -678,7 +683,7 @@ export function useDataset() {
         };
         const withId = {
             ...computeDerivedRow(newRow),
-            _rowId: createRuntimeId("row"),
+            _rowId: id,
         };
         setRows((prev) => [withId, ...prev]);
         setDatasetLoadedAt(Date.now());

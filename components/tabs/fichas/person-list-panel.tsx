@@ -161,8 +161,25 @@ export function PersonListPanel({
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div className="space-y-1">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="space-y-1 sm:col-span-1">
+              <div className={filterLabelClass(hasSigloFilter)}>Siglo</div>
+              <Select value={filterSiglo} onValueChange={setFilterSiglo}>
+                <SelectTrigger className={controlClass(hasSigloFilter)}>
+                  <SelectValue>{filterSiglo === "__all__" ? "todos" : formatCenturyLabel(filterSiglo)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
+                  <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" value="__all__">todos</SelectItem>
+                  {siglos.map((siglo) => (
+                    <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" key={siglo} value={String(siglo)}>
+                      {formatCenturyLabel(siglo)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1 sm:col-span-2">
               <div className={filterLabelClass(hasReinoFilter)}>Reino</div>
               <Select value={filterReino} onValueChange={setFilterReino}>
                 <SelectTrigger className={controlClass(hasReinoFilter)}>
@@ -178,36 +195,19 @@ export function PersonListPanel({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-1">
-              <div className={filterLabelClass(hasDinastiaFilter)}>Dinastía</div>
-              <Select value={filterDinastia} onValueChange={setFilterDinastia}>
-                <SelectTrigger className={controlClass(hasDinastiaFilter)}>
-                  <SelectValue>{filterDinastia === "__all__" ? "todas" : filterDinastia}</SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
-                  <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" value="__all__">todas</SelectItem>
-                  {dinastias.map((dinastia) => (
-                    <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" key={dinastia} value={dinastia}>
-                      {dinastia}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className="space-y-1">
-            <div className={filterLabelClass(hasSigloFilter)}>Siglo</div>
-            <Select value={filterSiglo} onValueChange={setFilterSiglo}>
-              <SelectTrigger className={controlClass(hasSigloFilter)}>
-                <SelectValue>{filterSiglo === "__all__" ? "todos" : formatCenturyLabel(filterSiglo)}</SelectValue>
+            <div className={filterLabelClass(hasDinastiaFilter)}>Dinastía</div>
+            <Select value={filterDinastia} onValueChange={setFilterDinastia}>
+              <SelectTrigger className={controlClass(hasDinastiaFilter)}>
+                <SelectValue>{filterDinastia === "__all__" ? "todas" : filterDinastia}</SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
-                <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" value="__all__">todos</SelectItem>
-                {siglos.map((siglo) => (
-                  <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" key={siglo} value={String(siglo)}>
-                    {formatCenturyLabel(siglo)}
+                <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" value="__all__">todas</SelectItem>
+                {dinastias.map((dinastia) => (
+                  <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" key={dinastia} value={dinastia}>
+                    {dinastia}
                   </SelectItem>
                 ))}
               </SelectContent>

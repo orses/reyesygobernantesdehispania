@@ -236,7 +236,7 @@ function RowEditorContent({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <EditorField label="PersonID" value={String(draft?.PersonID ?? "")} onChange={upd("PersonID")} />
-      <EditorField label="ID" value={String(draft?.ID ?? "")} onChange={upd("ID")} />
+      <EditorField label="ID (automático)" value={String(draft?.ID || draft?._rowId || "")} readOnly />
       <EditorField label="N.º Reinado" value={String(draft?.["Nº Reinado"] ?? "")} onChange={upd("Nº Reinado")} />
       <EditorField label="Nombre (Regnal)" value={String(draft?.Nombre ?? "")} onChange={upd("Nombre")} />
       <EditorField label="Apelativo" value={String(draft?.Apelativo ?? "")} onChange={upd("Apelativo")} />
