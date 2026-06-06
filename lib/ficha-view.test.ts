@@ -36,8 +36,24 @@ const baseMediaAsset = {
 
 describe("colores de fichas", () => {
   it("resuelve reinos con tildes y nombres compuestos", () => {
-    expect(kingdomColor("Monarquía Hispánica / España")).toBe("#B12B30");
+    expect(kingdomColor("Monarquía Hispánica / España")).toBe("#7A1325");
     expect(kingdomColor("Reino de León")).toBe("#702963");
+  });
+
+  it("aplica el carmesí documentado a la familia de Castilla", () => {
+    // Corona de Castilla usa el carmesí tradicional de Castilla (#A51C30) y el
+    // resto de la familia comparte el tono en distintas profundidades.
+    expect(kingdomColor("Corona de Castilla")).toBe("#A51C30");
+    expect(kingdomColor("Condado de Castilla")).toBe("#D2556A");
+    expect(kingdomColor("Reino de Castilla")).toBe("#C2354A");
+  });
+
+  it("da a Cataluña el oro de la Senyera y a Pamplona un oro emparentado con Navarra", () => {
+    expect(kingdomColor("Condado de Barcelona")).toBe("#D97706");
+    expect(kingdomColor("Condado de Cataluña")).toBe("#E08A1E");
+    expect(kingdomColor("Reino de Pamplona")).toBe("#936F15");
+    expect(kingdomColor("Reino de Navarra")).toBe("#BE9F23");
+    expect(kingdomColor("Reino de Pamplona")).not.toBe(kingdomColor("Reino de Navarra"));
   });
 
   it("distingue visualmente Trastámara y Borbón", () => {

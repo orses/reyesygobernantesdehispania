@@ -67,17 +67,46 @@ export const RIGHTS_OPTIONS: { value: MediaRightsStatus; label: string }[] = [
   { value: "copyrighted", label: "con derechos de autor" },
 ];
 
+// Los colores buscan reflejar la heráldica/vexilología histórica y, a la vez,
+// las relaciones entre entidades emparentadas (mismo «aire» de color para
+// reinos sucesores, con tonos claramente distintos para no confundirlos).
 const KINGDOM_COLORS: Record<string, string> = {
+  // Occidente: azules y púrpura.
   asturias: "#00468C",
   "reino de asturias": "#00468C",
   "reino de leon": "#702963",
   "reino de galicia": "#0079AF",
+
+  // Castilla → España: familia del CARMESÍ, el color vexilológico tradicional
+  // de Castilla (gules heráldico representado como carmesí). Del más claro
+  // (condado, el más antiguo) al más profundo (Monarquía Hispánica/España),
+  // para leer a la vez la continuidad y la especificidad de cada etapa.
+  "condado de castilla": "#D2556A", // carmesí claro
+  "reino de castilla": "#C2354A", // carmesí medio
+  "corona de castilla": "#A51C30", // carmesí tradicional de Castilla
+  "monarquia hispanica": "#7A1325", // carmesí profundo
+  "monarquia hispanica / espana": "#7A1325",
+  espana: "#7A1325",
+  "reino de espana": "#7A1325",
+
+  // Corona de Aragón y su núcleo catalán.
   "corona de aragon": "#3E2723",
+  // Cataluña: oro/ámbar de la Senyera (campo de oro, palos de gules).
+  "condado de barcelona": "#D97706",
+  barcelona: "#D97706",
+  "condado de cataluna": "#E08A1E",
+  "condado de catalunya": "#E08A1E",
+  cataluna: "#E08A1E",
+  catalunya: "#E08A1E",
+
+  // Pamplona → Navarra: oro de las cadenas. Pamplona (etapa primitiva) en un
+  // oro viejo/bronce más oscuro y Navarra en su oro mostaza consolidado: mismo
+  // «aire» dorado, pero con contraste de luminosidad suficiente para
+  // distinguirlos manteniendo legible el texto blanco del chip.
+  "reino de pamplona": "#936F15",
+  pamplona: "#936F15",
   "reino de navarra": "#BE9F23",
-  "corona de castilla": "#991B2F",
-  "reino de castilla": "#C0392B",
-  "condado de castilla": "#E74C3C",
-  "monarquia hispanica": "#B12B30",
+  navarra: "#BE9F23",
 };
 
 const DYNASTY_COLORS: Record<string, string> = {

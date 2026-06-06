@@ -232,6 +232,14 @@ function RowEditorContent({
     .filter((p) => String(p.personId) !== String(draftPersonId))
     .slice()
     .sort((a, b) => String(a.nombrePrincipal).localeCompare(String(b.nombrePrincipal), "es"));
+  // Los nombres se repiten entre reinos (p. ej. varios «Alfonso I»), así que
+  // mostramos el reino entre paréntesis para poder distinguir a cada persona.
+  const successionOptionLabel = (person: Person) => {
+    const reinos = person.reinos.filter(Boolean);
+    return reinos.length
+      ? `${person.nombrePrincipal} (${reinos.join(", ")})`
+      : person.nombrePrincipal;
+  };
   const successionSelectClass =
     "h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100";
   const upd = (key: string) => (value: string) =>
@@ -266,7 +274,7 @@ function RowEditorContent({
           <option value="">— automático (por reino) —</option>
           {otherPeople.map((person) => (
             <option key={person.personId} value={String(person.personId)}>
-              {person.nombrePrincipal}
+              {successionOptionLabel(person)}
             </option>
           ))}
         </select>
@@ -281,7 +289,7 @@ function RowEditorContent({
           <option value="">— automático (por reino) —</option>
           {otherPeople.map((person) => (
             <option key={person.personId} value={String(person.personId)}>
-              {person.nombrePrincipal}
+              {successionOptionLabel(person)}
             </option>
           ))}
         </select>
