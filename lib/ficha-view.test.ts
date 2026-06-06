@@ -48,6 +48,12 @@ describe("colores de fichas", () => {
     expect(kingdomColor("Reino de Castilla")).toBe("#C2354A");
   });
 
+  it("da a la familia de Aragón una gradación terracota propia", () => {
+    expect(kingdomColor("Condado de Aragón")).toBe("#B5673A");
+    expect(kingdomColor("Reino de Aragón")).toBe("#9C4E28");
+    expect(kingdomColor("Corona de Aragón")).toBe("#7E3A1A");
+  });
+
   it("da a Cataluña el oro de la Senyera y a Pamplona un oro emparentado con Navarra", () => {
     expect(kingdomColor("Condado de Barcelona")).toBe("#D97706");
     expect(kingdomColor("Condado de Cataluña")).toBe("#E08A1E");

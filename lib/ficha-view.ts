@@ -89,8 +89,13 @@ const KINGDOM_COLORS: Record<string, string> = {
   espana: "#7A1325",
   "reino de espana": "#7A1325",
 
-  // Corona de Aragón y su núcleo catalán.
-  "corona de aragon": "#3E2723",
+  // Aragón: familia terracota/siena que evoca el oro y gules de los palos de
+  // Aragón sin chocar con el ámbar catalán ni el carmesí castellano. Del más
+  // claro (condado, etapa primitiva) al más profundo (corona).
+  "condado de aragon": "#B5673A", // terracota clara
+  "reino de aragon": "#9C4E28", // siena media
+  aragon: "#9C4E28",
+  "corona de aragon": "#7E3A1A", // siena profunda
   // Cataluña: oro/ámbar de la Senyera (campo de oro, palos de gules).
   "condado de barcelona": "#D97706",
   barcelona: "#D97706",
