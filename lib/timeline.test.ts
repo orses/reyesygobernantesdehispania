@@ -306,12 +306,15 @@ describe("buildTimelineGroups", () => {
     const rows = [
       ["asturias", "Reino de Asturias", 718],
       ["barcelona", "Condado de Barcelona", 801],
-      ["navarra", "Reino de Navarra", 824],
+      ["pamplona", "Reino de Pamplona", 824],
       ["castilla-condado", "Condado de Castilla", 850],
+      ["cataluna", "Condado de Cataluña", 900],
       ["leon", "Reino de León", 910],
       ["galicia", "Reino de Galicia", 910],
+      ["aragon-condado", "Condado de Aragón", 922],
       ["aragon-reino", "Reino de Aragón", 1035],
       ["castilla-reino", "Reino de Castilla", 1065],
+      ["navarra", "Reino de Navarra", 1162],
       ["aragon-corona", "Corona de Aragón", 1164],
       ["castilla-corona", "Corona de Castilla", 1479],
       ["hispanica", "Monarquía Hispánica", 1516],
@@ -337,8 +340,11 @@ describe("buildTimelineGroups", () => {
       "Corona de Castilla",
       "Monarquía Hispánica",
       "Condado de Barcelona",
+      "Condado de Cataluña",
+      "Condado de Aragón",
       "Reino de Aragón",
       "Corona de Aragón",
+      "Reino de Pamplona",
       "Reino de Navarra",
     ]);
   });

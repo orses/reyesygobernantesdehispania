@@ -31,6 +31,8 @@ function makePerson(rows: RawRow[], idx: number): Person {
         apelativos: [],
         reinos: ["Castilla"],
         dinastia: "Test",
+        dinastias: ["Test"],
+        hasDinastiaConflict: false,
         verifiedAll: true,
         minInicioAnio: 1400 + idx * 10,
         birthYear: 1380 + idx * 10,
@@ -105,13 +107,23 @@ describe("calculateStatsHelper", () => {
         const r1 = makeRow({ Dinastía: "Habsburgo" }, 0);
         const r2 = makeRow({ Dinastía: "Borbón" }, 1);
         const r3 = makeRow({ Dinastía: "Habsburgo" }, 2);
-        const p1: Person = { ...makePerson([r1], 0), dinastia: "Habsburgo" };
-        const p2: Person = { ...makePerson([r2], 1), dinastia: "Borbón" };
-        const p3: Person = { ...makePerson([r3], 2), dinastia: "Habsburgo" };
+        const p1: Person = { ...makePerson([r1], 0), dinastia: "Habsburgo", dinastias: ["Habsburgo"] };
+        const p2: Person = { ...makePerson([r2], 1), dinastia: "Borbón", dinastias: ["Borbón"] };
+        const p3: Person = { ...makePerson([r3], 2), dinastia: "Habsburgo", dinastias: ["Habsburgo"] };
 
         const stats = calculateStatsHelper([r1, r2, r3], [p1, p2, p3]);
         const hab = stats.byDinastia.find((d) => d.name === "Habsburgo");
         expect(hab?.count).toBe(2);
+    });
+
+    it("cuenta reinados por dinastía, no solo personajes", () => {
+        const r1 = makeRow({ PersonID: "alfonso", Dinastía: "Borgoña" }, 0);
+        const r2 = makeRow({ PersonID: "alfonso", Dinastía: "Borgoña" }, 1);
+        const p1: Person = { ...makePerson([r1, r2], 0), personId: "alfonso", dinastia: "Borgoña", dinastias: ["Borgoña"] };
+
+        const stats = calculateStatsHelper([r1, r2], [p1]);
+
+        expect(stats.byDinastia).toContainEqual({ name: "Borgoña", count: 2 });
     });
 
     it("genera datos por siglo", () => {

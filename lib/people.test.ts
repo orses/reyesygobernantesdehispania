@@ -9,6 +9,7 @@ import {
     getPersonFilterOptions,
     getSelectedCenturies,
     groupRowsByPerson,
+    personDinastiaSummary,
     personMatchesSearch,
     rowCenturies,
     rowSpansCentury,
@@ -120,6 +121,8 @@ describe("buildPeople", () => {
             nombrePrincipal: "Alfonso el Pruebas",
             reinos: ["Reino de León", "Reino de Castilla"],
             dinastia: "Astur-Leonesa",
+            dinastias: ["Astur-Leonesa"],
+            hasDinastiaConflict: false,
             verifiedAll: true,
             minInicioAnio: 1000,
         });
@@ -161,6 +164,33 @@ describe("buildPeople", () => {
 
         expect(people.find((person) => person.personId === "alfonso")?.apelativos).toEqual(["el Sabio"]);
     });
+
+    it("marca como incoherencia las dinastías distintas dentro de un mismo personaje", () => {
+        const people = buildPeople(groupRowsByPerson([
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                Reino: "Reino de León",
+                Dinastía: "Borgoña",
+                "Inicio del reinado (año)": 1126,
+            },
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                Reino: "Reino de Castilla",
+                Dinastía: "Trastámara",
+                "Inicio del reinado (año)": 1127,
+            },
+        ]));
+        const alfonso = people.find((person) => person.personId === "alfonso");
+
+        expect(alfonso?.dinastias).toEqual(["Borgoña", "Trastámara"]);
+        expect(alfonso?.hasDinastiaConflict).toBe(true);
+        expect(alfonso ? personDinastiaSummary(alfonso) : null).toMatchObject({
+            kind: "conflict",
+            label: "Dinastía incoherente en sus gobiernos",
+        });
+    });
 });
 
 describe("filterAndSortPeople", () => {
@@ -172,6 +202,44 @@ describe("filterAndSortPeople", () => {
         });
 
         expect(people.map((person) => person.personId)).toContain("alfonso");
+    });
+
+    it("filtra por dinastía mirando los gobiernos concretos de cada personaje", () => {
+        const { allPeople } = derivePeopleFromRows([
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                Reino: "Reino de León",
+                Dinastía: "Borgoña",
+                "Inicio del reinado (año)": 1126,
+            },
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                Reino: "Reino de Castilla",
+                Dinastía: "Trastámara",
+                "Inicio del reinado (año)": 1127,
+            },
+            {
+                PersonID: "sancho",
+                Nombre: "Sancho",
+                Reino: "Reino de Castilla",
+                Dinastía: "Borgoña",
+                "Inicio del reinado (año)": 1157,
+            },
+        ]);
+
+        const trastamaras = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            filterDinastia: "Trastámara",
+        });
+        const borgonas = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            filterDinastia: "Borgoña",
+        });
+
+        expect(trastamaras.map((person) => person.personId)).toEqual(["alfonso"]);
+        expect(borgonas.map((person) => person.personId)).toEqual(["alfonso", "sancho"]);
     });
 
     it("filtra por siglo usando años inferidos", () => {

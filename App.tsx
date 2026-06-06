@@ -261,6 +261,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       PersonID: personId,
       "Nombre principal": p.nombrePrincipal === "(sin nombre)" ? "" : p.nombrePrincipal,
       Apelativo: p.apelativos?.[0] ?? base.Apelativo ?? base.apelativo ?? "",
+      Dinastía: p.hasDinastiaConflict ? "" : p.dinastia,
       "Información verificada": verifiedToText(p.verifiedAll),
       "Nacimiento (Fecha)": base["Nacimiento (Fecha)"] ?? "",
       "Nacimiento (lugar)": base["Nacimiento (lugar)"] ?? "",
@@ -273,8 +274,6 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       "Fallecimiento (provincia)": base["Fallecimiento (provincia)"] ?? "",
       "Fallecimiento (País)": base["Fallecimiento (País)"] ?? "",
       Enterramiento: base["Enterramiento"] ?? "",
-      "Imagen URL": base["Imagen URL"] ?? "",
-      Galería: base["Galería"] ?? "",
       "Ficha RAH URL": base["Ficha RAH URL"] ?? "",
       Descripción: base["Descripción"] ?? "",
     };
@@ -329,6 +328,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       PersonID: newId,
       "Nombre principal": "",
       Apelativo: "",
+      Dinastía: "",
       "Información verificada": verifiedToText(false),
       "Nacimiento (Fecha)": "",
       "Nacimiento (lugar)": "",
@@ -341,8 +341,6 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       "Fallecimiento (provincia)": "",
       "Fallecimiento (País)": "",
       Enterramiento: "",
-      "Imagen URL": "",
-      Galería: "",
       "Ficha RAH URL": "",
       Descripción: "",
     });

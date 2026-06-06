@@ -160,6 +160,8 @@ export interface Person {
     apelativos: string[];
     reinos: string[];
     dinastia: string;
+    dinastias: string[];
+    hasDinastiaConflict: boolean;
     verifiedAll: boolean;
     minInicioAnio: number | null;
     birthYear: number | null;

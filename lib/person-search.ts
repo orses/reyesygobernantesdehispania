@@ -368,6 +368,7 @@ function textValuesForPerson(person: Person): string[] {
     ...person.apelativos,
     ...person.reinos,
     person.dinastia,
+    ...person.dinastias,
     ...person.reinados.flatMap((row) => [
       row?.["Tipo de gobierno"],
       row?.Nombre,
@@ -424,7 +425,7 @@ function compareNumber(value: number, operator: ComparisonOperator, target: numb
 function textFieldValues(person: Person, field: string): string[] {
   if (field === "name") return [person.nombrePrincipal, ...person.nombres, ...person.apelativos];
   if (field === "kingdom") return [...person.reinos, ...person.reinados.map((row) => String(row?.Reino ?? ""))];
-  if (field === "dynasty") return [person.dinastia, ...person.reinados.map((row) => String(row?.Dinastía ?? ""))];
+  if (field === "dynasty") return [person.dinastia, ...person.dinastias, ...person.reinados.map((row) => String(row?.Dinastía ?? ""))];
   if (field === "governmentType") return person.reinados.map((row) => String(row?.["Tipo de gobierno"] ?? ""));
   return [];
 }

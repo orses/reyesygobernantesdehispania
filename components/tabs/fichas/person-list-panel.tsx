@@ -19,6 +19,7 @@ import {
 import { firstNonEmpty, formatCenturyLabel } from "../../../lib/data";
 import { kingdomColor, personReignRangeLabel } from "../../../lib/ficha-view";
 import { getPrimaryMediaAsset } from "../../../lib/media";
+import { personDinastiaSummary } from "../../../lib/people";
 import type { MediaAsset, Person } from "../../../lib/types";
 import { MediaThumb } from "./shared";
 
@@ -284,6 +285,7 @@ export function PersonListPanel({
               const active = String(person.personId) === String(selectedPersonId);
               const primaryMedia = getPrimaryMediaAsset(mediaAssets, person.personId);
               const rangeStr = personReignRangeLabel(person);
+              const dinastiaSummary = personDinastiaSummary(person);
 
               return (
                 <button
@@ -302,7 +304,9 @@ export function PersonListPanel({
 
                       <div className="min-w-0 space-y-1">
                         <div className="text-base font-semibold leading-5 truncate text-emerald-200">{person.nombrePrincipal}</div>
-                        <div className="truncate text-sm font-medium text-slate-300">{person.dinastia || "sin dinastía"}</div>
+                        <div className={`truncate text-sm font-medium ${dinastiaSummary.kind === "conflict" ? "text-amber-200" : "text-slate-300"}`} title={dinastiaSummary.values.join(", ")}>
+                          {dinastiaSummary.label}
+                        </div>
                       </div>
                     </div>
 

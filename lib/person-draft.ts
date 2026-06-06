@@ -3,6 +3,11 @@ import type { RawRow } from "./types";
 
 export function applyPersonDraftToRows(rows: RawRow[], personId: string, draft: RawRow): RawRow[] {
     const { Predecesor: _predecesor, Sucesor: _sucesor, ...personDraft } = draft;
+    const { Dinastía: draftDinastia, ...personDraftWithoutDinastia } = personDraft;
+    const dinastia = String(draftDinastia ?? "").trim();
+    const normalizedPersonDraft: RawRow = dinastia
+        ? { ...personDraftWithoutDinastia, Dinastía: dinastia }
+        : personDraftWithoutDinastia;
     const verifiedText = String(draft["Información verificada"] ?? "").trim();
     const verifiedBool = boolFromVerified(verifiedText);
 
@@ -12,7 +17,7 @@ export function applyPersonDraftToRows(rows: RawRow[], personId: string, draft: 
 
             const next = {
                 ...row,
-                ...personDraft,
+                ...normalizedPersonDraft,
                 "Información verificada": verifiedToText(verifiedBool),
             };
             return computeDerivedRow(next);

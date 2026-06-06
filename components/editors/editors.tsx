@@ -149,6 +149,11 @@ function PersonEditorContent({
           value={String(draft.Apelativo ?? "")}
           onChange={upd("Apelativo")}
         />
+        <EditorField
+          label="Dinastía"
+          value={String(draft.Dinastía ?? "")}
+          onChange={upd("Dinastía")}
+        />
 
         <EditorField
           label="PersonID (solo lectura)"
@@ -199,7 +204,6 @@ function PersonEditorContent({
 
       <EditorSection title="Descripción y enlaces">
         <EditorField label="Descripción" value={String(draft["Descripción"] ?? "")} onChange={upd("Descripción")} multiline colSpan2 />
-        <EditorField label="Imagen URL" value={String(draft["Imagen URL"] ?? "")} onChange={upd("Imagen URL")} />
         <EditorField label="Ficha RAH URL" value={String(draft["Ficha RAH URL"] ?? "")} onChange={upd("Ficha RAH URL")} />
       </EditorSection>
     </div>
@@ -241,7 +245,7 @@ function RowEditorContent({
       <EditorField label="Nombre (Regnal)" value={String(draft?.Nombre ?? "")} onChange={upd("Nombre")} />
       <EditorField label="Apelativo" value={String(draft?.Apelativo ?? "")} onChange={upd("Apelativo")} />
       <EditorField label="Reino" value={String(draft?.Reino ?? "")} onChange={upd("Reino")} />
-      <EditorField label="Dinastía" value={String(draft?.Dinastía ?? "")} onChange={upd("Dinastía")} />
+      <EditorField label="Dinastía del reinado" value={String(draft?.Dinastía ?? "")} onChange={upd("Dinastía")} />
       <EditorField label="Tipo de gobierno" value={String(draft?.["Tipo de gobierno"] ?? "")} onChange={upd("Tipo de gobierno")} />
       <EditorField label="Información Verificada" value={String(draft?.["Información verificada"] ?? "")} onChange={upd("Información verificada")} />
       <EditorField label="Inicio del Reinado (Año)" value={String(draft?.["Inicio del reinado (año)"] ?? "")} onChange={upd("Inicio del reinado (año)")} />

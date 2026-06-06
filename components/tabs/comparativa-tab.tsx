@@ -6,7 +6,7 @@ import { Search, X, UserPlus, Scale } from "lucide-react";
 import { VerifiedBadge } from "../ui/verified-badge";
 import { formatNumber, normalizeUrl } from "../../lib/data";
 import { getPrimaryMediaAsset } from "../../lib/media";
-import { personMatchesSearch } from "../../lib/people";
+import { personDinastiaSummary, personMatchesSearch } from "../../lib/people";
 import type { MediaAsset, Person } from "../../lib/types";
 import { Input } from "../ui/input";
 
@@ -221,6 +221,7 @@ export function ComparativaTab({
                   
                   const durationGobierno = p.reinados.reduce((s, r) => s + (typeof r._duracionCalc === 'number' ? r._duracionCalc : 0), 0);
                   const activeYears = p.reinados.map(r => r["Inicio del reinado (año)"]).filter(Boolean).join(", ");
+                  const dinastiaSummary = personDinastiaSummary(p);
                   
                   return (
                     <div key={p.personId} className="w-[min(82vw,340px)] flex-shrink-0 flex flex-col bg-slate-950/60 border border-slate-800 rounded-md overflow-hidden relative">
@@ -269,7 +270,9 @@ export function ComparativaTab({
                         
                         <div>
                           <p className="text-[11px] text-slate-500 tracking-wider uppercase border-b border-slate-800 pb-1 mb-2">Gobierno ({p.reinados.length})</p>
-                          <p className="text-slate-300"><span className="text-slate-400">Dinastía:</span> {p.dinastia || 'Ninguna'}</p>
+                          <p className={dinastiaSummary.kind === "conflict" ? "text-amber-200" : "text-slate-300"} title={dinastiaSummary.values.join(", ")}>
+                            <span className="text-slate-400">Dinastía:</span> {dinastiaSummary.label}
+                          </p>
                           <p className="text-slate-300 mt-1"><span className="text-slate-400">Reinos:</span> {p.reinos.join(', ')}</p>
                           <p className="text-slate-300 mt-1"><span className="text-slate-400">Inicio mandatos:</span> {activeYears || '-'}</p>
                         </div>

@@ -9,6 +9,53 @@ import {
 import { normalizeSearchText, personMatchesAdvancedSearch } from "./person-search";
 import { compareChronologicalPersonCandidates } from "./selection";
 
+export type PersonDinastiaSummaryKind = "empty" | "single" | "conflict";
+
+export interface PersonDinastiaSummary {
+    kind: PersonDinastiaSummaryKind;
+    label: string;
+    values: string[];
+}
+
+function uniqueTrimmedValues(values: unknown[]): string[] {
+    const seen = new Set<string>();
+    const output: string[] = [];
+
+    for (const value of values) {
+        const text = String(value ?? "").trim();
+        const key = normalizeSearchText(text);
+        if (!text || seen.has(key)) continue;
+        seen.add(key);
+        output.push(text);
+    }
+
+    return output;
+}
+
+function rowDinastia(row: RawRow): string {
+    return String(row?.Dinastía ?? "").trim();
+}
+
+export function personHasDinastia(person: Pick<Person, "dinastias" | "reinados">, dinastia: string): boolean {
+    const key = normalizeSearchText(dinastia);
+    if (!key) return false;
+    return person.reinados.some((row) => normalizeSearchText(rowDinastia(row)) === key);
+}
+
+export function personDinastiaSummary(person: Pick<Person, "dinastias" | "reinados">): PersonDinastiaSummary {
+    const values = person.dinastias.length ? person.dinastias : uniqueTrimmedValues(person.reinados.map(rowDinastia));
+
+    if (values.length === 0) {
+        return { kind: "empty", label: "sin dinastía", values };
+    }
+
+    if (values.length === 1) {
+        return { kind: "single", label: values[0], values };
+    }
+
+    return { kind: "conflict", label: "Dinastía incoherente en sus gobiernos", values };
+}
+
 export function groupRowsByPerson(rows: RawRow[]): Map<string, RawRow[]> {
     const grouped = new Map<string, RawRow[]>();
 
@@ -44,7 +91,9 @@ export function buildPeople(byPerson: Map<string, RawRow[]>): Person[] {
         const apelativos = Array.from(
             new Set(reinados.map((row) => String(row?.Apelativo || row?.apelativo || "").trim()).filter(Boolean))
         );
-        const dinastia = String(reinados[0]?.Dinastía || "").trim();
+        const dinastias = uniqueTrimmedValues(reinados.map(rowDinastia));
+        const dinastia = dinastias[0] ?? "";
+        const hasDinastiaConflict = dinastias.length > 1;
         const verifiedAll = reinados.every((row) =>
             boolFromVerified(row?.["Información verificada"])
         );
@@ -79,6 +128,8 @@ export function buildPeople(byPerson: Map<string, RawRow[]>): Person[] {
             apelativos,
             reinos,
             dinastia,
+            dinastias,
+            hasDinastiaConflict,
             verifiedAll,
             minInicioAnio,
             birthYear,
@@ -132,7 +183,7 @@ export function filterAndSortPeople(allPeople: Person[], filters: FilterState): 
     }
 
     if (filters.filterDinastia !== "__all__") {
-        output = output.filter((person) => person.dinastia === filters.filterDinastia);
+        output = output.filter((person) => personHasDinastia(person, filters.filterDinastia));
     }
 
     if (filters.filterSiglo !== "__all__") {
@@ -166,7 +217,7 @@ export function comparePeopleByFilter(a: Person, b: Person, sortKey: string, sor
             comparison = a.nombrePrincipal.localeCompare(b.nombrePrincipal, "es");
             break;
         case "dinastia":
-            comparison = a.dinastia.localeCompare(b.dinastia, "es");
+            comparison = a.dinastias.join(",").localeCompare(b.dinastias.join(","), "es");
             break;
         case "reinos":
             comparison = a.reinos.join(",").localeCompare(b.reinos.join(","), "es");
@@ -198,7 +249,7 @@ export function getPersonFilterOptions(allPeople: Person[], rows: RawRow[]): {
 } {
     const reinos = Array.from(new Set(allPeople.flatMap((person) => person.reinos)))
         .sort((a, b) => a.localeCompare(b, "es"));
-    const dinastias = Array.from(new Set(allPeople.map((person) => person.dinastia).filter(Boolean)))
+    const dinastias = uniqueTrimmedValues(rows.map(rowDinastia))
         .sort((a, b) => a.localeCompare(b, "es"));
     const siglos = collectCenturiesFromRows(rows).map((century) => String(century));
 

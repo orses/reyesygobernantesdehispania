@@ -42,8 +42,8 @@ export function calculateStatsHelper(
 
         // --- Dinastías ---
         const byDinastiaMap = new Map<string, number>();
-        for (const p of inputPeople) {
-            const k = String(p.dinastia || "sin dinastía").trim() || "sin dinastía";
+        for (const r of inputRows) {
+            const k = String(r?.Dinastía || "sin dinastía").trim() || "sin dinastía";
             byDinastiaMap.set(k, (byDinastiaMap.get(k) || 0) + 1);
         }
         const byDinastia: CountEntry[] = Array.from(byDinastiaMap.entries())

@@ -80,6 +80,79 @@ describe("applyPersonDraftToRows", () => {
         ]);
     });
 
+    it("aplica la dinastía editada en persona a todos sus gobiernos", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "fernando-castilla",
+                PersonID: "fernando",
+                Nombre: "Fernando",
+                Reino: "Corona de Castilla",
+                Dinastía: "Sin revisar",
+            },
+            {
+                _rowId: "fernando-aragon",
+                PersonID: "fernando",
+                Nombre: "Fernando",
+                Reino: "Corona de Aragón",
+                Dinastía: "Sin revisar",
+            },
+        ];
+
+        const result = applyPersonDraftToRows(rows, "fernando", {
+            "Nombre principal": "Fernando II",
+            Dinastía: "Trastámara",
+            "Información verificada": "sí",
+        });
+
+        expect(result.map((row) => row.Dinastía)).toEqual(["Trastámara", "Trastámara"]);
+    });
+
+    it("no borra dinastías de gobiernos si el borrador de persona no trae dinastía", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "alfonso-leon",
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                Reino: "Reino de León",
+                Dinastía: "Borgoña",
+            },
+            {
+                _rowId: "alfonso-castilla",
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                Reino: "Reino de Castilla",
+                Dinastía: "Trastámara",
+            },
+        ];
+
+        const result = applyPersonDraftToRows(rows, "alfonso", {
+            "Nombre principal": "Alfonso",
+            Dinastía: "",
+            "Información verificada": "sí",
+        });
+
+        expect(result.map((row) => row.Dinastía)).toEqual(["Borgoña", "Trastámara"]);
+    });
+
+    it("preserva Imagen URL cuando el editor de persona no la envía", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "isabel",
+                PersonID: "isabel",
+                Nombre: "Isabel",
+                Reino: "Corona de Castilla",
+                "Imagen URL": "https://example.test/isabel.jpg",
+            },
+        ];
+
+        const result = applyPersonDraftToRows(rows, "isabel", {
+            "Nombre principal": "Isabel I",
+            "Información verificada": "sí",
+        });
+
+        expect(result[0]["Imagen URL"]).toBe("https://example.test/isabel.jpg");
+    });
+
     it("no copia sucesión manual desde el borrador de persona", () => {
         const rows: RawRow[] = [
             {

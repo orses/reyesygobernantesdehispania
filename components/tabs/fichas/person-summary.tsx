@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 import { Button } from "../../ui/button";
 import { asNumberOrNull } from "../../../lib/data";
+import { personDinastiaSummary } from "../../../lib/people";
 import {
   calculatedMeta,
   centuryBadgeStyle,
@@ -81,7 +82,10 @@ export function PersonSummary({
     [mainImageFallbackUrl, mediaPreviewUrls, selectedPerson.nombrePrincipal, selectedPrimaryMediaAsset]
   );
   const [isMainImageViewerOpen, setMainImageViewerOpen] = useState(false);
-  const hasClassification = Boolean(selectedPerson.dinastia) || selectedCenturies.length > 0;
+  const dinastiaSummary = personDinastiaSummary(selectedPerson);
+  const hasSingleDinastia = dinastiaSummary.kind === "single";
+  const hasDinastiaConflict = dinastiaSummary.kind === "conflict";
+  const hasClassification = hasSingleDinastia || hasDinastiaConflict || selectedCenturies.length > 0;
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 xl:grid-cols-[minmax(260px,360px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
@@ -143,30 +147,40 @@ export function PersonSummary({
 
             {hasClassification ? (
               <div className="flex flex-wrap items-center gap-2">
-                {selectedPerson.dinastia ? (
-              <Button
-                type="button"
-                variant={filterDinastia === String(selectedPerson.dinastia) ? "secondary" : "outline"}
-                className="cursor-pointer rounded-[3px] border font-medium hover:opacity-85"
-                style={dynastyBadgeStyle(
-                  String(selectedPerson.dinastia),
-                  filterDinastia === String(selectedPerson.dinastia)
-                )}
-                title="conmutar filtro por dinastía"
-                onClick={() => {
-                  const dinastia = String(selectedPerson.dinastia);
-                  if (filterDinastia === dinastia) {
-                    setFilterDinastia("__all__");
-                    setFilterDinastiaLocked(false);
-                  } else {
-                    setFilterDinastia(dinastia);
-                    setFilterDinastiaLocked(true);
-                  }
-                }}
-              >
-                {String(selectedPerson.dinastia)}
-              </Button>
-            ) : null}
+                {hasSingleDinastia ? (
+                  <Button
+                    type="button"
+                    variant={filterDinastia === dinastiaSummary.label ? "secondary" : "outline"}
+                    className="cursor-pointer rounded-[3px] border font-medium hover:opacity-85"
+                    style={dynastyBadgeStyle(
+                      dinastiaSummary.label,
+                      filterDinastia === dinastiaSummary.label
+                    )}
+                    title="conmutar filtro por dinastía"
+                    onClick={() => {
+                      const dinastia = dinastiaSummary.label;
+                      if (filterDinastia === dinastia) {
+                        setFilterDinastia("__all__");
+                        setFilterDinastiaLocked(false);
+                      } else {
+                        setFilterDinastia(dinastia);
+                        setFilterDinastiaLocked(true);
+                      }
+                    }}
+                  >
+                    {dinastiaSummary.label}
+                  </Button>
+                ) : null}
+
+                {hasDinastiaConflict ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-[3px] border border-amber-400/60 bg-amber-950/35 px-3 py-2 text-sm font-medium text-amber-100"
+                    title={`Valores: ${dinastiaSummary.values.join(", ")}`}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    {dinastiaSummary.label}
+                  </span>
+                ) : null}
 
             {selectedCenturies.length ? (
               (() => {
