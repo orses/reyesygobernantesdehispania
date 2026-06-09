@@ -7,30 +7,41 @@ import {
   CardTitle,
 } from "../../ui/card";
 import { Button } from "../../ui/button";
-import type { Person } from "../../../lib/types";
+import { rowDisplayName } from "../../../lib/data";
+import type { Person, RawRow } from "../../../lib/types";
 import { VerifiedBadge } from "../../ui/verified-badge";
 
 interface PersonDetailHeaderProps {
   selectedPerson: Person | null;
+  selectedGovernmentRow: RawRow | null;
   openPersonEditor: (personId: string | number) => void;
   setDeleteTarget: (target: { kind: string; id: string | number | null }) => void;
   setDeleteOpen: (value: boolean) => void;
 }
 
+function governmentHeaderName(row: RawRow | null): string {
+  if (!row) return "";
+  const name = String(row?.Nombre ?? row?.nombre ?? "").trim();
+  return name || rowDisplayName(row);
+}
+
 export function PersonDetailHeader({
   selectedPerson,
+  selectedGovernmentRow,
   openPersonEditor,
   setDeleteTarget,
   setDeleteOpen,
 }: PersonDetailHeaderProps) {
-  const apelativo = selectedPerson?.reinados?.[0]?.Apelativo;
+  const contextualName = governmentHeaderName(selectedGovernmentRow);
+  const headerName = contextualName || selectedPerson?.nombrePrincipal || "sin selección";
+  const apelativo = selectedGovernmentRow?.Apelativo ?? selectedPerson?.reinados?.[0]?.Apelativo;
 
   return (
     <CardHeader className="gap-1.5 px-6 pt-4 pb-2">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <CardTitle className="text-2xl font-semibold leading-tight text-emerald-200 sm:text-3xl 2xl:text-4xl">
-            {selectedPerson?.nombrePrincipal || "sin selección"}
+            {headerName}
           </CardTitle>
           {selectedPerson ? <VerifiedBadge verified={selectedPerson.verifiedAll} /> : null}
         </div>

@@ -4,7 +4,12 @@
 
 import { describe, expect, it } from "vitest";
 import { derivePeopleFromRows } from "./people";
-import { buildGovernmentSuccession } from "./succession";
+import {
+    buildGovernmentSuccession,
+    buildSuccessionOptions,
+    resolveSuccessionSelectValue,
+    successionRowRef,
+} from "./succession";
 import type { RawRow } from "./types";
 
 function multiKingdomRows(): RawRow[] {
@@ -149,6 +154,77 @@ describe("buildGovernmentSuccession", () => {
             successor: { personId: "sancho-ii" },
             predecessorSource: "chronological",
             successorSource: "chronological",
+        });
+    });
+
+    it("permite elegir una denominación concreta de una persona con varios gobiernos", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "castilla-fernando",
+                PersonID: "fernando",
+                "Nombre principal": "Fernando V",
+                Nombre: "Fernando V",
+                Reino: "Corona de Castilla",
+                "Inicio del reinado (año)": 1479,
+                "Final del reinado (año)": 1516,
+            },
+            {
+                _rowId: "aragon-fernando",
+                PersonID: "fernando",
+                "Nombre principal": "Fernando V",
+                Nombre: "Fernando II",
+                Reino: "Corona de Aragón",
+                "Inicio del reinado (año)": 1479,
+                "Final del reinado (año)": 1516,
+            },
+            {
+                _rowId: "castilla-juana",
+                PersonID: "juana",
+                Nombre: "Juana I",
+                Reino: "Corona de Castilla",
+                "Inicio del reinado (año)": 1504,
+                "Final del reinado (año)": 1555,
+            },
+            {
+                _rowId: "aragon-juana",
+                PersonID: "juana",
+                Nombre: "Juana I",
+                Reino: "Corona de Aragón",
+                "Inicio del reinado (año)": 1516,
+                "Final del reinado (año)": 1555,
+                Predecesor: successionRowRef("aragon-fernando"),
+            },
+        ];
+
+        const { allPeople } = derivePeopleFromRows(rows);
+        const options = buildSuccessionOptions(allPeople, "aragon-juana");
+        const succession = buildGovernmentSuccession(allPeople);
+
+        expect(options).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                value: successionRowRef("castilla-fernando"),
+                personId: "fernando",
+                nombreReinado: "Fernando V",
+                reino: "Corona de Castilla",
+            }),
+            expect.objectContaining({
+                value: successionRowRef("aragon-fernando"),
+                personId: "fernando",
+                nombreReinado: "Fernando II",
+                reino: "Corona de Aragón",
+            }),
+        ]));
+        expect(options.some((option) => option.rowId === "aragon-juana")).toBe(false);
+        expect(resolveSuccessionSelectValue("fernando", options, "Corona de Aragón")).toBe(
+            successionRowRef("aragon-fernando")
+        );
+        expect(succession.get("aragon-juana")).toMatchObject({
+            predecessor: {
+                personId: "fernando",
+                nombrePrincipal: "Fernando V",
+                nombreReinado: "Fernando II",
+            },
+            predecessorSource: "manual",
         });
     });
 

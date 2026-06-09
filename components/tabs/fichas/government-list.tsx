@@ -72,6 +72,11 @@ function SuccessionButton({
   );
 }
 
+function governmentReignName(period: ReturnType<typeof personGovernmentPeriods>[number]): string {
+  const rawName = String(period.row?.Nombre ?? period.row?.nombre ?? "").trim();
+  return rawName || period.nombre;
+}
+
 export function GovernmentList({
   selectedPerson,
   successionByRowId,
@@ -94,6 +99,7 @@ export function GovernmentList({
           const hasFullDates = Boolean(inicioFecha || finFecha);
           const succession = successionByRowId.get(period.rowId);
           const hasSuccession = Boolean(succession?.predecessor || succession?.successor);
+          const reignName = governmentReignName(period);
 
           return (
             <div
@@ -102,6 +108,9 @@ export function GovernmentList({
             >
               <div className="min-w-0">
                 <div className="truncate font-medium text-slate-50">{period.reino}</div>
+                {reignName ? (
+                  <div className="truncate text-sm font-medium text-cyan-100">{reignName}</div>
+                ) : null}
                 {period.tipoGobierno ? (
                   <div className="truncate text-xs text-slate-400">{String(period.tipoGobierno)}</div>
                 ) : null}

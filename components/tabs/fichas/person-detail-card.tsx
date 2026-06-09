@@ -3,7 +3,7 @@ import { Card, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
 import { personDenominationsByKingdom } from "../../../lib/ficha-view";
 import type { GovernmentSuccession } from "../../../lib/succession";
-import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person } from "../../../lib/types";
+import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person, RawRow } from "../../../lib/types";
 import { MediaGallery } from "./media-gallery";
 import { PersonDetailHeader } from "./person-detail-header";
 import { PersonSummary } from "./person-summary";
@@ -13,6 +13,7 @@ type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
 interface PersonDetailCardProps {
   selectedPerson: Person | null;
+  selectedGovernmentRow: RawRow | null;
   successionByRowId: ReadonlyMap<string, GovernmentSuccession>;
   selectedPrimaryMediaAsset: MediaAsset | null;
   selectedMediaAssets: MediaAsset[];
@@ -43,6 +44,7 @@ interface PersonDetailCardProps {
 
 export function PersonDetailCard({
   selectedPerson,
+  selectedGovernmentRow,
   successionByRowId,
   selectedPrimaryMediaAsset,
   selectedMediaAssets,
@@ -76,6 +78,7 @@ export function PersonDetailCard({
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
       <PersonDetailHeader
         selectedPerson={selectedPerson}
+        selectedGovernmentRow={selectedGovernmentRow}
         openPersonEditor={openPersonEditor}
         setDeleteTarget={setDeleteTarget}
         setDeleteOpen={setDeleteOpen}

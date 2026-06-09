@@ -67,7 +67,8 @@ export interface RawRow {
     "Información verificada"?: string;
 
     // — Sucesión manual por gobierno (override del cálculo cronológico automático).
-    // Guardan el PersonID del predecesor/sucesor elegido para esta fila; vacío = automático.
+    // Guardan una referencia de fila «row:<_rowId>»; también aceptan el PersonID legado.
+    // Vacío = automático.
     Predecesor?: string;
     Sucesor?: string;
 

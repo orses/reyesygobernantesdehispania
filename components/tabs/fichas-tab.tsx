@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   getPersonMediaAssets,
   getPrimaryMediaAsset,
@@ -67,6 +67,10 @@ const SORT_OPTIONS: Record<string, string> = {
   "edad:asc": "edad: menor a mayor",
 };
 
+function rowIdForDetail(row: RawRow, fallbackIndex: number): string {
+  return String(row?._rowId ?? row?.ID ?? `period-${fallbackIndex + 1}`);
+}
+
 export function FichasTab({
   people,
   chronologicalPeople,
@@ -107,15 +111,31 @@ export function FichasTab({
   removeMediaAsset,
   setPrimaryMediaAsset,
 }: FichasTabProps) {
+  const [selectedGovernmentRowId, setSelectedGovernmentRowId] = useState<string | null>(null);
   const selectedMediaAssets = selectedPerson ? getPersonMediaAssets(mediaAssets, selectedPerson.personId) : [];
   const selectedPrimaryMediaAsset = selectedPerson ? getPrimaryMediaAsset(selectedMediaAssets, selectedPerson.personId) : null;
+  const selectedGovernmentRow = useMemo(
+    () =>
+      selectedPerson?.reinados.find(
+        (row, index) => rowIdForDetail(row, index) === selectedGovernmentRowId
+      ) ?? null,
+    [selectedGovernmentRowId, selectedPerson]
+  );
   const governmentSuccession = useMemo(
     () => buildGovernmentSuccession(chronologicalPeople),
     [chronologicalPeople]
   );
+  const selectPerson = (personId: string | null) => {
+    setSelectedGovernmentRowId(null);
+    setSelectedPersonId(personId);
+  };
+  const selectGovernment = (personId: string, rowId: string) => {
+    setSelectedGovernmentRowId(rowId);
+    setSelectedPersonId(personId);
+  };
   const selectFirstSearchMatch = (searchText: string) => {
     const firstPersonId = getFirstMatchingPersonId(people, searchText);
-    if (firstPersonId) setSelectedPersonId(firstPersonId);
+    if (firstPersonId) selectPerson(firstPersonId);
   };
 
   return (
@@ -139,7 +159,8 @@ export function FichasTab({
         setSortDir={setSortDir}
         sortOptions={SORT_OPTIONS}
         selectedPersonId={selectedPersonId}
-        setSelectedPersonId={setSelectedPersonId}
+        selectedGovernmentRowId={selectedGovernmentRowId}
+        setSelectedGovernment={selectGovernment}
         onSearchSubmit={selectFirstSearchMatch}
         reinos={reinos}
         dinastias={dinastias}
@@ -150,6 +171,7 @@ export function FichasTab({
 
       <PersonDetailCard
         selectedPerson={selectedPerson}
+        selectedGovernmentRow={selectedGovernmentRow}
         successionByRowId={governmentSuccession}
         selectedPrimaryMediaAsset={selectedPrimaryMediaAsset}
         selectedMediaAssets={selectedMediaAssets}
@@ -163,7 +185,7 @@ export function FichasTab({
         setFilterDinastiaLocked={setFilterDinastiaLocked}
         filterSiglo={filterSiglo}
         setFilterSiglo={setFilterSiglo}
-        setSelectedPersonId={setSelectedPersonId}
+        setSelectedPersonId={selectPerson}
         openPersonEditor={openPersonEditor}
         openRowEditor={openRowEditor}
         setDeleteTarget={setDeleteTarget}

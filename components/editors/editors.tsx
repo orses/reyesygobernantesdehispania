@@ -14,6 +14,7 @@ import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 import { EditorField } from "./editor-field";
 import { boolFromVerified, verifiedToText, safeJsonParse } from "../../lib/data";
+import { buildSuccessionOptions, resolveSuccessionSelectValue } from "../../lib/succession";
 import type { Person, RawRow } from "../../lib/types";
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ interface EditorDialogProps {
   draft: RawRow | null;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
   draftPersonId: string | number | null;
+  draftRowId: string | number | null;
   commitDraft: () => void;
   error: string | null;
   setError: (v: string | null) => void;
@@ -40,6 +42,7 @@ export function EditorDialog({
   draft,
   setDraft,
   draftPersonId,
+  draftRowId,
   commitDraft,
   error,
   setError,
@@ -70,7 +73,7 @@ export function EditorDialog({
             <RowEditorContent
               draft={draft}
               setDraft={setDraft}
-              draftPersonId={draftPersonId}
+              draftRowId={draftRowId}
               error={error}
               setError={setError}
               people={people}
@@ -217,29 +220,30 @@ function PersonEditorContent({
 function RowEditorContent({
   draft,
   setDraft,
-  draftPersonId,
+  draftRowId,
   setError,
   people,
 }: {
   draft: RawRow;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
-  draftPersonId: string | number | null;
+  draftRowId: string | number | null;
   error: string | null;
   setError: (v: string | null) => void;
   people: Person[];
 }) {
-  const otherPeople = people
-    .filter((p) => String(p.personId) !== String(draftPersonId))
-    .slice()
-    .sort((a, b) => String(a.nombrePrincipal).localeCompare(String(b.nombrePrincipal), "es"));
-  // Los nombres se repiten entre reinos (p. ej. varios «Alfonso I»), así que
-  // mostramos el reino entre paréntesis para poder distinguir a cada persona.
-  const successionOptionLabel = (person: Person) => {
-    const reinos = person.reinos.filter(Boolean);
-    return reinos.length
-      ? `${person.nombrePrincipal} (${reinos.join(", ")})`
-      : person.nombrePrincipal;
+  const currentRowId = String(draftRowId ?? draft?._rowId ?? draft?.ID ?? "").trim();
+  const successionOptions = buildSuccessionOptions(people, currentRowId);
+  const successionOptionLabel = (option: (typeof successionOptions)[number]) => {
+    const personLabel = option.nombrePrincipal && option.nombrePrincipal !== option.nombreReinado
+      ? `${option.nombreReinado} (${option.nombrePrincipal})`
+      : option.nombreReinado;
+    const kingdomLabel = option.reino ? `${option.reino} · ` : "";
+    const startYearLabel = option.startYear !== null ? ` · ${option.startYear}` : "";
+
+    return `${kingdomLabel}${personLabel}${startYearLabel}`;
   };
+  const successionSelectValue = (key: "Predecesor" | "Sucesor") =>
+    resolveSuccessionSelectValue(draft[key], successionOptions, draft.Reino);
   const successionSelectClass =
     "h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100";
   const upd = (key: string) => (value: string) =>
@@ -268,13 +272,13 @@ function RowEditorContent({
         <span className="text-sm font-medium text-slate-300">Predecesor</span>
         <select
           className={successionSelectClass}
-          value={String(draft["Predecesor"] ?? "")}
+          value={successionSelectValue("Predecesor")}
           onChange={(event) => upd("Predecesor")(event.target.value)}
         >
           <option value="">— automático (por reino) —</option>
-          {otherPeople.map((person) => (
-            <option key={person.personId} value={String(person.personId)}>
-              {successionOptionLabel(person)}
+          {successionOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {successionOptionLabel(option)}
             </option>
           ))}
         </select>
@@ -283,13 +287,13 @@ function RowEditorContent({
         <span className="text-sm font-medium text-slate-300">Sucesor</span>
         <select
           className={successionSelectClass}
-          value={String(draft["Sucesor"] ?? "")}
+          value={successionSelectValue("Sucesor")}
           onChange={(event) => upd("Sucesor")(event.target.value)}
         >
           <option value="">— automático (por reino) —</option>
-          {otherPeople.map((person) => (
-            <option key={person.personId} value={String(person.personId)}>
-              {successionOptionLabel(person)}
+          {successionOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {successionOptionLabel(option)}
             </option>
           ))}
         </select>

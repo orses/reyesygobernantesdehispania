@@ -621,6 +621,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
         draft={draft}
         setDraft={setDraft}
         draftPersonId={draftPersonId}
+        draftRowId={draftRowId}
         commitDraft={commitDraft}
         error={error}
         setError={setError}
