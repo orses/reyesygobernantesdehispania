@@ -14,7 +14,9 @@ export const securityHeaders: Readonly<Record<string, string>> = {
 export const productionCspDirectives: ContentSecurityPolicyDirectives = {
   "default-src": ["'self'"],
   "script-src": ["'self'"],
-  "style-src": ["'self'", "'unsafe-inline'"],
+  "style-src": ["'self'"],
+  "style-src-elem": ["'self'"],
+  "style-src-attr": ["'unsafe-inline'"],
   "img-src": ["'self'", "https:", "data:", "blob:"],
   "connect-src": ["'self'"],
   "font-src": ["'self'"],
@@ -25,8 +27,9 @@ export const productionCspDirectives: ContentSecurityPolicyDirectives = {
 
 export const developmentCspDirectives: ContentSecurityPolicyDirectives = {
   ...productionCspDirectives,
-  // Vite necesita scripts inline y WebSocket durante HMR.
+  // Vite necesita scripts, estilos inline y WebSocket durante HMR.
   "script-src": ["'self'", "'unsafe-inline'"],
+  "style-src-elem": ["'self'", "'unsafe-inline'"],
   "connect-src": ["'self'", "ws:"],
 };
 

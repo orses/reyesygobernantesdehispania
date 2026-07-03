@@ -22,12 +22,14 @@ describe("configuración de seguridad del repositorio", () => {
   });
 
   it("bloquea el despliegue de GitHub Pages si no pasa la verificación completa", () => {
+    expect(deployWorkflow).toMatch(/pull_request:[\s\S]*branches:\s*\[main\]/);
     expect(deployWorkflow).toContain("npm run verify");
     expect(deployWorkflow).toContain("actions/checkout@v7");
     expect(deployWorkflow).toContain("actions/setup-node@v6");
     expect(deployWorkflow).toContain("actions/configure-pages@v6");
     expect(deployWorkflow).toContain("actions/upload-pages-artifact@v5");
     expect(deployWorkflow).toContain("actions/deploy-pages@v5");
+    expect(deployWorkflow).toContain("if: github.event_name != 'pull_request'");
     expect(deployWorkflow).toMatch(/deploy:[\s\S]*pages:\s*write/);
     expect(deployWorkflow).toMatch(/deploy:[\s\S]*id-token:\s*write/);
   });
@@ -50,6 +52,7 @@ describe("configuración de seguridad del repositorio", () => {
     expect(dependabotConfig).toContain("package-ecosystem: npm");
     expect(dependabotConfig).toContain("package-ecosystem: github-actions");
     expect(dependabotConfig).toContain("timezone: Europe/Madrid");
+    expect(dependabotConfig).toContain("version-update:semver-major");
     expect(dependabotConfig).toContain("actions-minor-and-patch");
   });
 

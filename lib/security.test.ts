@@ -31,8 +31,13 @@ describe("Content-Security-Policy", () => {
 
     expect(serialized).toContain("default-src 'self'");
     expect(serialized).toContain("script-src 'self'");
+    expect(serialized).toContain("style-src 'self'");
+    expect(serialized).toContain("style-src-elem 'self'");
+    expect(serialized).toContain("style-src-attr 'unsafe-inline'");
     expect(serialized).toContain("object-src 'none'");
     expect(serialized).not.toContain("script-src 'self' 'unsafe-inline'");
+    expect(serialized).not.toContain("style-src 'self' 'unsafe-inline'");
+    expect(serialized).not.toContain("style-src-elem 'self' 'unsafe-inline'");
     expect(serialized).not.toContain("ws:");
   });
 
@@ -40,6 +45,7 @@ describe("Content-Security-Policy", () => {
     const serialized = serializeCsp(developmentCspDirectives);
 
     expect(serialized).toContain("script-src 'self' 'unsafe-inline'");
+    expect(serialized).toContain("style-src-elem 'self' 'unsafe-inline'");
     expect(serialized).toContain("connect-src 'self' ws:");
   });
 });

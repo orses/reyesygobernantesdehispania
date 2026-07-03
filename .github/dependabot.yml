@@ -16,6 +16,10 @@ updates:
     commit-message:
       prefix: deps
       include: scope
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     groups:
       npm-minor-and-patch:
         patterns:
@@ -40,6 +44,10 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     groups:
       actions-minor-and-patch:
         patterns:
