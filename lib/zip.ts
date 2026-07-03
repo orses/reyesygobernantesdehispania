@@ -2,6 +2,8 @@
 // Utilidades ZIP sin compresión para paquetes de datos exportados por la app.
 // ---------------------------------------------------------------------------
 
+import { uint8ArrayToArrayBuffer } from "./blob";
+
 export interface ZipEntryInput {
     path: string;
     data: Uint8Array | string;
@@ -346,7 +348,7 @@ export async function inflateRaw(
         throw new Error("ZIP comprimido: este entorno no admite la descompresión nativa.");
     }
 
-    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    const stream = new Blob([uint8ArrayToArrayBuffer(data)]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
     const reader = stream.getReader();
     const chunks: Uint8Array[] = [];
     let total = 0;

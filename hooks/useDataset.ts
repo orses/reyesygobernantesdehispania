@@ -37,6 +37,7 @@ import {
 } from "../lib/media";
 import { applyPersonDraftToRows } from "../lib/person-draft";
 import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
+import { uint8ArrayToArrayBuffer } from "../lib/blob";
 import { createStoredZip, parseZip } from "../lib/zip";
 
 // Datos de ejemplo
@@ -292,7 +293,7 @@ export function useDataset() {
 
                         const id = String(asset.id || createRuntimeId("media-imported"));
                         const storageKey = `reyes_media_blob_${id}`;
-                        const blob = new Blob([mediaEntry.data], { type: asset.mimeType || "application/octet-stream" });
+                        const blob = new Blob([uint8ArrayToArrayBuffer(mediaEntry.data)], { type: asset.mimeType || "application/octet-stream" });
                         await set(storageKey, blob);
 
                         const { packagePath: _packagePath, storageKey: _storageKey, ...rest } = asset;
@@ -824,7 +825,7 @@ export function useDataset() {
 
             downloadBlobFile(
                 getTimestampedExportFileName(datasetName, "zip", exportedDate),
-                new Blob([zip], { type: "application/zip" })
+                new Blob([uint8ArrayToArrayBuffer(zip)], { type: "application/zip" })
             );
 
             setError(
