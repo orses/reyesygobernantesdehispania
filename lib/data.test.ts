@@ -19,6 +19,7 @@ import {
     asNumberOrNull,
     getChronologyEvidence,
     personPrincipalName,
+    normalizeUrl,
 } from "./data";
 import type { RawRow } from "./types";
 
@@ -375,6 +376,29 @@ describe("rowDisplayName", () => {
         const row: RawRow = {};
         const name = rowDisplayName(row);
         expect(typeof name).toBe("string");
+    });
+});
+
+// ===========================================================================
+// normalizeUrl
+// ===========================================================================
+describe("normalizeUrl", () => {
+    it("normaliza URL web habituales", () => {
+        expect(normalizeUrl("https://example.test/ficha")).toBe("https://example.test/ficha");
+        expect(normalizeUrl("//example.test/ficha")).toBe("https://example.test/ficha");
+        expect(normalizeUrl("www.example.test/ficha")).toBe("https://www.example.test/ficha");
+    });
+
+    it("mantiene rutas relativas sin esquema", () => {
+        expect(normalizeUrl("/media/retrato.jpg")).toBe("/media/retrato.jpg");
+        expect(normalizeUrl("media/retrato.jpg")).toBe("media/retrato.jpg");
+    });
+
+    it("rechaza esquemas no web para evitar enlaces ejecutables o locales", () => {
+        expect(normalizeUrl(["java", "script:alert(1)"].join(""))).toBe("");
+        expect(normalizeUrl("java\nscript:alert(1)")).toBe("");
+        expect(normalizeUrl("data:text/html,<script>alert(1)</script>")).toBe("");
+        expect(normalizeUrl("file:///C:/secret.txt")).toBe("");
     });
 });
 

@@ -1,18 +1,33 @@
 import path from 'path';
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import {
+  developmentCspDirectives,
+  productionCspDirectives,
+  securityHeaders,
+  serializeCsp,
+} from './lib/security';
 
-// Cabeceras de seguridad comunes a dev y producción
-const securityHeaders: Record<string, string> = {
-  // Clickjacking: impide que la app se cargue en un <iframe> externo
-  'X-Frame-Options': 'DENY',
-  // MIME sniffing: el navegador no adivina el tipo de contenido
-  'X-Content-Type-Options': 'nosniff',
-  // No envía la URL de referencia a terceros
-  'Referrer-Policy': 'no-referrer',
-  // Deshabilita APIs sensibles que la app no usa
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
-};
+const CSP_PLACEHOLDER = '__CONTENT_SECURITY_POLICY__';
+
+function contentSecurityPolicyPlugin(): Plugin {
+  let command: 'build' | 'serve' = 'build';
+
+  return {
+    name: 'content-security-policy',
+    configResolved(config) {
+      command = config.command;
+    },
+    transformIndexHtml(html) {
+      const directives = command === 'serve'
+        ? developmentCspDirectives
+        : productionCspDirectives;
+
+      return html.replace(CSP_PLACEHOLDER, serializeCsp(directives));
+    },
+  };
+}
 
 export default defineConfig({
   base: './',
@@ -21,23 +36,10 @@ export default defineConfig({
     host: '0.0.0.0',
     headers: {
       ...securityHeaders,
-      // En desarrollo: 'unsafe-inline' en script-src porque Vite
-      // inyecta módulos HMR inline. En producción usar la meta tag
-      // del index.html (sin 'unsafe-inline').
-      'Content-Security-Policy': [
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline'",   // 'unsafe-inline' solo para HMR en dev
-        "style-src 'self' 'unsafe-inline'",    // Tailwind y framer-motion usan estilos inline
-        "img-src 'self' https: data: blob:",
-        "connect-src 'self' ws:",              // ws: necesario para HMR WebSocket
-        "font-src 'self'",
-        "object-src 'none'",
-        "base-uri 'self'",
-        "form-action 'self'",
-      ].join('; '),
+      'Content-Security-Policy': serializeCsp(developmentCspDirectives),
     },
   },
-  plugins: [react()],
+  plugins: [react(), contentSecurityPolicyPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

@@ -28,7 +28,7 @@ El proyecto está diseñado sobre un *stack* de desarrollo moderno y altamente e
 
 ## Inicialización Local
 
-**Requisitos previos:** `Node.js` (versión 18 o superior recomendada).
+**Requisitos previos:** `Node.js` 22, alineado con `.nvmrc` y con los flujos de GitHub Actions.
 
 1.  **Instalar dependencias:**
     ```bash
@@ -41,14 +41,20 @@ El proyecto está diseñado sobre un *stack* de desarrollo moderno y altamente e
     ```
     La aplicación se inicializará y estará disponible normalmente en `http://localhost:3000`.
 
+3.  **Ejecutar la verificación completa antes de publicar cambios:**
+    ```bash
+    npm run verify
+    ```
+    Esta orden ejecuta lint, comprobación de tipos, tests con cobertura, compilación de producción y auditoría de dependencias.
+
 ## Despliegue Estático (GitHub Pages)
 
-Este repositorio está preparado nativamente para publicarse como página estática a través de **GitHub Pages**.
+Este repositorio está preparado nativamente para publicarse como página estática a través de **GitHub Pages** con GitHub Actions.
 
 1. Asegúrese de hacer *push* al repositorio en su respectiva cuenta de GitHub.
 2. Vaya a `Settings` > `Pages`.
 3. Bajo *Source*, escoja **GitHub Actions**.
-4. GitHub detectará que el proyecto utiliza Vite/React o sugerirá compilar HTML estático, autoconfigurando el flujo de compilación tras hacer clic en "Configure".
+4. El flujo `Deploy static content to Pages` compilará la aplicación y solo desplegará `dist/` si antes pasa `npm run verify`.
 
 ## Uso y Origen de los Datos
 

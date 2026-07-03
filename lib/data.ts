@@ -505,12 +505,23 @@ export function personPrincipalName(rows: Array<Record<string, unknown>>): strin
   return firstName || "(sin nombre)";
 }
 
+function removeControlCharacters(value: string): string {
+  return Array.from(value)
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code > 31 && code !== 127;
+    })
+    .join("");
+}
+
 export function normalizeUrl(v: unknown) {
-  const s0 = String(v ?? "").trim();
+  const s0 = removeControlCharacters(String(v ?? "").trim());
   if (!s0) return "";
   if (/^https?:\/\//i.test(s0)) return s0;
   if (/^\/\//.test(s0)) return `https:${s0}`;
   if (/^www\./i.test(s0)) return `https://${s0}`;
+  const schemeMatch = s0.match(/^([a-z][a-z0-9+.-]*):/i);
+  if (schemeMatch) return "";
   return s0;
 }
 

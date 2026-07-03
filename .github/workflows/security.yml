@@ -5,35 +5,56 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Revisión semanal aunque no haya cambios en el repositorio.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-quality-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  security:
-    name: Audit, Lint & Type-check
+  verify:
+    name: Lint, Type-check, Tests, Build & Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - name: Set up Node
+        uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version-file: .nvmrc
+          cache: npm
 
-      # npm ci garantiza instalación exacta del package-lock.json
-      # y falla si hay discrepancias (a diferencia de npm install)
       - name: Install dependencies
         run: npm ci
 
-      - name: Security audit
-        run: npm audit --audit-level=high
+      - name: Verify project
+        run: npm run verify
 
-      - name: Lint (incluye no-eval y reglas de seguridad)
-        run: npm run lint
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
 
-      - name: Type-check (strict)
-        run: npx tsc --noEmit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - name: Tests
-        run: npm test
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
