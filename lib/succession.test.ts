@@ -7,7 +7,9 @@ import { derivePeopleFromRows } from "./people";
 import {
     buildGovernmentSuccession,
     buildSuccessionOptions,
+    formatSuccessionOptionLabel,
     resolveSuccessionSelectValue,
+    successionOptionSearchTerms,
     successionRowRef,
 } from "./succession";
 import type { RawRow } from "./types";
@@ -226,6 +228,55 @@ describe("buildGovernmentSuccession", () => {
             },
             predecessorSource: "manual",
         });
+    });
+
+    it("compone el número de reinado para localizar Juan Carlos I", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "espana-juan-carlos",
+                PersonID: "juan-carlos",
+                "Nombre principal": "Juan Carlos I",
+                Nombre: "Juan Carlos",
+                "Nº Reinado": "1",
+                Reino: "España",
+                "Inicio del reinado (año)": 1975,
+                "Final del reinado (año)": 2014,
+            },
+        ];
+
+        const { allPeople } = derivePeopleFromRows(rows);
+        const option = buildSuccessionOptions(allPeople).find(
+            (candidate) => candidate.rowId === "espana-juan-carlos"
+        );
+
+        expect(option).toMatchObject({
+            nombreReinado: "Juan Carlos",
+            reignNumber: "1",
+            reignNumberRoman: "I",
+        });
+        expect(formatSuccessionOptionLabel(option!)).toBe("España · Juan Carlos I · 1975");
+        expect(successionOptionSearchTerms(option!)).toEqual(
+            expect.arrayContaining(["Juan Carlos I", "1", "I"])
+        );
+    });
+
+    it("no duplica el ordinal cuando el nombre de reinado ya lo contiene", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "castilla-alfonso",
+                PersonID: "alfonso",
+                "Nombre principal": "Alfonso VI",
+                Nombre: "Alfonso VI",
+                "Nº Reinado": "6",
+                Reino: "Reino de Castilla",
+                "Inicio del reinado (año)": 1072,
+            },
+        ];
+
+        const { allPeople } = derivePeopleFromRows(rows);
+        const option = buildSuccessionOptions(allPeople)[0];
+
+        expect(formatSuccessionOptionLabel(option)).toBe("Reino de Castilla · Alfonso VI · 1072");
     });
 
     it("mantiene periodos discontinuos del mismo personaje sin fusionarlos", () => {
