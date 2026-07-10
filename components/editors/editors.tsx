@@ -12,9 +12,16 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
+import { Combobox, type ComboboxOption } from "../ui/combobox";
 import { EditorField } from "./editor-field";
 import { boolFromVerified, verifiedToText, safeJsonParse } from "../../lib/data";
-import { buildSuccessionOptions, resolveSuccessionSelectValue } from "../../lib/succession";
+import {
+  buildSuccessionOptions,
+  formatSuccessionOptionLabel,
+  resolveSuccessionSelectValue,
+  successionOptionSearchTerms,
+  type SuccessionOption,
+} from "../../lib/succession";
 import type { Person, RawRow } from "../../lib/types";
 
 // ---------------------------------------------------------------------------
@@ -217,6 +224,25 @@ function PersonEditorContent({
 // Editor de gobierno (fila)
 // ---------------------------------------------------------------------------
 
+const AUTOMATIC_SUCCESSION_VALUE = "";
+
+function buildSuccessionComboboxOptions(
+  successionOptions: SuccessionOption[]
+): ComboboxOption[] {
+  return [
+    {
+      value: AUTOMATIC_SUCCESSION_VALUE,
+      label: "— automático (por reino) —",
+      keywords: ["automatico", "cronologia", "reino"],
+    },
+    ...successionOptions.map((option) => ({
+      value: option.value,
+      label: formatSuccessionOptionLabel(option),
+      keywords: successionOptionSearchTerms(option),
+    })),
+  ];
+}
+
 function RowEditorContent({
   draft,
   setDraft,
@@ -232,20 +258,16 @@ function RowEditorContent({
   people: Person[];
 }) {
   const currentRowId = String(draftRowId ?? draft?._rowId ?? draft?.ID ?? "").trim();
-  const successionOptions = buildSuccessionOptions(people, currentRowId);
-  const successionOptionLabel = (option: (typeof successionOptions)[number]) => {
-    const personLabel = option.nombrePrincipal && option.nombrePrincipal !== option.nombreReinado
-      ? `${option.nombreReinado} (${option.nombrePrincipal})`
-      : option.nombreReinado;
-    const kingdomLabel = option.reino ? `${option.reino} · ` : "";
-    const startYearLabel = option.startYear !== null ? ` · ${option.startYear}` : "";
-
-    return `${kingdomLabel}${personLabel}${startYearLabel}`;
-  };
+  const successionOptions = React.useMemo(
+    () => buildSuccessionOptions(people, currentRowId),
+    [currentRowId, people]
+  );
+  const successionComboboxOptions = React.useMemo(
+    () => buildSuccessionComboboxOptions(successionOptions),
+    [successionOptions]
+  );
   const successionSelectValue = (key: "Predecesor" | "Sucesor") =>
     resolveSuccessionSelectValue(draft[key], successionOptions, draft.Reino);
-  const successionSelectClass =
-    "h-10 w-full rounded-[3px] border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100";
   const upd = (key: string) => (value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
 
@@ -270,33 +292,31 @@ function RowEditorContent({
       </div>
       <label className="space-y-1">
         <span className="text-sm font-medium text-slate-300">Predecesor</span>
-        <select
-          className={successionSelectClass}
+        <Combobox
           value={successionSelectValue("Predecesor")}
-          onChange={(event) => upd("Predecesor")(event.target.value)}
-        >
-          <option value="">— automático (por reino) —</option>
-          {successionOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {successionOptionLabel(option)}
-            </option>
-          ))}
-        </select>
+          onValueChange={upd("Predecesor")}
+          options={successionComboboxOptions}
+          placeholder="— automático (por reino) —"
+          searchPlaceholder="Buscar por nombre, reino o año"
+          emptyMessage="Sin coincidencias"
+          clearValue={AUTOMATIC_SUCCESSION_VALUE}
+          clearLabel="Usar sucesión automática"
+          className="rounded-[3px] border-slate-700/60 bg-slate-900/60 text-base font-medium text-slate-50 focus-visible:ring-offset-slate-950"
+        />
       </label>
       <label className="space-y-1">
         <span className="text-sm font-medium text-slate-300">Sucesor</span>
-        <select
-          className={successionSelectClass}
+        <Combobox
           value={successionSelectValue("Sucesor")}
-          onChange={(event) => upd("Sucesor")(event.target.value)}
-        >
-          <option value="">— automático (por reino) —</option>
-          {successionOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {successionOptionLabel(option)}
-            </option>
-          ))}
-        </select>
+          onValueChange={upd("Sucesor")}
+          options={successionComboboxOptions}
+          placeholder="— automático (por reino) —"
+          searchPlaceholder="Buscar por nombre, reino o año"
+          emptyMessage="Sin coincidencias"
+          clearValue={AUTOMATIC_SUCCESSION_VALUE}
+          clearLabel="Usar sucesión automática"
+          className="rounded-[3px] border-slate-700/60 bg-slate-900/60 text-base font-medium text-slate-50 focus-visible:ring-offset-slate-950"
+        />
       </label>
 
       <details className="md:col-span-2">

@@ -1,5 +1,8 @@
 import { asYearOrNull, centuryFromYear } from "./data";
+import { normalizeSearchText } from "./text";
 import type { Person, RawRow } from "./types";
+
+export { normalizeSearchText } from "./text";
 
 type TokenKind = "word" | "phrase" | "operator" | "comparison" | "colon" | "lparen" | "rparen";
 
@@ -76,14 +79,6 @@ const FIELD_ALIASES: Record<string, string> = {
   edad: "age",
   age: "age",
 };
-
-export function normalizeSearchText(value: unknown): string {
-  return String(value ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
 
 function isWhitespace(char: string): boolean {
   return /\s/.test(char);

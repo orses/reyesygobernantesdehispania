@@ -1,4 +1,5 @@
-import { asYearOrNull, looksLikeUrlText, rowDisplayName } from "./data";
+import { asYearOrNull, looksLikeUrlText, rowDisplayName, toRoman } from "./data";
+import { normalizeSearchText } from "./text";
 import type { Person, RawRow } from "./types";
 
 export type SuccessionSource = "chronological" | "manual" | "none";
@@ -17,6 +18,8 @@ export interface SuccessionOption {
     rowId: string;
     nombrePrincipal: string;
     nombreReinado: string;
+    reignNumber: string;
+    reignNumberRoman: string;
     reino: string;
     startYear: number | null;
 }
@@ -43,11 +46,7 @@ interface GovernmentNode {
 }
 
 function normalizeSuccessionText(value: unknown): string {
-    return String(value ?? "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
+    return normalizeSearchText(value);
 }
 
 function rowIdForSuccession(row: RawRow, fallbackIndex: number): string {
@@ -77,6 +76,85 @@ function toSuccessionRef(node: GovernmentNode): SuccessionPersonRef {
 function rowSuccessionName(row: RawRow): string {
     const nombre = String(row?.Nombre ?? row?.nombre ?? "").trim();
     return nombre && !looksLikeUrlText(nombre) ? nombre : rowDisplayName(row);
+}
+
+function rowReignNumber(row: RawRow): string {
+    const fields = [
+        "Nº Reinado",
+        "N.º Reinado",
+        "NÂº Reinado",
+        "N. Reinado",
+        "No Reinado",
+        "Número de reinado",
+        "Numero de reinado",
+        "numeroReinado",
+        "reignNumber",
+    ];
+
+    for (const field of fields) {
+        const value = String(row?.[field] ?? "").trim();
+        if (value) return value;
+    }
+
+    return "";
+}
+
+function reignNumberAsRoman(value: unknown): string {
+    const rawValue = String(value ?? "").trim();
+    if (!rawValue) return "";
+
+    const normalized = normalizeSearchText(rawValue).toUpperCase();
+    if (/^[IVXLCDM]+$/.test(normalized)) return normalized;
+
+    const numericValue = rawValue.match(/\d+/)?.[0] ?? "";
+    return numericValue ? toRoman(Number(numericValue)) : "";
+}
+
+function normalizedWordSet(value: unknown): Set<string> {
+    return new Set(normalizeSearchText(value).split(/\s+/).filter(Boolean));
+}
+
+function successionNameWithReignNumber(option: SuccessionOption): string {
+    const suffix = option.reignNumberRoman || option.reignNumber;
+    if (!suffix) return option.nombreReinado;
+
+    const words = normalizedWordSet(option.nombreReinado);
+    const suffixAlreadyPresent = [option.reignNumber, option.reignNumberRoman]
+        .filter(Boolean)
+        .some((candidate) => words.has(normalizeSearchText(candidate)));
+
+    return suffixAlreadyPresent ? option.nombreReinado : `${option.nombreReinado} ${suffix}`;
+}
+
+export function formatSuccessionOptionLabel(option: SuccessionOption): string {
+    const reignName = successionNameWithReignNumber(option);
+    const shouldShowPrincipalName =
+        option.nombrePrincipal &&
+        normalizeSearchText(option.nombrePrincipal) !== normalizeSearchText(reignName);
+    const personLabel =
+        shouldShowPrincipalName
+            ? `${reignName} (${option.nombrePrincipal})`
+            : reignName;
+    const kingdomLabel = option.reino ? `${option.reino} · ` : "";
+    const startYearLabel = option.startYear !== null ? ` · ${option.startYear}` : "";
+
+    return `${kingdomLabel}${personLabel}${startYearLabel}`;
+}
+
+export function successionOptionSearchTerms(option: SuccessionOption): string[] {
+    const reignName = successionNameWithReignNumber(option);
+
+    return [
+        option.personId,
+        option.rowId,
+        option.nombrePrincipal,
+        option.nombreReinado,
+        reignName,
+        option.reignNumber,
+        option.reignNumberRoman,
+        option.reino,
+        String(option.startYear ?? ""),
+    ].filter(Boolean);
 }
 
 function findPersonReignName(person: Person, kingdomKey: string): string {
@@ -140,12 +218,15 @@ export function buildSuccessionOptions(
             order += 1;
             if (rowId === excludedRowId) continue;
 
+            const reignNumber = rowReignNumber(row);
             options.push({
                 value: successionRowRef(rowId),
                 personId: String(person.personId),
                 rowId,
                 nombrePrincipal: person.nombrePrincipal,
                 nombreReinado: rowSuccessionName(row),
+                reignNumber,
+                reignNumberRoman: reignNumberAsRoman(reignNumber),
                 reino: String(row?.Reino ?? "").trim(),
                 startYear: asYearOrNull(row?.["Inicio del reinado (año)"]),
             });
