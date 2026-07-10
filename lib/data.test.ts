@@ -356,10 +356,9 @@ describe("getPersonId", () => {
         expect(getPersonId(row)).toBe("abc");
     });
 
-    it("devuelve null/undefined si no hay PersonID", () => {
+    it("devuelve cadena vacía si no hay PersonID", () => {
         const row: RawRow = { Nombre: "Test" };
-        const pid = getPersonId(row);
-        expect(pid === null || pid === undefined || pid === "").toBeTruthy();
+        expect(getPersonId(row)).toBe("");
     });
 });
 

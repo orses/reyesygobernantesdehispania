@@ -13,6 +13,7 @@ describe("configuración de seguridad del repositorio", () => {
   const deployWorkflow = readProjectFile(".github", "workflows", "deploy.yml");
   const securityWorkflow = readProjectFile(".github", "workflows", "security.yml");
   const codeqlWorkflow = readProjectFile(".github", "workflows", "codeql.yml");
+  const codeqlConfig = readProjectFile(".github", "codeql", "codeql-config.yml");
   const dependabotConfig = readProjectFile(".github", "dependabot.yml");
   const allWorkflows = [deployWorkflow, securityWorkflow, codeqlWorkflow].join("\n");
 
@@ -45,7 +46,10 @@ describe("configuración de seguridad del repositorio", () => {
     expect(codeqlWorkflow).toContain("github/codeql-action/init@v4");
     expect(codeqlWorkflow).toContain("github/codeql-action/analyze@v4");
     expect(codeqlWorkflow).toContain("languages: javascript-typescript");
-    expect(codeqlWorkflow).toContain("security-extended,security-and-quality");
+    expect(codeqlWorkflow).toContain("config-file: ./.github/codeql/codeql-config.yml");
+    expect(codeqlConfig).toContain("uses: security-extended");
+    expect(codeqlConfig).toContain("uses: security-and-quality");
+    expect(codeqlConfig).toContain("coverage/**");
   });
 
   it("mantiene Dependabot para npm y GitHub Actions", () => {
