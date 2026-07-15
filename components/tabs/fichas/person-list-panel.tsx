@@ -1,4 +1,4 @@
-import { RotateCcw, Search, X } from "lucide-react";
+import { PanelLeftClose, RotateCcw, Search, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -226,6 +226,7 @@ interface PersonListPanelProps {
   siglos: string[];
   mediaAssets: MediaAsset[];
   mediaPreviewUrls: Record<string, string>;
+  onCollapse: () => void;
 }
 
 export function PersonListPanel({
@@ -255,6 +256,7 @@ export function PersonListPanel({
   siglos,
   mediaAssets,
   mediaPreviewUrls,
+  onCollapse,
 }: PersonListPanelProps) {
   const hasQuery = query.trim().length > 0;
   const hasReinoFilter = filterReino !== "__all__";
@@ -295,10 +297,25 @@ export function PersonListPanel({
   return (
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
       <CardHeader className="relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 pb-3">
-        <CardTitle className="text-lg font-medium tracking-tight text-slate-50">Gobiernos</CardTitle>
-        <CardDescription className="text-base text-slate-200">
-          {governmentCountLabel}
-        </CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="text-lg font-medium tracking-tight text-slate-50">Gobiernos</CardTitle>
+            <CardDescription className="text-base text-slate-200">
+              {governmentCountLabel}
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0 rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-100 hover:bg-slate-900/70 hover:text-slate-50"
+            title="Ocultar filtros y miniaturas"
+            aria-label="Ocultar filtros y miniaturas"
+            onClick={onCollapse}
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        </div>
 
         <div className="mt-3 space-y-2">
           <div className="relative">
