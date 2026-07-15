@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PanelLeftOpen } from "lucide-react";
 import {
   getPersonMediaAssets,
   getPrimaryMediaAsset,
@@ -7,6 +8,7 @@ import { getFirstMatchingPersonId } from "../../lib/people";
 import { buildGovernmentSuccession } from "../../lib/succession";
 import { PersonDetailCard } from "./fichas/person-detail-card";
 import { PersonListPanel } from "./fichas/person-list-panel";
+import { Button } from "../ui/button";
 import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person, RawRow } from "../../lib/types";
 
 type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
@@ -112,8 +114,24 @@ export function FichasTab({
   setPrimaryMediaAsset,
 }: FichasTabProps) {
   const [selectedGovernmentRowId, setSelectedGovernmentRowId] = useState<string | null>(null);
+  const [isListPanelCollapsed, setIsListPanelCollapsed] = useState(false);
   const selectedMediaAssets = selectedPerson ? getPersonMediaAssets(mediaAssets, selectedPerson.personId) : [];
   const selectedPrimaryMediaAsset = selectedPerson ? getPrimaryMediaAsset(selectedMediaAssets, selectedPerson.personId) : null;
+  const hasQuery = query.trim().length > 0;
+  const hasReinoFilter = filterReino !== "__all__";
+  const hasDinastiaFilter = filterDinastia !== "__all__";
+  const hasSigloFilter = filterSiglo !== "__all__";
+  const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
+  const activeFilterCount =
+    (hasQuery ? 1 : 0) +
+    (hasReinoFilter ? 1 : 0) +
+    (hasDinastiaFilter ? 1 : 0) +
+    (hasSigloFilter ? 1 : 0) +
+    (hasSortFilter ? 1 : 0);
+  const collapsedPanelFilterLabel =
+    activeFilterCount === 0
+      ? "sin filtros activos"
+      : `${activeFilterCount} ${activeFilterCount === 1 ? "filtro activo" : "filtros activos"}`;
   const selectedGovernmentRow = useMemo(
     () =>
       selectedPerson?.reinados.find(
@@ -139,35 +157,66 @@ export function FichasTab({
   };
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(330px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(380px,460px)_minmax(0,1fr)]">
-      <PersonListPanel
-        people={people}
-        totalPeopleCount={chronologicalPeople.length}
-        rowsCount={rows.length}
-        query={query}
-        setQuery={setQuery}
-        filterReino={filterReino}
-        setFilterReino={setFilterReino}
-        filterDinastia={filterDinastia}
-        setFilterDinastia={setFilterDinastia}
-        filterSiglo={filterSiglo}
-        setFilterSiglo={setFilterSiglo}
-        setFilterDinastiaLocked={setFilterDinastiaLocked}
-        sortKey={sortKey}
-        setSortKey={setSortKey}
-        sortDir={sortDir}
-        setSortDir={setSortDir}
-        sortOptions={SORT_OPTIONS}
-        selectedPersonId={selectedPersonId}
-        selectedGovernmentRowId={selectedGovernmentRowId}
-        setSelectedGovernment={selectGovernment}
-        onSearchSubmit={selectFirstSearchMatch}
-        reinos={reinos}
-        dinastias={dinastias}
-        siglos={siglos}
-        mediaAssets={mediaAssets}
-        mediaPreviewUrls={mediaPreviewUrls}
-      />
+    <div
+      className={`grid grid-cols-1 items-start gap-4 ${
+        isListPanelCollapsed
+          ? "xl:grid-cols-1"
+          : "xl:grid-cols-[minmax(330px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(380px,460px)_minmax(0,1fr)]"
+      }`}
+    >
+      {isListPanelCollapsed ? (
+        <div className="rounded-[3px] border border-slate-800 bg-slate-900/30 p-3 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-100">Filtros y miniaturas ocultos</div>
+              <div className="mt-1 text-sm text-slate-300">
+                {people.length} de {chronologicalPeople.length} personajes; {collapsedPanelFilterLabel}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 shrink-0 rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-100 hover:bg-slate-900/70 hover:text-slate-50"
+              title="Mostrar filtros y miniaturas"
+              aria-label="Mostrar filtros y miniaturas"
+              onClick={() => setIsListPanelCollapsed(false)}
+            >
+              <PanelLeftOpen className="mr-2 h-4 w-4" />
+              mostrar panel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <PersonListPanel
+          people={people}
+          totalPeopleCount={chronologicalPeople.length}
+          rowsCount={rows.length}
+          query={query}
+          setQuery={setQuery}
+          filterReino={filterReino}
+          setFilterReino={setFilterReino}
+          filterDinastia={filterDinastia}
+          setFilterDinastia={setFilterDinastia}
+          filterSiglo={filterSiglo}
+          setFilterSiglo={setFilterSiglo}
+          setFilterDinastiaLocked={setFilterDinastiaLocked}
+          sortKey={sortKey}
+          setSortKey={setSortKey}
+          sortDir={sortDir}
+          setSortDir={setSortDir}
+          sortOptions={SORT_OPTIONS}
+          selectedPersonId={selectedPersonId}
+          selectedGovernmentRowId={selectedGovernmentRowId}
+          setSelectedGovernment={selectGovernment}
+          onSearchSubmit={selectFirstSearchMatch}
+          reinos={reinos}
+          dinastias={dinastias}
+          siglos={siglos}
+          mediaAssets={mediaAssets}
+          mediaPreviewUrls={mediaPreviewUrls}
+          onCollapse={() => setIsListPanelCollapsed(true)}
+        />
+      )}
 
       <PersonDetailCard
         selectedPerson={selectedPerson}
