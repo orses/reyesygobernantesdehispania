@@ -1,8 +1,41 @@
 import { boolFromVerified, computeDerivedRow, getPersonId, verifiedToText } from "./data";
 import type { RawRow } from "./types";
 
+/** Campos que pertenecen al personaje y pueden propagarse a todos sus gobiernos. */
+export const PERSON_DRAFT_KEYS = [
+    "PersonID",
+    "Nombre principal",
+    "Apelativo",
+    "Dinastía",
+    "Información verificada",
+    "Nacimiento (Fecha)",
+    "Nacimiento (lugar)",
+    "Nacimiento (ciudad)",
+    "Nacimiento (provincia)",
+    "Nacimiento (País)",
+    "Fallecimiento (Fecha)",
+    "Fallecimiento (lugar)",
+    "Fallecimiento (ciudad)",
+    "Fallecimiento (provincia)",
+    "Fallecimiento (País)",
+    "Enterramiento",
+    "Descripción",
+    "Imagen URL",
+    "Galería",
+    "Ficha RAH URL",
+] as const;
+
+export function pickPersonDraftFields(draft: RawRow): RawRow {
+    return PERSON_DRAFT_KEYS.reduce<RawRow>((result, key) => {
+        if (Object.prototype.hasOwnProperty.call(draft, key)) {
+            (result as Record<string, unknown>)[key] = draft[key];
+        }
+        return result;
+    }, {});
+}
+
 export function applyPersonDraftToRows(rows: RawRow[], personId: string, draft: RawRow): RawRow[] {
-    const { Predecesor: _predecesor, Sucesor: _sucesor, ...personDraft } = draft;
+    const personDraft = pickPersonDraftFields(draft);
     const { Dinastía: draftDinastia, ...personDraftWithoutDinastia } = personDraft;
     const dinastia = String(draftDinastia ?? "").trim();
     const normalizedPersonDraft: RawRow = dinastia

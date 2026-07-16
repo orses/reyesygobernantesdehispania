@@ -9,12 +9,18 @@ import {
   DialogFooter,
 } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 import { Combobox, type ComboboxOption } from "../ui/combobox";
 import { EditorField } from "./editor-field";
-import { boolFromVerified, verifiedToText, safeJsonParse } from "../../lib/data";
+import { JsonEditorDetails, type JsonValueValidation } from "./json-editor-details";
+import { MarkdownEditorField } from "./markdown-editor-field";
+import { boolFromVerified, verifiedToText } from "../../lib/data";
+import {
+  createPersonEditorDocument,
+  validatePersonEditorDocument,
+  type PersonEditorDocument,
+} from "../../lib/person-editor-document";
 import {
   buildSuccessionOptions,
   formatSuccessionOptionLabel,
@@ -34,10 +40,11 @@ interface EditorDialogProps {
   mode: "person" | "row";
   draft: RawRow | null;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
+  draftPersonRows: RawRow[];
+  setDraftPersonRows: React.Dispatch<React.SetStateAction<RawRow[]>>;
   draftPersonId: string | number | null;
   draftRowId: string | number | null;
   commitDraft: () => void;
-  error: string | null;
   setError: (v: string | null) => void;
   people?: Person[];
 }
@@ -48,13 +55,27 @@ export function EditorDialog({
   mode,
   draft,
   setDraft,
+  draftPersonRows,
+  setDraftPersonRows,
   draftPersonId,
   draftRowId,
   commitDraft,
-  error,
   setError,
   people = [],
 }: EditorDialogProps) {
+  const [jsonError, setJsonError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setJsonError(null);
+    setError(null);
+  }, [mode, open, setError]);
+
+  const handleJsonError = (nextError: string | null) => {
+    setJsonError(nextError);
+    setError(nextError);
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-3xl w-[95vw] sm:w-full rounded-[3px] max-h-[90vh] overflow-y-auto bg-slate-950 text-slate-50 border border-slate-800">
@@ -74,15 +95,17 @@ export function EditorDialog({
             <PersonEditorContent
               draft={draft}
               setDraft={setDraft}
+              draftPersonRows={draftPersonRows}
+              setDraftPersonRows={setDraftPersonRows}
               draftPersonId={draftPersonId}
+              onJsonError={handleJsonError}
             />
           ) : (
             <RowEditorContent
               draft={draft}
               setDraft={setDraft}
               draftRowId={draftRowId}
-              error={error}
-              setError={setError}
+              onJsonError={handleJsonError}
               people={people}
             />
           )
@@ -96,7 +119,12 @@ export function EditorDialog({
           >
             cancelar
           </Button>
-          <Button className="rounded-[3px]" onClick={commitDraft}>
+          <Button
+            className="rounded-[3px]"
+            disabled={Boolean(jsonError)}
+            title={jsonError ? "Corrija el JSON antes de guardar" : undefined}
+            onClick={commitDraft}
+          >
             guardar
           </Button>
         </DialogFooter>
@@ -127,11 +155,17 @@ function EditorSection({
 function PersonEditorContent({
   draft,
   setDraft,
+  draftPersonRows,
+  setDraftPersonRows,
   draftPersonId,
+  onJsonError,
 }: {
   draft: RawRow;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
+  draftPersonRows: RawRow[];
+  setDraftPersonRows: React.Dispatch<React.SetStateAction<RawRow[]>>;
   draftPersonId: string | number | null;
+  onJsonError: (error: string | null) => void;
 }) {
   const toggleVerified = () => {
     const currentBool = boolFromVerified(
@@ -145,6 +179,20 @@ function PersonEditorContent({
 
   const upd = (key: string) => (value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
+
+  const personId = String(draftPersonId ?? "");
+  const editorDocument = React.useMemo(
+    () => createPersonEditorDocument(draft, draftPersonRows),
+    [draft, draftPersonRows]
+  );
+  const validateEditorDocument = React.useCallback(
+    (value: unknown) => validatePersonEditorDocument(value, personId, draftPersonRows),
+    [draftPersonRows, personId]
+  );
+  const updateEditorDocument = (value: PersonEditorDocument) => {
+    setDraft({ ...value["Datos personales"] });
+    setDraftPersonRows(value.Gobiernos.map((row) => ({ ...row })));
+  };
 
   return (
     <div className="space-y-5">
@@ -213,9 +261,22 @@ function PersonEditorContent({
       </EditorSection>
 
       <EditorSection title="Descripción y enlaces">
-        <EditorField label="Descripción" value={String(draft["Descripción"] ?? "")} onChange={upd("Descripción")} multiline colSpan2 />
+        <MarkdownEditorField
+          label="Descripción"
+          value={String(draft["Descripción"] ?? "")}
+          onChange={upd("Descripción")}
+        />
         <EditorField label="Ficha RAH URL" value={String(draft["Ficha RAH URL"] ?? "")} onChange={upd("Ficha RAH URL")} />
       </EditorSection>
+
+      <JsonEditorDetails
+        title="Datos completos del personaje (Edición JSON)"
+        description="Edite los campos comunes en «Datos personales» y los específicos dentro de cada gobierno. Si el JSON no es válido, no se guardará."
+        value={editorDocument}
+        validate={validateEditorDocument}
+        onValidChange={updateEditorDocument}
+        onErrorChange={onJsonError}
+      />
     </div>
   );
 }
@@ -225,6 +286,14 @@ function PersonEditorContent({
 // ---------------------------------------------------------------------------
 
 const AUTOMATIC_SUCCESSION_VALUE = "";
+
+function validateRawRowEditorValue(value: unknown): JsonValueValidation<RawRow> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { ok: false, error: "La fila debe ser un objeto JSON." };
+  }
+
+  return { ok: true, value: value as RawRow };
+}
 
 function buildSuccessionComboboxOptions(
   successionOptions: SuccessionOption[]
@@ -247,14 +316,13 @@ function RowEditorContent({
   draft,
   setDraft,
   draftRowId,
-  setError,
+  onJsonError,
   people,
 }: {
   draft: RawRow;
   setDraft: React.Dispatch<React.SetStateAction<RawRow | null>>;
   draftRowId: string | number | null;
-  error: string | null;
-  setError: (v: string | null) => void;
+  onJsonError: (error: string | null) => void;
   people: Person[];
 }) {
   const currentRowId = String(draftRowId ?? draft?._rowId ?? draft?.ID ?? "").trim();
@@ -319,31 +387,14 @@ function RowEditorContent({
         />
       </label>
 
-      <details className="md:col-span-2">
-        <summary className="cursor-pointer text-sm text-slate-300">
-          Fila Completa (Edición JSON)
-        </summary>
-        <div className="mt-2 space-y-2">
-          <div className="text-sm text-slate-300">
-            Edite el objeto completo. Si el JSON no es válido, no se guardará.
-          </div>
-          <Textarea
-            className="rounded-[3px] min-h-[160px] font-mono text-sm bg-slate-900/60 text-slate-50 placeholder:text-slate-400 border border-slate-700/60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            value={JSON.stringify(draft, null, 2)}
-            onChange={(e) => {
-              const parsed = safeJsonParse(e.target.value);
-              if (!parsed.ok) {
-                setError(
-                  `JSON inválido en editor avanzado: ${parsed.error}`
-                );
-                return;
-              }
-              setError(null);
-              setDraft(parsed.value as RawRow);
-            }}
-          />
-        </div>
-      </details>
+      <JsonEditorDetails
+        title="Fila completa (Edición JSON)"
+        description="Edite el objeto completo. Si el JSON no es válido, no se guardará."
+        value={draft}
+        validate={validateRawRowEditorValue}
+        onValidChange={(value) => setDraft(value)}
+        onErrorChange={onJsonError}
+      />
     </div>
   );
 }

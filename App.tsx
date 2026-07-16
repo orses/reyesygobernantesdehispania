@@ -215,6 +215,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const [draftPersonId, setDraftPersonId] = useState<string | number | null>(null);
   const [draftRowId, setDraftRowId] = useState<string | number | null>(null);
   const [draft, setDraft] = useState<RawRow | null>(null);
+  const [draftPersonRows, setDraftPersonRows] = useState<RawRow[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: string; id: string | number | null }>({ kind: "row", id: null });
 
@@ -283,6 +284,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     setDraftPersonId(personId);
     setDraftRowId(null);
     setDraft(personDraft);
+    setDraftPersonRows(p.reinados.map((row) => ({ ...row })));
     setEditorOpen(true);
   }
 
@@ -292,6 +294,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     setEditorMode("row");
     setDraftRowId(rowId);
     setDraftPersonId(getPersonId(r) || null);
+    setDraftPersonRows([]);
     setDraft(JSON.parse(JSON.stringify(r)));
     setEditorOpen(true);
   }
@@ -299,7 +302,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   function commitDraft() {
     if (!draft) return;
     if (editorMode === "person") {
-      const err = commitPersonDraft(String(draftPersonId ?? ""), draft);
+      const err = commitPersonDraft(String(draftPersonId ?? ""), draft, draftPersonRows);
       if (err) {
         setError(err);
         return;
@@ -321,7 +324,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   }
 
   function createNewPerson() {
-    const newId = addPerson();
+    const { personId: newId, row: newRow } = addPerson();
     selectPerson(String(newId));
     setEditorMode("person");
     setDraftPersonId(newId);
@@ -346,6 +349,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
       "Ficha RAH URL": "",
       Descripción: "",
     });
+    setDraftPersonRows([{ ...newRow }]);
     setEditorOpen(true);
   }
 
@@ -620,10 +624,11 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
         mode={editorMode}
         draft={draft}
         setDraft={setDraft}
+        draftPersonRows={draftPersonRows}
+        setDraftPersonRows={setDraftPersonRows}
         draftPersonId={draftPersonId}
         draftRowId={draftRowId}
         commitDraft={commitDraft}
-        error={error}
         setError={setError}
         people={allPeople}
       />

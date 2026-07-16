@@ -35,7 +35,10 @@ import {
     movePersonMediaAsset,
     normalizeRightsStatus,
 } from "../lib/media";
-import { applyPersonDraftToRows } from "../lib/person-draft";
+import {
+    applyPersonEditorDocumentToRows,
+    createPersonEditorDocument,
+} from "../lib/person-editor-document";
 import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
 import { uint8ArrayToArrayBuffer } from "../lib/blob";
 import { createStoredZip, parseZip } from "../lib/zip";
@@ -686,13 +689,18 @@ export function useDataset() {
     const commitPersonDraft = useCallback(
         (
             pid: string,
-            draft: RawRow
+            draft: RawRow,
+            governmentRows: RawRow[]
         ): string | null => {
             if (!pid) return "Validación: falta PersonID.";
-            setRows((prev) => applyPersonDraftToRows(prev, pid, draft));
+            const document = createPersonEditorDocument(draft, governmentRows);
+            const application = applyPersonEditorDocumentToRows(rows, pid, document);
+            if (!application.ok) return `Validación: ${application.error}`;
+
+            setRows(application.value);
             return null;
         },
-        []
+        [rows]
     );
 
     const commitRowDraft = useCallback(
@@ -742,7 +750,7 @@ export function useDataset() {
         []
     );
 
-    const addPerson = useCallback((): string => {
+    const addPerson = useCallback((): { personId: string; row: RawRow } => {
         const numericIds = rows
             .map((r) => Number(getPersonId(r)))
             .filter((n) => Number.isFinite(n));
@@ -762,13 +770,13 @@ export function useDataset() {
             "Final del reinado (año)": "",
             "Información verificada": "no",
         };
-        const withId = {
+        const withId: RawRow = {
             ...computeDerivedRow(newRow),
             _rowId: id,
         };
         setRows((prev) => [withId, ...prev]);
         setDatasetLoadedAt(Date.now());
-        return personId;
+        return { personId, row: withId };
     }, [rows]);
 
     const removeRow = useCallback((rowId: string) => {
