@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type * as React from "react";
-import { Copy } from "lucide-react";
-import { Button } from "../../ui/button";
+import { CopyButton } from "../../ui/copy-button";
 import { normalizeUrl } from "../../../lib/data";
 import { mediaAssetSrc } from "../../../lib/ficha-view";
 import type { DataMeta, DataMetaKind } from "../../../lib/ficha-view";
@@ -58,55 +57,12 @@ export function DataStatusPill({ meta }: { meta: DataMeta }) {
   );
 }
 
-async function copyTextToClipboard(value: string): Promise<void> {
-  const text = value.trim();
-  if (!text) return;
-
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  if (typeof document === "undefined") return;
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "true");
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
-}
-
 export function CopyIconButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
   const text = value.trim();
 
   if (!text) return null;
 
-  const handleCopy = async () => {
-    await copyTextToClipboard(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
-  };
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      className="h-7 w-7 shrink-0 rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-100 hover:bg-slate-900/70 hover:text-slate-50"
-      title={copied ? "Copiado" : label}
-      aria-label={copied ? "Copiado" : label}
-      onClick={() => {
-        void handleCopy();
-      }}
-    >
-      <Copy className="h-3.5 w-3.5" />
-    </Button>
-  );
+  return <CopyButton value={text} label={label} iconOnly />;
 }
 
 export function SafeThumb({

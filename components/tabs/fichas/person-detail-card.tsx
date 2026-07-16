@@ -6,6 +6,7 @@ import type { GovernmentSuccession } from "../../../lib/succession";
 import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person, RawRow } from "../../../lib/types";
 import { MediaGallery } from "./media-gallery";
 import { PersonDetailHeader } from "./person-detail-header";
+import { PersonDescription } from "./person-description";
 import { PersonSummary } from "./person-summary";
 import { SectionTitle } from "./shared";
 
@@ -124,7 +125,7 @@ export function PersonDetailCard({
 
             <div className="space-y-3">
               <SectionTitle>Descripción</SectionTitle>
-              <div className="text-base whitespace-pre-wrap text-slate-100">{selectedPerson.reinados[0]?.Descripción || "—"}</div>
+              <PersonDescription description={selectedPerson.reinados[0]?.Descripción} />
             </div>
 
             <Separator />

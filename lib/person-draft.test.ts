@@ -179,4 +179,36 @@ describe("applyPersonDraftToRows", () => {
             "Información verificada": "sí",
         });
     });
+
+    it("ignora campos de gobierno introducidos en el borrador de persona", () => {
+        const rows: RawRow[] = [
+            {
+                _rowId: "urraca-leon",
+                PersonID: "urraca",
+                Reino: "Reino de León",
+                "Inicio del reinado (año)": 1109,
+            },
+            {
+                _rowId: "urraca-galicia",
+                PersonID: "urraca",
+                Reino: "Reino de Galicia",
+                "Inicio del reinado (año)": 1109,
+            },
+        ];
+
+        const result = applyPersonDraftToRows(rows, "urraca", {
+            PersonID: "urraca",
+            "Nombre principal": "Urraca I",
+            Descripción: "Descripción común",
+            Reino: "No debe propagarse",
+            "Inicio del reinado (año)": 9999,
+        });
+
+        expect(result.map((row) => row.Reino)).toEqual(["Reino de León", "Reino de Galicia"]);
+        expect(result.map((row) => row["Inicio del reinado (año)"])).toEqual([1109, 1109]);
+        expect(result.map((row) => row.Descripción)).toEqual([
+            "Descripción común",
+            "Descripción común",
+        ]);
+    });
 });
