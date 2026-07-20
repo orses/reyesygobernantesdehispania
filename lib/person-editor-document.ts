@@ -1,5 +1,6 @@
 import { getPersonId } from "./data";
 import { applyPersonDraftToRows } from "./person-draft";
+import { getReignYearMismatches, reignYearMismatchMessage } from "./reign-chronology";
 import type { RawRow } from "./types";
 
 export interface PersonEditorDocument {
@@ -92,6 +93,16 @@ export function validatePersonEditorDocument(
             ok: false,
             error: "El documento debe conservar los identificadores internos de todas sus filas de gobierno.",
         };
+    }
+
+    for (const governmentRow of governmentRows) {
+        const mismatch = getReignYearMismatches(governmentRow)[0];
+        if (mismatch) {
+            return {
+                ok: false,
+                error: `${reignYearMismatchMessage(mismatch)} Confirme la corrección desde el editor del gobierno correspondiente.`,
+            };
+        }
     }
 
     return {

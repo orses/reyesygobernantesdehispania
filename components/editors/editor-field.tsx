@@ -16,6 +16,12 @@ interface EditorFieldProps {
     multiline?: boolean;
     /** Si true, ocupa 2 columnas en el grid md. */
     colSpan2?: boolean;
+    /** Ayuda contextual que se muestra debajo del control. */
+    hint?: string;
+    /** Mensaje de incoherencia que invalida el valor actual. */
+    error?: string;
+    actionLabel?: string;
+    onAction?: () => void;
 }
 
 export function EditorField({
@@ -25,9 +31,14 @@ export function EditorField({
     readOnly = false,
     multiline = false,
     colSpan2 = false,
+    hint,
+    error,
+    actionLabel,
+    onAction,
 }: EditorFieldProps) {
     const wrapperClass = colSpan2 ? "space-y-1 md:col-span-2" : "space-y-1";
     const textareaId = React.useId();
+    const hintId = `${textareaId}-hint`;
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const hasContent = value.trim().length > 0;
@@ -78,23 +89,52 @@ export function EditorField({
                         rows={hasContent ? 10 : undefined}
                         className={`${FIELD_INPUT_CLASS} border min-h-[110px] ${
                             isExpanded && hasContent ? "resize-none overflow-hidden" : "resize-y"
-                        }`}
+                        } ${error ? "border-red-500/80 text-red-100" : ""}`}
                         value={value}
                         readOnly={readOnly}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error || hint ? hintId : undefined}
                         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
                     />
                 </>
             ) : (
                 <>
-                    <Label className="text-sm font-medium text-slate-300">{label}</Label>
+                    <Label htmlFor={textareaId} className="text-sm font-medium text-slate-300">{label}</Label>
                     <Input
-                        className={FIELD_INPUT_CLASS}
+                        id={textareaId}
+                        className={`${FIELD_INPUT_CLASS} ${error ? "border-red-500/80 text-red-100" : ""}`}
                         value={value}
                         readOnly={readOnly}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error || hint ? hintId : undefined}
                         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
                     />
                 </>
             )}
+            {error || hint || (actionLabel && onAction) ? (
+                <div className="flex items-start justify-between gap-2">
+                    {error || hint ? (
+                        <p
+                            id={hintId}
+                            role={error ? "alert" : undefined}
+                            className={`text-xs ${error ? "text-red-300" : "text-slate-400"}`}
+                        >
+                            {error ?? hint}
+                        </p>
+                    ) : null}
+                    {actionLabel && onAction ? (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 shrink-0 rounded-[3px] px-2 text-xs"
+                            onClick={onAction}
+                        >
+                            {actionLabel}
+                        </Button>
+                    ) : null}
+                </div>
+            ) : null}
         </div>
     );
 }

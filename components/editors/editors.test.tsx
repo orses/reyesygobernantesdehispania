@@ -72,4 +72,32 @@ describe("EditorDialog", () => {
     expect(html).toContain("Reino de León");
     expect(html).toContain("Esc: cancelar · Ctrl+G: guardar sin cerrar");
   });
+
+  it("señala los años incoherentes y ofrece corregirlos con confirmación", () => {
+    const html = renderToStaticMarkup(
+      <EditorDialog
+        {...commonProps}
+        mode="row"
+        draft={{
+          ...governmentRows[0],
+          "Inicio del reinado (año)": 900,
+          "Final del reinado (año)": "",
+          "Inicio Reinado (Fecha)": "agosto de 925",
+          "Fin Reinado (Fecha)": "18 de junio de 930",
+        }}
+        draftPersonRows={[]}
+        draftPersonId="alfonso"
+        draftRowId="alfonso-leon"
+      />
+    );
+
+    expect(html).toContain("value=\"900\"");
+    expect(html).toContain("La fecha de inicio contiene el año 925");
+    expect(html).toContain("La fecha de final contiene el año 930");
+    expect(html).toContain("usar 925");
+    expect(html).toContain("usar 930");
+    expect(html.match(/aria-invalid="true"/g)).toHaveLength(2);
+    expect(html).toContain("Corrija el año o acepte expresamente la propuesta antes de guardar.");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>guardar<\/button>/);
+  });
 });

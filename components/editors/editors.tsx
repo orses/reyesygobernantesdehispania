@@ -30,6 +30,12 @@ import {
   type SuccessionOption,
 } from "../../lib/succession";
 import type { Person, RawRow } from "../../lib/types";
+import {
+  applyConfirmedReignYear,
+  getReignYearMismatch,
+  reignYearMismatchMessage,
+  type ReignYearMismatch,
+} from "../../lib/reign-chronology";
 
 // ---------------------------------------------------------------------------
 // Editor Dialog (persona o gobierno)
@@ -66,6 +72,15 @@ export function EditorDialog({
 }: EditorDialogProps) {
   const [jsonError, setJsonError] = React.useState<string | null>(null);
   const [saveStatus, setSaveStatus] = React.useState<string | null>(null);
+  const chronologyError = React.useMemo(() => {
+    const rowsToCheck = mode === "person" ? draftPersonRows : draft ? [draft] : [];
+    for (const row of rowsToCheck) {
+      const mismatch = getReignYearMismatch(row, "start") ?? getReignYearMismatch(row, "end");
+      if (mismatch) return reignYearMismatchMessage(mismatch);
+    }
+    return null;
+  }, [draft, draftPersonRows, mode]);
+  const blockingError = jsonError ?? chronologyError;
 
   React.useEffect(() => {
     if (!open) return;
@@ -101,7 +116,7 @@ export function EditorDialog({
 
   useEditorKeyboardShortcuts({
     enabled: open,
-    canSave: !jsonError,
+    canSave: !blockingError,
     onCancel: handleCancel,
     onSave: handleKeyboardSave,
   });
@@ -141,6 +156,12 @@ export function EditorDialog({
           )
         ) : null}
 
+        {chronologyError ? (
+          <p role="alert" className="rounded-[3px] border border-red-500/60 bg-red-950/30 p-3 text-sm text-red-200">
+            {chronologyError} Corrija el año o acepte expresamente la propuesta antes de guardar.
+          </p>
+        ) : null}
+
         <DialogFooter>
           <Button
             variant="secondary"
@@ -151,8 +172,8 @@ export function EditorDialog({
           </Button>
           <Button
             className="rounded-[3px]"
-            disabled={Boolean(jsonError)}
-            title={jsonError ? "Corrija el JSON antes de guardar" : "Guardar y cerrar"}
+            disabled={Boolean(blockingError)}
+            title={blockingError ?? "Guardar y cerrar"}
             onClick={() => handleSave(true)}
           >
             guardar
@@ -328,7 +349,11 @@ function validateRawRowEditorValue(value: unknown): JsonValueValidation<RawRow> 
     return { ok: false, error: "La fila debe ser un objeto JSON." };
   }
 
-  return { ok: true, value: value as RawRow };
+  const row = value as RawRow;
+  const mismatch = getReignYearMismatch(row, "start") ?? getReignYearMismatch(row, "end");
+  if (mismatch) return { ok: false, error: reignYearMismatchMessage(mismatch) };
+
+  return { ok: true, value: row };
 }
 
 function buildSuccessionComboboxOptions(
@@ -374,6 +399,17 @@ function RowEditorContent({
     resolveSuccessionSelectValue(draft[key], successionOptions, draft.Reino);
   const upd = (key: string) => (value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
+  const startYearMismatch = getReignYearMismatch(draft, "start");
+  const endYearMismatch = getReignYearMismatch(draft, "end");
+  const confirmYearChange = (mismatch: ReignYearMismatch) => {
+    const message = `${reignYearMismatchMessage(mismatch)} ¿Quiere sustituir el valor actual por ${mismatch.suggestedYear}?`;
+    if (!window.confirm(message)) return;
+
+    setDraft((current) => current
+      ? applyConfirmedReignYear(current, mismatch.boundary)
+      : current
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -386,10 +422,24 @@ function RowEditorContent({
       <EditorField label="Dinastía del reinado" value={String(draft?.Dinastía ?? "")} onChange={upd("Dinastía")} />
       <EditorField label="Tipo de gobierno" value={String(draft?.["Tipo de gobierno"] ?? "")} onChange={upd("Tipo de gobierno")} />
       <EditorField label="Información Verificada" value={String(draft?.["Información verificada"] ?? "")} onChange={upd("Información verificada")} />
-      <EditorField label="Inicio del Reinado (Año)" value={String(draft?.["Inicio del reinado (año)"] ?? "")} onChange={upd("Inicio del reinado (año)")} />
-      <EditorField label="Final del Reinado (Año)" value={String(draft?.["Final del reinado (año)"] ?? "")} onChange={upd("Final del reinado (año)")} />
-      <EditorField label="Inicio Reinado (Fecha completa)" value={String(draft?.["Inicio Reinado (Fecha)"] ?? "")} onChange={upd("Inicio Reinado (Fecha)")} />
-      <EditorField label="Fin Reinado (Fecha completa)" value={String(draft?.["Fin Reinado (Fecha)"] ?? "")} onChange={upd("Fin Reinado (Fecha)")} />
+      <EditorField label="Inicio del reinado (fecha detallada)" value={String(draft?.["Inicio Reinado (Fecha)"] ?? "")} onChange={upd("Inicio Reinado (Fecha)")} />
+      <EditorField
+        label="Inicio del reinado (año)"
+        value={String(draft?.["Inicio del reinado (año)"] ?? "")}
+        onChange={upd("Inicio del reinado (año)")}
+        error={startYearMismatch ? reignYearMismatchMessage(startYearMismatch) : undefined}
+        actionLabel={startYearMismatch ? `usar ${startYearMismatch.suggestedYear}` : undefined}
+        onAction={startYearMismatch ? () => confirmYearChange(startYearMismatch) : undefined}
+      />
+      <EditorField label="Final del reinado (fecha detallada)" value={String(draft?.["Fin Reinado (Fecha)"] ?? "")} onChange={upd("Fin Reinado (Fecha)")} />
+      <EditorField
+        label="Final del reinado (año)"
+        value={String(draft?.["Final del reinado (año)"] ?? "")}
+        onChange={upd("Final del reinado (año)")}
+        error={endYearMismatch ? reignYearMismatchMessage(endYearMismatch) : undefined}
+        actionLabel={endYearMismatch ? `usar ${endYearMismatch.suggestedYear}` : undefined}
+        onAction={endYearMismatch ? () => confirmYearChange(endYearMismatch) : undefined}
+      />
 
       <div className="md:col-span-2 text-xs text-slate-400">
         Sucesión del gobierno: déjalo en «automático» para calcularla por cronología dentro del mismo reino.
