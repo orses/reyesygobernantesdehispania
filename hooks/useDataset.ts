@@ -42,6 +42,7 @@ import {
 import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
 import { uint8ArrayToArrayBuffer } from "../lib/blob";
 import { createStoredZip, parseZip } from "../lib/zip";
+import { getReignYearMismatches, reignYearMismatchMessage } from "../lib/reign-chronology";
 
 // Datos de ejemplo
 const SAMPLE_ROWS: RawRow[] = [
@@ -222,6 +223,14 @@ export function useDataset() {
             if (a !== null && b !== null && a > b) inv++;
         }
         if (inv) issues.push(`gobiernos con inicio (año) mayor que fin (año): ${inv}`);
+
+        const mismatchedYears = rows.reduce(
+            (total, row) => total + getReignYearMismatches(row).length,
+            0
+        );
+        if (mismatchedYears) {
+            issues.push(`campos de año que no coinciden con su fecha detallada: ${mismatchedYears}`);
+        }
 
         const noPid = rows.filter((r) => !getPersonId(r)).length;
         if (noPid) issues.push(`filas sin PersonID: ${noPid}`);
@@ -706,6 +715,9 @@ export function useDataset() {
     const commitRowDraft = useCallback(
         (rowId: string, draft: RawRow): string | null => {
             if (!rowId) return "Validación: falta _rowId.";
+            const mismatch = getReignYearMismatches(draft)[0];
+            if (mismatch) return `Validación: ${reignYearMismatchMessage(mismatch)}`;
+
             const a = asYearOrNull(draft?.["Inicio del reinado (año)"]);
             const b = asYearOrNull(draft?.["Final del reinado (año)"]);
             if (a !== null && b !== null && a > b) return "Validación: inicio > fin.";

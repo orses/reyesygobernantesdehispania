@@ -166,4 +166,22 @@ describe("documento JSON del editor de personaje", () => {
             1252,
         ]);
     });
+
+    it("rechaza los gobiernos cuyos años no coinciden con sus fechas detalladas", () => {
+        const document = createPersonEditorDocument(
+            { PersonID: "alfonso", "Nombre principal": "Alfonso X" },
+            rows.slice(0, 2)
+        );
+        document.Gobiernos[0]["Inicio del reinado (año)"] = 1200;
+        document.Gobiernos[0]["Inicio Reinado (Fecha)"] = "agosto de 1252";
+        document.Gobiernos[1]["Final del reinado (año)"] = "";
+        document.Gobiernos[1]["Fin Reinado (Fecha)"] = "abril de 1284";
+
+        const result = applyPersonEditorDocumentToRows(rows, "alfonso", document);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.error).toContain("contiene el año 1252");
+        expect(result.error).toContain("Confirme la corrección");
+    });
 });

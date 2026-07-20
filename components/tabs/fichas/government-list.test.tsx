@@ -31,9 +31,10 @@ describe("GovernmentList", () => {
     );
 
     expect(html).toContain("truncate text-[18px] font-medium leading-6 text-slate-50");
-    expect(html.match(/text-\[16px\] font-medium leading-5/g)).toHaveLength(2);
+    expect(html).toContain("text-[17px] font-medium leading-5");
+    expect(html).toContain("text-[15px] font-medium leading-5");
     expect(html).toContain("Condado de Castilla");
-    expect(html).toContain("915–920");
+    expect(html).toContain("915 - 920");
     expect(html).toContain("5 años");
   });
 });
