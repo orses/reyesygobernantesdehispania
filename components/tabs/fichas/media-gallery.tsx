@@ -1,11 +1,16 @@
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronRight, ImagePlus, Link, Replace, Star, Trash2, Upload, X } from "lucide-react";
 import { Button } from "../../ui/button";
 import {
   RIGHTS_OPTIONS,
   mediaAssetSrc,
-  mediaAssetViewerSource,
+  mediaAssetViewerSources,
 } from "../../../lib/ficha-view";
+import {
+  getMediaViewerNavigationState,
+  getMediaViewerNavigationTargetId,
+  type MediaViewerNavigationAction,
+} from "../../../lib/media-viewer-navigation";
 import {
   getMediaAssetCopyValue,
   getMediaAssetRouteLabel,
@@ -59,8 +64,24 @@ export function MediaGallery({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetIdRef = useRef<string | null>(null);
-  const viewerAsset = viewerAssetId ? assets.find((asset) => asset.id === viewerAssetId) ?? null : null;
-  const viewerSource = mediaAssetViewerSource(viewerAsset, previewUrls, personName);
+  const viewerSources = useMemo(
+    () => mediaAssetViewerSources(assets, previewUrls, personName),
+    [assets, personName, previewUrls]
+  );
+  const viewerSource = viewerAssetId
+    ? viewerSources.find((source) => source.id === viewerAssetId) ?? null
+    : null;
+  const navigateViewer = useCallback((action: MediaViewerNavigationAction) => {
+    const targetId = getMediaViewerNavigationTargetId(viewerSources, viewerAssetId, action);
+    if (targetId) setViewerAssetId(targetId);
+  }, [viewerAssetId, viewerSources]);
+  const viewerNavigation = useMemo(
+    () => ({
+      ...getMediaViewerNavigationState(viewerSources, viewerAssetId),
+      onNavigate: navigateViewer,
+    }),
+    [navigateViewer, viewerAssetId, viewerSources]
+  );
 
   const mediaDraftOptions = (): MediaInputOptions => ({
     rightsStatus: rightsDraft,
@@ -483,6 +504,7 @@ export function MediaGallery({
       <MediaViewer
         source={viewerSource}
         onClose={() => setViewerAssetId(null)}
+        navigation={viewerNavigation}
       />
     </div>
   );

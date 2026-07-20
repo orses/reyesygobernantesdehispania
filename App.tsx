@@ -299,23 +299,26 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     setEditorOpen(true);
   }
 
-  function commitDraft() {
-    if (!draft) return;
+  function commitDraft(
+    { closeAfterSave = true }: { closeAfterSave?: boolean } = {}
+  ): boolean {
+    if (!draft) return false;
     if (editorMode === "person") {
       const err = commitPersonDraft(String(draftPersonId ?? ""), draft, draftPersonRows);
       if (err) {
         setError(err);
-        return;
+        return false;
       }
     } else {
       const err = commitRowDraft(String(draftRowId ?? ""), draft);
       if (err) {
         setError(err);
-        return;
+        return false;
       }
     }
     setError(null);
-    setEditorOpen(false);
+    if (closeAfterSave) setEditorOpen(false);
+    return true;
   }
 
   function addRowForSelectedPerson() {

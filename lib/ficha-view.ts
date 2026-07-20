@@ -233,6 +233,16 @@ export function mediaAssetViewerSource(
   };
 }
 
+export function mediaAssetViewerSources(
+  assets: readonly MediaAsset[],
+  previewUrls: Record<string, string>,
+  personName: string
+): ImageViewerSource[] {
+  return assets
+    .map((asset) => mediaAssetViewerSource(asset, previewUrls, personName))
+    .filter((source): source is ImageViewerSource => source !== null);
+}
+
 export function personMainImageViewerSource({
   asset,
   previewUrls,

@@ -19,6 +19,7 @@ import {
 import { asYearOrNull, firstNonEmpty, formatCenturyLabel, rowDisplayName } from "../../../lib/data";
 import { kingdomColor } from "../../../lib/ficha-view";
 import { getPrimaryMediaAsset } from "../../../lib/media";
+import { personGovernmentMatchesSimpleSearch } from "../../../lib/person-government-search";
 import { normalizePersonSearchText, personDinastiaSummary, rowSpansCentury } from "../../../lib/people";
 import type { MediaAsset, Person, RawRow } from "../../../lib/types";
 import { MediaThumb } from "./shared";
@@ -39,24 +40,6 @@ interface GovernmentCardItem {
   order: number;
 }
 
-function normalizeSearchNeedle(value: string): string {
-  return normalizePersonSearchText(
-    value
-      .replace(/\b(nombre|name|rey|monarca|personaje|reino|reinos|kingdom|dinastia|dinastía|tipo|gobierno)\s*[:=]\s*/gi, "")
-      .replace(/\b(and|y)\b/gi, " ")
-      .replace(/["']/g, "")
-  );
-}
-
-function simpleRowSearchTerms(query: string): string[] | null {
-  if (!query.trim()) return [];
-  if (/[<>=()]/.test(query) || /\b(no|not|or|o)\b/iu.test(query) || /(^|\s)-\S/.test(query)) {
-    return null;
-  }
-
-  return normalizeSearchNeedle(query).split(/\s+/).filter(Boolean);
-}
-
 function rowDynasty(row: RawRow): string {
   return String(row?.Dinastía ?? "").trim();
 }
@@ -72,31 +55,6 @@ function rowGovernmentType(row: RawRow): string {
 function rowDuration(row: RawRow): number | null {
   const duration = row?._duracionCalc;
   return typeof duration === "number" && Number.isFinite(duration) ? duration : null;
-}
-
-function rowSearchText(person: Person, row: RawRow): string {
-  return [
-    person.nombrePrincipal,
-    ...person.apelativos,
-    rowDisplayName(row),
-    row?.Nombre,
-    row?.nombre,
-    row?.Apelativo,
-    row?.apelativo,
-    row?.Reino,
-    row?.Dinastía,
-    row?.["Tipo de gobierno"],
-    row?.["Inicio del reinado (año)"],
-    row?.["Final del reinado (año)"],
-  ].map((value) => String(value ?? "")).join(" ");
-}
-
-function rowMatchesQuery(person: Person, row: RawRow, query: string): boolean {
-  const terms = simpleRowSearchTerms(query);
-  if (terms === null || terms.length === 0) return true;
-
-  const haystack = normalizePersonSearchText(rowSearchText(person, row));
-  return terms.every((term) => haystack.includes(term));
 }
 
 function rowMatchesFilters(
@@ -119,7 +77,7 @@ function rowMatchesFilters(
     if (Number.isFinite(century) && !rowSpansCentury(row, century)) return false;
   }
 
-  return rowMatchesQuery(person, row, query);
+  return personGovernmentMatchesSimpleSearch(person, row, query);
 }
 
 function governmentCardItems(
@@ -326,8 +284,8 @@ export function PersonListPanel({
                   ? "border-amber-400/70 bg-amber-950/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.14)]"
                   : "border-slate-700/60 bg-slate-900/60"
               }`}
-              placeholder="Buscar: reino:Castilla, siglo>=15, NO Aragón..."
-              title="Búsqueda avanzada: OR/O, AND/Y, espacio como AND, NO/NOT/- y campos como reino:, dinastia:, año>=, inicio>=, fin<=, siglo=."
+              placeholder="Buscar: Muez, descripción:Muez, año:920..."
+              title="Búsqueda avanzada: texto libre, años contenidos en un gobierno, OR/O, AND/Y, NO/NOT/- y campos como descripción:, reino:, dinastia:, año:, inicio>=, fin<= y siglo=."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {

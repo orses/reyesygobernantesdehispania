@@ -58,6 +58,7 @@ function peopleFixture(): Person[] {
       "Tipo de gobierno": "Monarquía",
       "Inicio del reinado (año)": "siglo VIII",
       "Final del reinado (año)": 737,
+      Descripción: "Venció a sus adversarios en Muez.",
     }),
     makeRow({
       PersonID: "cortes",
@@ -82,6 +83,21 @@ describe("personMatchesAdvancedSearch", () => {
   it("mantiene la búsqueda simple por texto, sin tildes ni mayúsculas", () => {
     expect(matchingIds("catolic")).toEqual(["isabel", "fernando"]);
     expect(matchingIds("asturias")).toEqual(["pelayo"]);
+  });
+
+  it("busca texto libre dentro de la descripción", () => {
+    expect(matchingIds("Muez")).toEqual(["pelayo"]);
+    expect(matchingIds("adversarios muez")).toEqual(["pelayo"]);
+  });
+
+  it("filtra la descripción mediante alias con y sin tilde", () => {
+    expect(matchingIds("descripción:muez")).toEqual(["pelayo"]);
+    expect(matchingIds("descripcion:muez")).toEqual(["pelayo"]);
+    expect(matchingIds("description:muez")).toEqual(["pelayo"]);
+    expect(matchingIds("reino:asturias AND descripcion:muez")).toEqual(["pelayo"]);
+    expect(matchingIds("descripcion:inexistente")).toEqual([]);
+    expect(matchingIds("asturias -descripcion:muez")).toEqual([]);
+    expect(matchingIds("asturias -descripcion:oviedo")).toEqual(["pelayo"]);
   });
 
   it("interpreta el espacio como AND", () => {
@@ -128,6 +144,25 @@ describe("personMatchesAdvancedSearch", () => {
     expect(matchingIds("1500")).toEqual(["isabel", "fernando"]);
     expect(matchingIds("737")).toEqual(["pelayo"]);
     expect(matchingIds("1812")).toEqual(["cortes"]);
+  });
+
+  it("encuentra 920 dentro de un gobierno aunque no sea una fecha extrema", () => {
+    const person = derivePeopleFromRows([
+      makeRow({
+        PersonID: "ordono",
+        "Nombre principal": "Ordoño II",
+        Reino: "Reino de León",
+        "Inicio del reinado (año)": 910,
+        "Final del reinado (año)": 924,
+      }),
+    ]).allPeople[0];
+
+    expect(personMatchesAdvancedSearch(person, "920")).toBe(true);
+    expect(personMatchesAdvancedSearch(person, "año:920")).toBe(true);
+    expect(personMatchesAdvancedSearch(person, "910")).toBe(true);
+    expect(personMatchesAdvancedSearch(person, "924")).toBe(true);
+    expect(personMatchesAdvancedSearch(person, "909")).toBe(false);
+    expect(personMatchesAdvancedSearch(person, "925")).toBe(false);
   });
 
   it("filtra por siglos en número romano o arábigo", () => {
