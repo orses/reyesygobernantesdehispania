@@ -15,6 +15,7 @@ import { Combobox, type ComboboxOption } from "../ui/combobox";
 import { EditorField } from "./editor-field";
 import { JsonEditorDetails, type JsonValueValidation } from "./json-editor-details";
 import { MarkdownEditorField } from "./markdown-editor-field";
+import { useEditorKeyboardShortcuts } from "../../hooks/useEditorKeyboardShortcuts";
 import { boolFromVerified, verifiedToText } from "../../lib/data";
 import {
   createPersonEditorDocument,
@@ -44,7 +45,7 @@ interface EditorDialogProps {
   setDraftPersonRows: React.Dispatch<React.SetStateAction<RawRow[]>>;
   draftPersonId: string | number | null;
   draftRowId: string | number | null;
-  commitDraft: () => void;
+  commitDraft: (options?: { closeAfterSave?: boolean }) => boolean;
   setError: (v: string | null) => void;
   people?: Person[];
 }
@@ -64,17 +65,46 @@ export function EditorDialog({
   people = [],
 }: EditorDialogProps) {
   const [jsonError, setJsonError] = React.useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
     setJsonError(null);
+    setSaveStatus(null);
     setError(null);
   }, [mode, open, setError]);
+
+  React.useEffect(() => {
+    setSaveStatus(null);
+  }, [draft, draftPersonRows]);
 
   const handleJsonError = (nextError: string | null) => {
     setJsonError(nextError);
     setError(nextError);
   };
+
+  const handleCancel = React.useCallback(() => {
+    setOpen(false);
+  }, [setOpen]);
+
+  const handleSave = React.useCallback(
+    (closeAfterSave: boolean) => {
+      const saved = commitDraft({ closeAfterSave });
+      if (saved && !closeAfterSave) setSaveStatus("Cambios guardados.");
+    },
+    [commitDraft]
+  );
+
+  const handleKeyboardSave = React.useCallback(() => {
+    handleSave(false);
+  }, [handleSave]);
+
+  useEditorKeyboardShortcuts({
+    enabled: open,
+    canSave: !jsonError,
+    onCancel: handleCancel,
+    onSave: handleKeyboardSave,
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -115,19 +145,25 @@ export function EditorDialog({
           <Button
             variant="secondary"
             className="rounded-[3px]"
-            onClick={() => setOpen(false)}
+            onClick={handleCancel}
           >
             cancelar
           </Button>
           <Button
             className="rounded-[3px]"
             disabled={Boolean(jsonError)}
-            title={jsonError ? "Corrija el JSON antes de guardar" : undefined}
-            onClick={commitDraft}
+            title={jsonError ? "Corrija el JSON antes de guardar" : "Guardar y cerrar"}
+            onClick={() => handleSave(true)}
           >
             guardar
           </Button>
         </DialogFooter>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+          <span>Esc: cancelar · Ctrl+G: guardar sin cerrar</span>
+          <span role="status" aria-live="polite" className="text-emerald-300">
+            {saveStatus}
+          </span>
+        </div>
       </DialogContent>
     </Dialog>
   );

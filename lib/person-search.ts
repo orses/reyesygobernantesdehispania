@@ -73,12 +73,40 @@ const FIELD_ALIASES: Record<string, string> = {
   tipo: "governmentType",
   gobierno: "governmentType",
   government: "governmentType",
+  descripcion: "description",
+  description: "description",
   duracion: "duration",
   duración: "duration",
   duration: "duration",
   edad: "age",
   age: "age",
 };
+
+const SIMPLE_GOVERNMENT_FIELD_NAMES = new Set([
+  "name",
+  "kingdom",
+  "dynasty",
+  "governmentType",
+  "description",
+  "year",
+]);
+const SIMPLE_GOVERNMENT_FIELD_PREFIX = new RegExp(
+  `\\b(?:${Array.from(
+    new Set(
+      Object.entries(FIELD_ALIASES)
+        .filter(([, field]) => SIMPLE_GOVERNMENT_FIELD_NAMES.has(field))
+        .map(([alias]) => normalizeSearchText(alias))
+    )
+  ).join("|")})\\s*[:=]\\s*`,
+  "g"
+);
+
+/**
+ * Normaliza una consulta y retira los prefijos aplicables a una tarjeta concreta.
+ */
+export function normalizeSimpleGovernmentSearchQuery(query: string): string {
+  return normalizeSearchText(query).replace(SIMPLE_GOVERNMENT_FIELD_PREFIX, "");
+}
 
 function isWhitespace(char: string): boolean {
   return /\s/.test(char);
@@ -356,6 +384,13 @@ function normalizeSearchNode(node: SearchNode): SearchNode {
   return buildAndChain([positiveOr, ...exclusionNodes].filter((candidate): candidate is SearchNode => candidate !== null)) ?? node;
 }
 
+/**
+ * Obtiene el texto descriptivo de una fila con una conversión estable.
+ */
+export function rowDescriptionSearchText(row: RawRow): string {
+  return String(row?.Descripción ?? "");
+}
+
 function textValuesForPerson(person: Person): string[] {
   return [
     person.nombrePrincipal,
@@ -370,6 +405,7 @@ function textValuesForPerson(person: Person): string[] {
       row?.Apelativo,
       row?.Reino,
       row?.Dinastía,
+      rowDescriptionSearchText(row),
     ]),
   ].map((value) => String(value ?? ""));
 }
@@ -422,6 +458,7 @@ function textFieldValues(person: Person, field: string): string[] {
   if (field === "kingdom") return [...person.reinos, ...person.reinados.map((row) => String(row?.Reino ?? ""))];
   if (field === "dynasty") return [person.dinastia, ...person.dinastias, ...person.reinados.map((row) => String(row?.Dinastía ?? ""))];
   if (field === "governmentType") return person.reinados.map((row) => String(row?.["Tipo de gobierno"] ?? ""));
+  if (field === "description") return person.reinados.map(rowDescriptionSearchText);
   return [];
 }
 
@@ -475,6 +512,14 @@ function rowSpansYear(row: RawRow, year: number): boolean {
   return year >= Math.min(startYear, endYear) && year <= Math.max(startYear, endYear);
 }
 
+/**
+ * Indica si un término numérico representa un año contenido en el gobierno.
+ */
+export function rowContainsSearchYear(row: RawRow, value: string): boolean {
+  const year = termAsYear(value);
+  return year !== null && rowSpansYear(row, year);
+}
+
 function matchesYearField(person: Person, operator: ComparisonOperator, rawValue: string): boolean {
   const target = parseSearchNumber(rawValue);
   if (target === null) return false;
@@ -523,7 +568,13 @@ function matchesNumericPersonField(person: Person, field: string, operator: Comp
 }
 
 function matchesField(person: Person, field: string, operator: ComparisonOperator, value: string, exact: boolean): boolean {
-  if (field === "name" || field === "kingdom" || field === "dynasty" || field === "governmentType") {
+  if (
+    field === "name" ||
+    field === "kingdom" ||
+    field === "dynasty" ||
+    field === "governmentType" ||
+    field === "description"
+  ) {
     return matchesTextField(person, field, operator, value, exact);
   }
   if (field === "year") return matchesYearField(person, operator, value);

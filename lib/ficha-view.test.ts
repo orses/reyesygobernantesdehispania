@@ -14,6 +14,7 @@ import {
   kingdomColor,
   mediaAssetSrc,
   mediaAssetViewerSource,
+  mediaAssetViewerSources,
   personDenominationsByKingdom,
   personGovernmentPeriods,
   personImageFallbackUrl,
@@ -214,6 +215,37 @@ describe("metadatos visuales de imágenes", () => {
       alt: "Retrato de Isabel I",
       workDate: "c. 1500",
     });
+  });
+
+  it("crea una secuencia ordenada solo con imágenes visualizables", () => {
+    const externalAsset: MediaAsset = {
+      ...baseMediaAsset,
+      id: "external",
+      kind: "external-url",
+      src: "https://example.com/external.jpg",
+      title: "Imagen externa",
+    };
+    const unavailableUpload: MediaAsset = {
+      ...baseMediaAsset,
+      id: "unavailable",
+      kind: "uploaded-file",
+      src: "",
+    };
+    const availableUpload: MediaAsset = {
+      ...baseMediaAsset,
+      id: "available",
+      kind: "uploaded-file",
+      src: "",
+      fileName: "archivo.jpg",
+    };
+
+    expect(
+      mediaAssetViewerSources(
+        [externalAsset, unavailableUpload, availableUpload],
+        { available: "blob:http://local/available" },
+        "Isabel I"
+      ).map((source) => source.id)
+    ).toEqual(["external", "available"]);
   });
 
   it("usa la imagen heredada de la ficha como fuente de visor si no hay recurso principal", () => {

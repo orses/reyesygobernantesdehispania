@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import { createPortal } from "react-dom";
-import { RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "../../ui/button";
 import {
   DEFAULT_IMAGE_ZOOM,
@@ -12,14 +12,25 @@ import {
   imageZoomToPercent,
   nextImageZoom,
 } from "../../../lib/image-zoom";
+import {
+  isMediaViewerEditableTarget,
+  resolveMediaViewerNavigationAction,
+  type MediaViewerNavigationAction,
+  type MediaViewerNavigationState,
+} from "../../../lib/media-viewer-navigation";
 import type { ImageViewerSource } from "../../../lib/ficha-view";
+
+interface MediaViewerNavigation extends MediaViewerNavigationState {
+  onNavigate: (action: MediaViewerNavigationAction) => void;
+}
 
 interface MediaViewerProps {
   source: ImageViewerSource | null;
   onClose: () => void;
+  navigation?: MediaViewerNavigation;
 }
 
-export function MediaViewer({ source, onClose }: MediaViewerProps) {
+export function MediaViewer({ source, onClose, navigation }: MediaViewerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const panStateRef = useRef<{
     pointerId: number;
@@ -60,6 +71,13 @@ export function MediaViewer({ source, onClose }: MediaViewerProps) {
         return;
       }
 
+      const navigationAction = resolveMediaViewerNavigationAction(event);
+      if (navigation && navigationAction && !isMediaViewerEditableTarget(event.target)) {
+        event.preventDefault();
+        navigation.onNavigate(navigationAction);
+        return;
+      }
+
       if (!event.ctrlKey && !event.metaKey) return;
 
       if (event.key === "+" || event.key === "=") {
@@ -93,7 +111,7 @@ export function MediaViewer({ source, onClose }: MediaViewerProps) {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("wheel", handleWheel);
     };
-  }, [source, src, onClose]);
+  }, [source, src, onClose, navigation]);
 
   if (!source || !src || typeof document === "undefined") return null;
 
@@ -173,6 +191,42 @@ export function MediaViewer({ source, onClose }: MediaViewerProps) {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+          {navigation && navigation.total > 1 ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-[3px] border-slate-700 bg-slate-950/60"
+                disabled={!navigation.canGoPrevious}
+                onClick={() => navigation.onNavigate("previous")}
+                title="Imagen anterior (flecha izquierda)"
+                aria-label="Imagen anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span
+                className="min-w-14 px-1 text-center text-xs font-medium tabular-nums text-slate-300"
+                aria-live="polite"
+                aria-label={`Imagen ${navigation.currentIndex + 1} de ${navigation.total}`}
+                title="Inicio: primera imagen · Fin: última imagen"
+              >
+                {navigation.currentIndex + 1} de {navigation.total}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-[3px] border-slate-700 bg-slate-950/60"
+                disabled={!navigation.canGoNext}
+                onClick={() => navigation.onNavigate("next")}
+                title="Imagen siguiente (flecha derecha)"
+                aria-label="Imagen siguiente"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          ) : null}
           <Button
             type="button"
             variant="outline"

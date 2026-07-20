@@ -52,6 +52,7 @@ describe("EditorDialog", () => {
     expect(html).toContain("Datos completos del personaje (Edición JSON)");
     expect(html).toContain("Reino de León");
     expect(html).toContain("Reino de Castilla");
+    expect(html).toContain("Esc: cancelar · Ctrl+G: guardar sin cerrar");
   });
 
   it("conserva el editor JSON completo del gobierno", () => {
@@ -69,5 +70,6 @@ describe("EditorDialog", () => {
     expect(html).toContain("Fila completa (Edición JSON)");
     expect(html).toContain("Copiar JSON");
     expect(html).toContain("Reino de León");
+    expect(html).toContain("Esc: cancelar · Ctrl+G: guardar sin cerrar");
   });
 });
