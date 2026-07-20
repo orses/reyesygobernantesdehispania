@@ -43,6 +43,7 @@ import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
 import { uint8ArrayToArrayBuffer } from "../lib/blob";
 import { createStoredZip, parseZip } from "../lib/zip";
 import { getReignYearMismatches, reignYearMismatchMessage } from "../lib/reign-chronology";
+import { checkDatasetRows } from "../lib/dataset-checks";
 
 // Datos de ejemplo
 const SAMPLE_ROWS: RawRow[] = [
@@ -210,41 +211,7 @@ export function useDataset() {
     }, [mediaAssets]);
 
     // --- Comprobaciones ---
-    const datasetChecks: DatasetChecks = useMemo(() => {
-        const issues: string[] = [];
-        const ids = rows.map((r) => String(r._rowId));
-        const dup = ids.filter((id, i) => ids.indexOf(id) !== i);
-        if (dup.length) issues.push(`ids duplicados: ${dup.length}`);
-
-        let inv = 0;
-        for (const r of rows) {
-            const a = asYearOrNull(r?.["Inicio del reinado (año)"]);
-            const b = asYearOrNull(r?.["Final del reinado (año)"]);
-            if (a !== null && b !== null && a > b) inv++;
-        }
-        if (inv) issues.push(`gobiernos con inicio (año) mayor que fin (año): ${inv}`);
-
-        const mismatchedYears = rows.reduce(
-            (total, row) => total + getReignYearMismatches(row).length,
-            0
-        );
-        if (mismatchedYears) {
-            issues.push(`campos de año que no coinciden con su fecha detallada: ${mismatchedYears}`);
-        }
-
-        const noPid = rows.filter((r) => !getPersonId(r)).length;
-        if (noPid) issues.push(`filas sin PersonID: ${noPid}`);
-
-        const badName = rows.filter(
-            (r) =>
-                /^(https?:\/\/|www\.)/i.test(String(r?.Nombre || "")) ||
-                /^(https?:\/\/|www\.)/i.test(String(r?.Apelativo || ""))
-        ).length;
-        if (badName)
-            issues.push(`filas con «Nombre»/«Apelativo» que parecen URL: ${badName}`);
-
-        return { ok: issues.length === 0, issues };
-    }, [rows]);
+    const datasetChecks: DatasetChecks = useMemo(() => checkDatasetRows(rows), [rows]);
 
     // --- Carga de datos ---
     const setDatasetFromRows = useCallback(
