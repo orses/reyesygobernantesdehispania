@@ -23,7 +23,7 @@ export function Notification({ type, message, list, rawText, onClose }: Notifica
                         {message}
                     </div>
                     {list && (
-                        <ul className="mt-2 list-disc pl-5 text-sm text-slate-200/90">
+                        <ul className="mt-2 max-h-[50vh] list-disc space-y-1 overflow-y-auto pl-5 pr-2 text-sm text-slate-200/90">
                             {list.map((x, i) => (
                                 <li key={i}>{x}</li>
                             ))}
