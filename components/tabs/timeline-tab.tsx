@@ -7,9 +7,21 @@ import {
   type TimelineScope,
   type TimelineViewMode,
 } from "../../lib/timeline";
+import {
+  RAILWAY_KINGDOMS,
+  buildRailwayModel,
+  type RailwayKingdom,
+} from "../../lib/railway";
+import { WESTERN_KINGDOMS_RAILWAY_TOPOLOGY } from "../../lib/railway-topology";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { RailwayControls } from "./timeline/railway-controls";
+import { RailwayView } from "./timeline/railway-view";
 import { TimelineControls } from "./timeline/timeline-controls";
 import { TimelineDetailPanel } from "./timeline/timeline-detail-panel";
+import {
+  TimelineDisplaySwitch,
+  type TimelineDisplayMode,
+} from "./timeline/timeline-display-switch";
 import { TimelineView } from "./timeline/timeline-view";
 
 function hasActiveFilters(filters: ReturnType<typeof useAppContext>["filters"]): boolean {
@@ -23,9 +35,13 @@ function hasActiveFilters(filters: ReturnType<typeof useAppContext>["filters"]):
 
 export function TimelineTab() {
   const { allPeople, people, selectedPerson, filters } = useAppContext();
+  const [displayMode, setDisplayMode] = useState<TimelineDisplayMode>("railway");
   const [groupMode, setGroupMode] = useState<TimelineGroupMode>("kingdom");
   const [scope, setScope] = useState<TimelineScope>("filtered");
   const [viewMode, setViewMode] = useState<TimelineViewMode>("periods");
+  const [selectedRailwayKingdoms, setSelectedRailwayKingdoms] = useState<RailwayKingdom[]>(
+    () => [...RAILWAY_KINGDOMS]
+  );
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
 
   const activeFilters = hasActiveFilters(filters);
@@ -38,20 +54,52 @@ export function TimelineTab() {
   const model = useMemo(() => buildTimelineModel(scopedPeople, {
     groupMode,
   }), [groupMode, scopedPeople]);
+  const railwayModel = useMemo(
+    () => buildRailwayModel(allPeople, {
+      selectedKingdoms: selectedRailwayKingdoms,
+      transitionCatalog: WESTERN_KINGDOMS_RAILWAY_TOPOLOGY,
+    }),
+    [allPeople, selectedRailwayKingdoms]
+  );
+  const railwayStationCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      RAILWAY_KINGDOMS.map((kingdom) => [kingdom, 0])
+    ) as Record<RailwayKingdom, number>;
+    railwayModel.network.stations.forEach((station) => {
+      counts[station.kingdom] += 1;
+    });
+    return counts;
+  }, [railwayModel.network.stations]);
+  const visiblePeriods = displayMode === "railway"
+    ? railwayModel.projection.periods
+    : model.periods;
 
   useEffect(() => {
     if (
-      !model.periods.length ||
-      (selectedPeriodId && !model.periods.some((period) => period.id === selectedPeriodId))
+      !visiblePeriods.length ||
+      (selectedPeriodId && !visiblePeriods.some((period) => period.id === selectedPeriodId))
     ) {
       setSelectedPeriodId(null);
     }
-  }, [model.periods, selectedPeriodId]);
+  }, [selectedPeriodId, visiblePeriods]);
 
   const selectedPeriod = useMemo(
-    () => model.periods.find((period) => period.id === selectedPeriodId) ?? null,
-    [model.periods, selectedPeriodId]
+    () => visiblePeriods.find((period) => period.id === selectedPeriodId) ?? null,
+    [selectedPeriodId, visiblePeriods]
   );
+  const railwayIssueCount = railwayModel.issues.filter((issue) =>
+    selectedRailwayKingdoms.includes(issue.kingdom)
+  ).length;
+
+  function toggleRailwayKingdom(kingdom: RailwayKingdom) {
+    setSelectedRailwayKingdoms((current) =>
+      current.includes(kingdom)
+        ? current.filter((candidate) => candidate !== kingdom)
+        : RAILWAY_KINGDOMS.filter(
+          (candidate) => candidate === kingdom || current.includes(candidate)
+        )
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-7.5rem)] min-h-[560px]">
@@ -64,24 +112,51 @@ export function TimelineTab() {
                 Línea temporal
               </CardTitle>
             </div>
+            <TimelineDisplaySwitch value={displayMode} onChange={setDisplayMode} />
           </div>
 
-          <TimelineControls
-            groupMode={groupMode}
-            scope={scope}
-            viewMode={viewMode}
-            stats={model.stats}
-            hasFilters={activeFilters}
-            hasSelectedPerson={Boolean(selectedPerson)}
-            selectedPersonName={selectedPerson?.nombrePrincipal ?? ""}
-            onGroupModeChange={setGroupMode}
-            onScopeChange={setScope}
-            onViewModeChange={setViewMode}
-          />
+          {displayMode === "railway" ? (
+            <RailwayControls
+              selectedKingdoms={selectedRailwayKingdoms}
+              stationCounts={railwayStationCounts}
+              onToggleKingdom={toggleRailwayKingdom}
+              onResetKingdoms={() => setSelectedRailwayKingdoms([...RAILWAY_KINGDOMS])}
+            />
+          ) : (
+            <TimelineControls
+              groupMode={groupMode}
+              scope={scope}
+              viewMode={viewMode}
+              stats={model.stats}
+              hasFilters={activeFilters}
+              hasSelectedPerson={Boolean(selectedPerson)}
+              selectedPersonName={selectedPerson?.nombrePrincipal ?? ""}
+              onGroupModeChange={setGroupMode}
+              onScopeChange={setScope}
+              onViewModeChange={setViewMode}
+            />
+          )}
         </CardHeader>
 
         <CardContent className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden p-3">
-          {model.periods.length === 0 ? (
+          {displayMode === "railway" ? (
+            <>
+              <RailwayView
+                projection={railwayModel.projection}
+                issueCount={railwayIssueCount}
+                selectedPeriodId={selectedPeriodId}
+                onSelectPeriod={setSelectedPeriodId}
+              />
+              {railwayModel.projection.periods.length > 0 && (
+                <div className="max-h-[132px] overflow-y-auto custom-scrollbar">
+                  <TimelineDetailPanel
+                    period={selectedPeriod}
+                    issues={railwayModel.timelineIssues}
+                  />
+                </div>
+              )}
+            </>
+          ) : model.periods.length === 0 ? (
             <div className="rounded-[3px] border border-slate-800 bg-slate-950/30 p-6 text-center text-sm text-slate-400">
               Sin datos cronológicos válidos para proyectar la línea temporal.
             </div>
