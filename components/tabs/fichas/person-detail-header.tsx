@@ -50,7 +50,7 @@ export function PersonDetailHeader({
             variant="outline"
             size="icon"
             className="cursor-pointer rounded-[3px] bg-slate-950/30 border border-slate-700/70 text-slate-100 hover:bg-slate-900/60 hover:text-slate-100"
-            title="editar personaje"
+            title="Editar rey o personaje (Alt+E)"
             aria-label="editar personaje"
             onClick={() => {
               if (selectedPerson) openPersonEditor(selectedPerson.personId);

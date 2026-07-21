@@ -27,6 +27,10 @@ import {
   printResolutionProfileLabel,
   type ImagePrintResolutionProfile,
 } from "./lib/print-resolution";
+import {
+  hasBlockingModal,
+  isOpenPersonEditorShortcut,
+} from "./lib/person-editor-keyboard-shortcut";
 
 // Componentes
 import { Notification } from "./components/ui/notification";
@@ -256,7 +260,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
 
 
   // --- Funciones de edición ---
-  function openPersonEditor(personId: string | number) {
+  const openPersonEditor = React.useCallback((personId: string | number) => {
     const p = allPeople.find((x) => String(x.personId) === String(personId));
     if (!p) return;
     const base = p.reinados[0] || {};
@@ -286,7 +290,36 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     setDraft(personDraft);
     setDraftPersonRows(p.reinados.map((row) => ({ ...row })));
     setEditorOpen(true);
-  }
+  }, [allPeople]);
+
+  useEffect(() => {
+    const canOpenPersonEditor =
+      activeTab === "fichas" &&
+      selectedPerson !== null &&
+      !editorOpen &&
+      !deleteOpen &&
+      !loadConfirmOpen;
+
+    if (!canOpenPersonEditor) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isOpenPersonEditorShortcut(event)) return;
+      event.preventDefault();
+      if (hasBlockingModal(document)) return;
+
+      openPersonEditor(selectedPerson.personId);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [
+    activeTab,
+    deleteOpen,
+    editorOpen,
+    loadConfirmOpen,
+    openPersonEditor,
+    selectedPerson,
+  ]);
 
   function openRowEditor(rowId: string | number) {
     const r = rows.find((x) => String(x._rowId) === String(rowId));
