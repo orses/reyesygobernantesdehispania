@@ -85,11 +85,25 @@ export type RailwayTransitionDefinition =
   | RailwayDynasticUnionTransitionDefinition
   | RailwayDynasticSeparationTransitionDefinition;
 
+/**
+ * Intervalo editorial que identifica la vía conductora del relato histórico.
+ * Los extremos nulos permiten ajustarlo al primer o al último servicio real
+ * sin prolongar artificialmente la cobertura documental.
+ */
+export interface RailwayMainlineSegmentDefinition {
+  id: string;
+  kingdom: RailwayKingdom;
+  startYear: number | null;
+  endYear: number | null;
+  label?: string;
+}
+
 /** Catálogo explícito y versionado de decisiones historiográficas. */
 export interface RailwayTransitionCatalog {
   schemaVersion: 1;
   version: string;
   transitions: readonly RailwayTransitionDefinition[];
+  mainlineSegments?: readonly RailwayMainlineSegmentDefinition[];
 }
 
 export interface RailwayStation {
@@ -134,6 +148,21 @@ export interface RailwayTrack {
   kingdom: RailwayKingdom;
   stationIds: string[];
   serviceIds: string[];
+}
+
+/**
+ * Parte dibujable de una vía troncal, ya recortada contra un servicio real.
+ * Una definición puede originar varias partes si existen hiatos documentales.
+ */
+export interface RailwayMainlineSegment {
+  id: string;
+  definitionId: string;
+  catalogVersion: string;
+  serviceId: string;
+  kingdom: RailwayKingdom;
+  startYear: number;
+  endYear: number;
+  label: string;
 }
 
 export interface RailwayPersonalUnion {
@@ -187,6 +216,7 @@ export interface RailwayNetwork {
   tracks: RailwayTrack[];
   personalUnions: RailwayPersonalUnion[];
   transitions: RailwayTransition[];
+  mainlineSegments?: RailwayMainlineSegment[];
   scale: TimelineScale;
 }
 
@@ -203,6 +233,7 @@ export interface RailwayProjection {
   tracks: RailwayTrack[];
   personalUnions: RailwayPersonalUnion[];
   transitions: RailwayProjectedTransition[];
+  mainlineSegments?: RailwayMainlineSegment[];
   scale: TimelineScale;
 }
 
@@ -626,6 +657,62 @@ function buildTrackParts(
   return { tracks, services };
 }
 
+function buildMainlineSegments(
+  catalog: RailwayTransitionCatalog | undefined,
+  services: RailwayService[]
+): RailwayMainlineSegment[] | undefined {
+  if (catalog === undefined || catalog.mainlineSegments === undefined) return undefined;
+  const definitions = catalog.mainlineSegments;
+
+  return definitions.flatMap((definition): RailwayMainlineSegment[] => {
+    const hasInvalidStart = definition.startYear !== null
+      && !Number.isFinite(definition.startYear);
+    const hasInvalidEnd = definition.endYear !== null
+      && !Number.isFinite(definition.endYear);
+    const hasInvertedRange = definition.startYear !== null
+      && definition.endYear !== null
+      && definition.startYear > definition.endYear;
+    if (hasInvalidStart || hasInvalidEnd || hasInvertedRange) return [];
+
+    return services
+      .filter((service) => service.kingdom === definition.kingdom)
+      .flatMap((service): RailwayMainlineSegment[] => {
+        const startYear = Math.max(
+          service.startYear,
+          definition.startYear ?? service.startYear
+        );
+        const endYear = Math.min(
+          service.endYear,
+          definition.endYear ?? service.endYear
+        );
+        if (startYear >= endYear) return [];
+
+        return [{
+          id: [
+            "mainline",
+            encodeIdPart(definition.id),
+            encodeIdPart(service.id),
+            `${startYear}-${endYear}`,
+          ].join(":"),
+          definitionId: definition.id,
+          catalogVersion: catalog.version,
+          serviceId: service.id,
+          kingdom: definition.kingdom,
+          startYear,
+          endYear,
+          label: definition.label?.trim() || `Vía troncal de ${definition.kingdom}`,
+        }];
+      });
+  }).sort((left, right) => {
+    if (left.startYear !== right.startYear) return left.startYear - right.startYear;
+    if (left.endYear !== right.endYear) return left.endYear - right.endYear;
+    const byKingdom = compareKingdoms(left.kingdom, right.kingdom);
+    if (byKingdom !== 0) return byKingdom;
+    const byDefinition = compareText(left.definitionId, right.definitionId);
+    return byDefinition || compareText(left.serviceId, right.serviceId);
+  });
+}
+
 function compareStationPair(a: RailwayStation, b: RailwayStation): number {
   return compareStations(a, b);
 }
@@ -899,6 +986,9 @@ export function projectRailwayNetwork(
   const personalUnions = network.personalUnions.filter((union) =>
     union.kingdoms.every((kingdom) => selected.has(kingdom))
   );
+  const mainlineSegments = network.mainlineSegments?.filter((segment) =>
+    selected.has(segment.kingdom) && serviceIds.has(segment.serviceId)
+  );
   const transitions = network.transitions
     .map((transition): RailwayProjectedTransition => {
       const anchors = transition.anchors.filter((anchor) => selected.has(anchor.kingdom));
@@ -921,6 +1011,7 @@ export function projectRailwayNetwork(
     tracks,
     personalUnions,
     transitions,
+    ...(mainlineSegments === undefined ? {} : { mainlineSegments }),
     scale: network.scale,
   };
 }
@@ -957,6 +1048,7 @@ export function buildRailwayModel(
     contiguityToleranceYears,
     transitions
   );
+  const mainlineSegments = buildMainlineSegments(options.transitionCatalog, services);
   const representableTransitionIds = new Set(transitions
     .filter((transition) => transition.anchors.some((anchor) => anchor.stationId !== null))
     .map((transition) => transition.id));
@@ -976,6 +1068,7 @@ export function buildRailwayModel(
     tracks,
     personalUnions,
     transitions,
+    ...(mainlineSegments === undefined ? {} : { mainlineSegments }),
     scale: buildRailwayScale(periods, transitions, marginRatio),
   };
 

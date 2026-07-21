@@ -9,7 +9,7 @@ import type { RailwayTransitionCatalog } from "./railway";
  */
 export const WESTERN_KINGDOMS_RAILWAY_TOPOLOGY: RailwayTransitionCatalog = {
   schemaVersion: 1,
-  version: "reinos-occidentales-1.1.0",
+  version: "reinos-occidentales-1.2.0",
   transitions: [
     {
       id: "division-alfonso-iii-910",
@@ -72,24 +72,27 @@ export const WESTERN_KINGDOMS_RAILWAY_TOPOLOGY: RailwayTransitionCatalog = {
       label: "Unión dinástica definitiva",
     },
   ],
-};
-
-/** Referencias de contraste empleadas al preparar el catálogo inicial. */
-export const WESTERN_KINGDOMS_RAILWAY_SOURCES: Record<string, string> = {
-  "division-alfonso-iii-910":
-    "https://historia-hispanica.rah.es/hechos/1438376-910-20-xii",
-  "ordono-ii-leon-914":
-    "https://historia-hispanica.rah.es/biografias/33847-ordono-ii",
-  "fruela-ii-leon-924":
-    "https://historia-hispanica.rah.es/biografias/17353-fruela-ii",
-  "division-fernando-i-1066":
-    "https://historia-hispanica.rah.es/biografias/41191-sancho-ii",
-  "union-leon-castilla-1072":
-    "https://historia-hispanica.rah.es/biografias/904-alfonso-vi",
-  "union-leon-galicia-1073":
-    "https://historia-hispanica.rah.es/biografias/904-alfonso-vi",
-  "separacion-leon-castilla-1157":
-    "https://historia-hispanica.rah.es/hechos/1440083-1157-21-viii",
-  "union-definitiva-1230":
-    "https://historia-hispanica.rah.es/hechos/1442240-1230-2-xii",
+  mainlineSegments: [
+    {
+      id: "troncal-asturias-hasta-914",
+      kingdom: "Asturias",
+      startYear: null,
+      endYear: 914,
+      label: "Asturias, vía troncal hasta 914",
+    },
+    {
+      id: "troncal-leon-914-1066",
+      kingdom: "León",
+      startYear: 914,
+      endYear: 1066,
+      label: "León, vía troncal entre 914 y 1066",
+    },
+    {
+      id: "troncal-castilla-desde-1066",
+      kingdom: "Castilla",
+      startYear: 1066,
+      endYear: null,
+      label: "Castilla, vía troncal desde 1066",
+    },
+  ],
 };

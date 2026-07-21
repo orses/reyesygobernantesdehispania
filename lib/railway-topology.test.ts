@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  WESTERN_KINGDOMS_RAILWAY_SOURCES,
-  WESTERN_KINGDOMS_RAILWAY_TOPOLOGY,
-} from "./railway-topology";
+import { WESTERN_KINGDOMS_RAILWAY_TOPOLOGY } from "./railway-topology";
 
 describe("topología ferroviaria de los reinos occidentales", () => {
-  it("declara un catálogo versionado, determinista y con fuentes de contraste", () => {
+  it("declara un catálogo versionado y determinista", () => {
     const { transitions } = WESTERN_KINGDOMS_RAILWAY_TOPOLOGY;
     const ids = transitions.map((transition) => transition.id);
 
@@ -14,7 +11,32 @@ describe("topología ferroviaria de los reinos occidentales", () => {
     expect(transitions.map((transition) => transition.year)).toEqual(
       [...transitions].map((transition) => transition.year).sort((left, right) => left - right)
     );
-    expect(ids.every((id) => WESTERN_KINGDOMS_RAILWAY_SOURCES[id]?.startsWith("https://"))).toBe(true);
+  });
+
+  it("declara el relevo temporal de la vía troncal sin confundirlo con la topología política", () => {
+    expect(WESTERN_KINGDOMS_RAILWAY_TOPOLOGY.mainlineSegments).toEqual([
+      {
+        id: "troncal-asturias-hasta-914",
+        kingdom: "Asturias",
+        startYear: null,
+        endYear: 914,
+        label: "Asturias, vía troncal hasta 914",
+      },
+      {
+        id: "troncal-leon-914-1066",
+        kingdom: "León",
+        startYear: 914,
+        endYear: 1066,
+        label: "León, vía troncal entre 914 y 1066",
+      },
+      {
+        id: "troncal-castilla-desde-1066",
+        kingdom: "Castilla",
+        startYear: 1066,
+        endYear: null,
+        label: "Castilla, vía troncal desde 1066",
+      },
+    ]);
   });
 
   it("modela la división de 910 con las tres ramas presentes en los datos", () => {
