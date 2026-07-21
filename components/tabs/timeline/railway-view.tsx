@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { kingdomColor } from "../../../lib/ficha-view";
 import {
   RAILWAY_KINGDOMS,
@@ -8,7 +8,6 @@ import {
   type RailwayProjectedTransition,
   type RailwayStation,
 } from "../../../lib/railway";
-import { WESTERN_KINGDOMS_RAILWAY_SOURCES } from "../../../lib/railway-topology";
 import type { TimelineScale } from "../../../lib/timeline";
 import { cn } from "../../../lib/utils";
 
@@ -54,39 +53,25 @@ function stationAriaLabel(
 function transitionPath(
   x: number,
   sourceY: number,
-  targetY: number
+  targetY: number,
+  kind: RailwayProjectedTransition["kind"]
 ): string {
+  const controlX = x + (kind === "merge" ? 18 : -18);
   return [
-    `M ${x - 24} ${sourceY}`,
-    `C ${x - 6} ${sourceY}, ${x + 6} ${targetY}, ${x + 24} ${targetY}`,
+    `M ${x} ${sourceY}`,
+    `C ${controlX} ${sourceY}, ${controlX} ${targetY}, ${x} ${targetY}`,
   ].join(" ");
-}
-
-function transitionMarkerY(
-  transition: RailwayProjectedTransition,
-  laneY: ReadonlyMap<RailwayKingdom, number>
-): number {
-  const realAnchors = transition.anchors.filter((anchor) => anchor.stationId !== null);
-  const preferredRole = transition.kind === "split"
-    ? "source"
-    : transition.kind === "merge"
-      ? "target"
-      : null;
-  const preferredAnchors = preferredRole
-    ? realAnchors.filter((anchor) => anchor.role === preferredRole)
-    : realAnchors;
-  const anchors = preferredAnchors.length ? preferredAnchors : realAnchors;
-  const values = anchors
-    .map((anchor) => laneY.get(anchor.kingdom))
-    .filter((value): value is number => value !== undefined);
-  if (!values.length) return AXIS_HEIGHT + RAIL_OFFSET;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function transitionConnectorPairs(
   transition: RailwayProjectedTransition,
   laneY: ReadonlyMap<RailwayKingdom, number>
-): Array<{ sourceY: number; targetY: number }> {
+): Array<{
+  sourceY: number;
+  targetY: number;
+  sourceKingdom: RailwayKingdom;
+  targetKingdom: RailwayKingdom;
+}> {
   const anchors = transition.anchors
     .map((anchor) => ({ ...anchor, y: laneY.get(anchor.kingdom) }))
     .filter((anchor): anchor is typeof anchor & { y: number } => anchor.y !== undefined);
@@ -95,9 +80,16 @@ function transitionConnectorPairs(
     transition.kind === "dynastic-union"
     || transition.kind === "dynastic-separation"
   ) {
-    const values = anchors.map((anchor) => anchor.y);
-    if (values.length < 2) return [];
-    return [{ sourceY: Math.min(...values), targetY: Math.max(...values) }];
+    const sortedAnchors = [...anchors].sort((left, right) => left.y - right.y);
+    const source = sortedAnchors[0];
+    const target = sortedAnchors[sortedAnchors.length - 1];
+    if (!source || !target || source === target) return [];
+    return [{
+      sourceY: source.y,
+      targetY: target.y,
+      sourceKingdom: source.kingdom,
+      targetKingdom: target.kingdom,
+    }];
   }
 
   const sources = anchors.filter((anchor) => anchor.role === "source");
@@ -108,14 +100,24 @@ function transitionConnectorPairs(
     return sources.flatMap((source) =>
       targets
         .filter((target) => target.y !== source.y)
-        .map((target) => ({ sourceY: source.y, targetY: target.y }))
+        .map((target) => ({
+          sourceY: source.y,
+          targetY: target.y,
+          sourceKingdom: source.kingdom,
+          targetKingdom: target.kingdom,
+        }))
     );
   }
 
   return targets.flatMap((target) =>
     sources
       .filter((source) => source.y !== target.y)
-      .map((source) => ({ sourceY: source.y, targetY: target.y }))
+      .map((source) => ({
+        sourceY: source.y,
+        targetY: target.y,
+        sourceKingdom: source.kingdom,
+        targetKingdom: target.kingdom,
+      }))
   );
 }
 
@@ -300,12 +302,15 @@ export function RailwayView({
           vía documentada en los datos
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-6 border-t border-dashed border-slate-400" aria-hidden="true" />
-          hiato o anclaje incompleto
+          <span
+            className="h-2 w-6 rounded-full border border-slate-100/70 bg-slate-300"
+            aria-hidden="true"
+          />
+          vía principal de cada etapa
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rotate-45 border border-emerald-300 bg-emerald-950" aria-hidden="true" />
-          transición histórica curada
+          <span className="w-6 border-t border-dashed border-slate-400" aria-hidden="true" />
+          hiato o anclaje incompleto
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-4 border-l border-dashed border-sky-300" aria-hidden="true" />
@@ -435,6 +440,42 @@ export function RailwayView({
                 return elements;
               })}
 
+              {projection.mainlineSegments?.flatMap((segment) => {
+                const y = laneY.get(segment.kingdom);
+                if (y === undefined || segment.startYear >= segment.endYear) return [];
+                const startX = yearX(segment.startYear, projection.scale, width);
+                const endX = yearX(segment.endYear, projection.scale, width);
+                const color = trackColor(segment.kingdom);
+
+                return [
+                  <line
+                    key={`${segment.id}-halo`}
+                    x1={startX}
+                    x2={endX}
+                    y1={y}
+                    y2={y}
+                    stroke="#e2e8f0"
+                    strokeWidth="12"
+                    strokeLinecap="round"
+                    opacity="0.38"
+                  />,
+                  <line
+                    key={segment.id}
+                    x1={startX}
+                    x2={endX}
+                    y1={y}
+                    y2={y}
+                    data-railway-mainline="true"
+                    data-mainline-kingdom={segment.kingdom}
+                    data-mainline-start-year={segment.startYear}
+                    data-mainline-end-year={segment.endYear}
+                    stroke={color}
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                  />,
+                ];
+              })}
+
               {projection.personalUnions.flatMap((union) => {
                 const first = stationById.get(union.stationIds[0]);
                 const second = stationById.get(union.stationIds[1]);
@@ -478,9 +519,18 @@ export function RailwayView({
                   ) : (
                     <path
                       key={`${transition.id}-${index}`}
-                      d={transitionPath(x, pair.sourceY, pair.targetY)}
+                      d={transitionPath(x, pair.sourceY, pair.targetY, transition.kind)}
+                      data-railway-transition-connector="true"
+                      data-transition-kind={transition.kind}
+                      data-transition-year={transition.year}
+                      data-source-kingdom={pair.sourceKingdom}
+                      data-target-kingdom={pair.targetKingdom}
                       fill="none"
-                      stroke="#a7f3d0"
+                      stroke={trackColor(
+                        transition.kind === "merge"
+                          ? pair.sourceKingdom
+                          : pair.targetKingdom
+                      )}
                       strokeWidth="4"
                       strokeDasharray={transition.isAnchored ? undefined : "6 5"}
                       strokeLinecap="round"
@@ -510,56 +560,6 @@ export function RailwayView({
                     <span className="text-slate-500">{track.stationIds.length}</span>
                   </div>
                 </div>
-              );
-            })}
-
-            {visibleTransitions.map((transition) => {
-              const x = yearX(transition.year, projection.scale, width);
-              const y = transitionMarkerY(transition, laneY);
-              const sourceUrl = WESTERN_KINGDOMS_RAILWAY_SOURCES[transition.definitionId];
-              const markerClass = cn(
-                "group absolute z-30 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none",
-                "focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              );
-              const markerContent = (
-                <>
-                  <span
-                    className={cn(
-                      "h-3.5 w-3.5 rotate-45 border-2 bg-emerald-950 shadow-sm",
-                      transition.isAnchored ? "border-emerald-200" : "border-dashed border-amber-200"
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="pointer-events-none absolute bottom-[calc(100%+4px)] left-1/2 hidden w-max max-w-[18rem] -translate-x-1/2 rounded-[3px] border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[11px] text-slate-100 shadow-xl group-hover:block group-focus:block">
-                    {transition.year} · {transition.label}
-                    {sourceUrl ? " · fuente: RAH" : ""}
-                  </span>
-                </>
-              );
-
-              return sourceUrl ? (
-                <a
-                  key={transition.id}
-                  href={sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={markerClass}
-                  style={{ left: x, top: y }}
-                  aria-label={`${transition.year}: ${transition.label}. Abrir fuente de la Real Academia de la Historia`}
-                >
-                  {markerContent}
-                  <ExternalLink className="sr-only" />
-                </a>
-              ) : (
-                <span
-                  key={transition.id}
-                  tabIndex={0}
-                  className={markerClass}
-                  style={{ left: x, top: y }}
-                  aria-label={`${transition.year}: ${transition.label}`}
-                >
-                  {markerContent}
-                </span>
               );
             })}
 

@@ -28,23 +28,56 @@ function row(
 const catalog: RailwayTransitionCatalog = {
   schemaVersion: 1,
   version: "prueba",
-  transitions: [{
-    id: "division-alfonso-iii-910",
-    kind: "split",
-    year: 910,
-    from: "Asturias",
-    to: ["León", "Galicia"],
-    label: "División tras Alfonso III",
-  }],
+  transitions: [
+    {
+      id: "division-alfonso-iii-910",
+      kind: "split",
+      year: 910,
+      from: "Asturias",
+      to: ["León", "Galicia"],
+      label: "División tras Alfonso III",
+    },
+    {
+      id: "ordono-ii-leon-914",
+      kind: "merge",
+      year: 914,
+      from: ["Galicia", "León"],
+      to: "León",
+      label: "Ordoño II accede a León",
+    },
+  ],
+  mainlineSegments: [
+    {
+      id: "asturias-hasta-914",
+      kingdom: "Asturias",
+      startYear: null,
+      endYear: 914,
+    },
+    {
+      id: "leon-desde-914",
+      kingdom: "León",
+      startYear: 914,
+      endYear: null,
+    },
+  ],
 };
 
+function transitionPathCoordinates(html: string, year: number): number[] {
+  const tag = html.match(new RegExp(
+    `<path[^>]*data-transition-year="${year}"[^>]*>`
+  ))?.[0];
+  const path = tag?.match(/\sd="([^"]+)"/)?.[1];
+  return path?.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+}
+
 describe("RailwayView", () => {
-  it("representa vías, estaciones, transición curada y alternativa accesible", () => {
+  it("representa vías, estaciones y conectores sin marcadores ni enlaces externos", () => {
     const people = derivePeopleFromRows([
       row("pelayo", "pelayo", "Pelayo", "Reino de Asturias", 718, 737),
       row("alfonso", "alfonso", "Alfonso III", "Reino de Asturias", 866, 910),
       row("garcia", "garcia", "García I", "Reino de León", 910, 914),
       row("ordono", "ordono", "Ordoño II", "Reino de Galicia", 910, 914),
+      row("ordono-leon", "ordono", "Ordoño II", "Reino de León", 914, 924),
     ]).allPeople;
     const model = buildRailwayModel(people, { transitionCatalog: catalog });
     const html = renderToStaticMarkup(
@@ -56,15 +89,57 @@ describe("RailwayView", () => {
       />
     );
 
-    expect(html).toContain("Ferrocarril histórico: 4 gobiernos en 3 reinos");
+    expect(html).toContain("Ferrocarril histórico: 5 gobiernos en 3 reinos");
     expect(html).toContain("Reino de Asturias");
     expect(html).toContain("Pelayo");
     expect(html).toContain("García I");
-    expect(html).toContain("División tras Alfonso III");
-    expect(html).toContain("historia-hispanica.rah.es");
+    expect(html).not.toContain("transición histórica curada");
+    expect(html).not.toContain("División tras Alfonso III");
+    expect(html).not.toContain("Ordoño II accede a León");
+    expect(html).not.toContain("historia-hispanica.rah.es");
+    expect(html).not.toContain("target=\"_blank\"");
+    expect(html).not.toMatch(/<a\b/i);
+    expect(html).not.toContain("href=");
+    expect(html).toContain("vía principal de cada etapa");
+    expect(html).toContain('data-railway-mainline="true"');
     expect(html).toContain("mismo monarca; los reinos siguen separados");
     expect(html).toContain('data-railway-station="true"');
     expect(html).toContain("Desplazamiento horizontal del ferrocarril histórico");
+  });
+
+  it("conecta en el año exacto y hace regresar la vía gallega a León en 914", () => {
+    const people = derivePeopleFromRows([
+      row("alfonso", "alfonso", "Alfonso III", "Reino de Asturias", 866, 910),
+      row("garcia", "garcia", "García I", "Reino de León", 910, 914),
+      row("ordono", "ordono", "Ordoño II", "Reino de Galicia", 910, 914),
+      row("ordono-leon", "ordono", "Ordoño II", "Reino de León", 914, 924),
+    ]).allPeople;
+    const model = buildRailwayModel(people, { transitionCatalog: catalog });
+    const html = renderToStaticMarkup(
+      <RailwayView
+        projection={model.projection}
+        issueCount={model.issues.length}
+        selectedPeriodId={null}
+        onSelectPeriod={vi.fn()}
+      />
+    );
+
+    const splitCoordinates = transitionPathCoordinates(html, 910);
+    const mergeCoordinates = transitionPathCoordinates(html, 914);
+
+    expect(splitCoordinates).toHaveLength(8);
+    expect(splitCoordinates[0]).toBe(splitCoordinates[6]);
+    expect(splitCoordinates[2]).toBeLessThan(splitCoordinates[0]);
+    expect(mergeCoordinates).toHaveLength(8);
+    expect(mergeCoordinates[0]).toBe(mergeCoordinates[6]);
+    expect(mergeCoordinates[2]).toBeGreaterThan(mergeCoordinates[0]);
+    expect(mergeCoordinates[1]).toBe(390);
+    expect(mergeCoordinates[7]).toBe(254);
+    expect(html).toContain('data-source-kingdom="Galicia"');
+    expect(html).toContain('data-target-kingdom="León"');
+    expect(html).toContain('data-mainline-kingdom="León"');
+    expect(html).toContain('data-mainline-start-year="914"');
+    expect(html).toContain('aria-label="Ordoño II, León, 914-924"');
   });
 
   it("explica el estado vacío cuando se ocultan todos los reinos", () => {

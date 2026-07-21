@@ -48,6 +48,35 @@ function catalog(
   return { schemaVersion: 1, version, transitions };
 }
 
+function mainlineCatalog(): RailwayTransitionCatalog {
+  return {
+    schemaVersion: 1,
+    version: "troncal-de-prueba",
+    transitions: [],
+    mainlineSegments: [
+      {
+        id: "asturias-hasta-914",
+        kingdom: "Asturias",
+        startYear: null,
+        endYear: 914,
+      },
+      {
+        id: "leon-914-1066",
+        kingdom: "León",
+        startYear: 914,
+        endYear: 1066,
+        label: "León conduce el relato",
+      },
+      {
+        id: "castilla-desde-1066",
+        kingdom: "Castilla",
+        startYear: 1066,
+        endYear: null,
+      },
+    ],
+  };
+}
+
 describe("normalización de los reinos ferroviarios", () => {
   it("mantiene exactamente los cuatro reinos canónicos de la primera versión", () => {
     expect(RAILWAY_KINGDOMS).toEqual(["Asturias", "León", "Galicia", "Castilla"]);
@@ -619,6 +648,133 @@ describe("topología de los servicios", () => {
       expect.objectContaining({ kind: "merge", role: "target", year: 920 }),
     ]);
     expect(model.network.tracks).toHaveLength(3);
+  });
+});
+
+describe("vía troncal narrativa", () => {
+  it("no crea un tramo ficticio de duración cero en el año del relevo", () => {
+    const people = peopleFromRows([
+      government("leon-anterior", "garcia", "León", 910, 914),
+    ]);
+    const model = buildRailwayModel(people, {
+      transitionCatalog: mainlineCatalog(),
+    });
+
+    expect(model.network.mainlineSegments).toEqual([]);
+  });
+
+  it("recorta cada intervalo contra los servicios sin cubrir los hiatos", () => {
+    const people = peopleFromRows([
+      government("ast-1", "pelayo", "Asturias", 718, 737),
+      government("ast-2", "fruela", "Asturias", 900, 920),
+      government("leon-1", "ordono", "León", 910, 1000),
+      government("leon-2", "fernando", "León", 1005, 1070),
+      government("galicia", "garcia", "Galicia", 910, 930),
+      government("castilla", "sancho", "Castilla", 1065, 1080),
+    ]);
+
+    const model = buildRailwayModel(people, {
+      transitionCatalog: mainlineCatalog(),
+    });
+    const summary = model.network.mainlineSegments?.map((segment) => ({
+      definitionId: segment.definitionId,
+      serviceId: segment.serviceId,
+      kingdom: segment.kingdom,
+      range: [segment.startYear, segment.endYear],
+      label: segment.label,
+    }));
+
+    expect(summary).toEqual([
+      {
+        definitionId: "asturias-hasta-914",
+        serviceId: "service:asturias:ast-1--ast-1",
+        kingdom: "Asturias",
+        range: [718, 737],
+        label: "Vía troncal de Asturias",
+      },
+      {
+        definitionId: "asturias-hasta-914",
+        serviceId: "service:asturias:ast-2--ast-2",
+        kingdom: "Asturias",
+        range: [900, 914],
+        label: "Vía troncal de Asturias",
+      },
+      {
+        definitionId: "leon-914-1066",
+        serviceId: "service:leon:leon-1--leon-1",
+        kingdom: "León",
+        range: [914, 1000],
+        label: "León conduce el relato",
+      },
+      {
+        definitionId: "leon-914-1066",
+        serviceId: "service:leon:leon-2--leon-2",
+        kingdom: "León",
+        range: [1005, 1066],
+        label: "León conduce el relato",
+      },
+      {
+        definitionId: "castilla-desde-1066",
+        serviceId: "service:castilla:castilla--castilla",
+        kingdom: "Castilla",
+        range: [1066, 1080],
+        label: "Vía troncal de Castilla",
+      },
+    ]);
+    expect(model.network.services.map((service) => [
+      service.kingdom,
+      service.startYear,
+      service.endYear,
+    ])).toEqual([
+      ["Asturias", 718, 737],
+      ["Asturias", 900, 920],
+      ["León", 910, 1000],
+      ["León", 1005, 1070],
+      ["Galicia", 910, 930],
+      ["Castilla", 1065, 1080],
+    ]);
+  });
+
+  it("poda la vía troncal por selección sin promover otro reino", () => {
+    const people = peopleFromRows([
+      government("asturias", "astur", "Asturias", 900, 920),
+      government("leon", "leones", "León", 910, 1070),
+      government("galicia", "gallego", "Galicia", 910, 1070),
+      government("castilla", "castellano", "Castilla", 1065, 1080),
+    ]);
+    const model = buildRailwayModel(people, {
+      selectedKingdoms: ["León"],
+      transitionCatalog: mainlineCatalog(),
+    });
+
+    expect(model.network.mainlineSegments?.map((segment) => segment.kingdom)).toEqual([
+      "Asturias",
+      "León",
+      "Castilla",
+    ]);
+    expect(model.projection.mainlineSegments?.map((segment) => segment.kingdom)).toEqual([
+      "León",
+    ]);
+
+    const galicianProjection = projectRailwayNetwork(model.network, ["Galicia"]);
+    expect(galicianProjection.mainlineSegments).toEqual([]);
+    expect(model.network.mainlineSegments?.map((segment) => segment.kingdom)).toEqual([
+      "Asturias",
+      "León",
+      "Castilla",
+    ]);
+  });
+
+  it("mantiene opcional la vía troncal cuando el catálogo no la declara", () => {
+    const people = peopleFromRows([
+      government("leon", "leones", "León", 914, 924),
+    ]);
+    const model = buildRailwayModel(people, {
+      transitionCatalog: catalog([]),
+    });
+
+    expect(model.network.mainlineSegments).toBeUndefined();
+    expect(model.projection.mainlineSegments).toBeUndefined();
   });
 });
 
