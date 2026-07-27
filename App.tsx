@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import {
   Upload,
   Plus,
@@ -31,6 +30,7 @@ import {
   hasBlockingModal,
   isOpenPersonEditorShortcut,
 } from "./lib/person-editor-keyboard-shortcut";
+import { useHashLocation } from "./lib/hash-router";
 
 // Componentes
 import { Notification } from "./components/ui/notification";
@@ -129,14 +129,13 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const [showNoticeCenter, setShowNoticeCenter] = useState(false);
 
   // --- Rutas y sincronización ---
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { pathname, navigate } = useHashLocation();
 
   let activeTab = "fichas";
-  if (location.pathname.startsWith("/estadistica")) activeTab = "estadistica";
-  else if (location.pathname.startsWith("/datos")) activeTab = "datos";
-  else if (location.pathname.startsWith("/timeline")) activeTab = "timeline";
-  else if (location.pathname.startsWith("/comparativa")) activeTab = "comparativa";
+  if (pathname.startsWith("/estadistica")) activeTab = "estadistica";
+  else if (pathname.startsWith("/datos")) activeTab = "datos";
+  else if (pathname.startsWith("/timeline")) activeTab = "timeline";
+  else if (pathname.startsWith("/comparativa")) activeTab = "comparativa";
 
   const handleTabChange = (v: string) => {
     switch (v) {
@@ -148,7 +147,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     }
   };
 
-  const matchFicha = location.pathname.match(/^\/fichas\/(.+)/);
+  const matchFicha = pathname.match(/^\/fichas\/(.+)/);
   const urlPersonId = decodeRouteParam(matchFicha ? matchFicha[1] : null);
   const allPersonIds = useMemo(() => allPeople.map((person) => person.personId), [allPeople]);
   const startupPersonId = useMemo(() => getPreferredStartupPersonId(allPeople), [allPeople]);
@@ -578,9 +577,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
           </TabsList>
 
           <div className="mt-3 min-w-0">
-            <Routes>
-              <Route path="/" element={<Navigate to="/fichas" replace />} />
-              <Route path="/fichas/*" element={
+            {activeTab === "fichas" && (
                 <FichasTab
                   people={people}
                   chronologicalPeople={allPeople}
@@ -621,18 +618,18 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   removeMediaAsset={removeMediaAsset}
                   setPrimaryMediaAsset={setPrimaryMediaAsset}
                 />
-              } />
+            )}
               
-              <Route path="/estadistica" element={
+            {activeTab === "estadistica" && (
                 <StatsTab
                   globalStats={globalStats}
                   filteredStats={filteredStats}
                   hasFilters={hasFilters}
                   onPersonClick={navigateToPerson}
                 />
-              } />
+            )}
 
-              <Route path="/datos" element={
+            {activeTab === "datos" && (
                 <DataTab
                   rows={rows}
                   datasetName={datasetName}
@@ -642,14 +639,13 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   setImagePrintProfile={setImagePrintProfile}
                   exportDatasetPackage={exportDatasetPackage}
                 />
-              } />
+            )}
 
-              <Route path="/timeline" element={<TimelineTab />} />
+            {activeTab === "timeline" && <TimelineTab />}
 
-              <Route path="/comparativa" element={<ComparativaTab mediaAssets={mediaAssets} mediaPreviewUrls={mediaPreviewUrls} />} />
-              
-              <Route path="*" element={<Navigate to="/fichas" replace />} />
-            </Routes>
+            {activeTab === "comparativa" && (
+              <ComparativaTab mediaAssets={mediaAssets} mediaPreviewUrls={mediaPreviewUrls} />
+            )}
           </div>
         </Tabs>
       </div>
