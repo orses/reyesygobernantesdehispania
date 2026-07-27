@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowRight, ExternalLink, ShieldCheck, ShieldQuestion } from "lucide-react";
-import { Link } from "react-router-dom";
 import { formatCenturyLabel, formatNumber } from "../../../lib/data";
+import { HashLink } from "../../../lib/hash-router";
 import type { TimelineIssue, TimelinePeriod } from "../../../lib/timeline";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -71,13 +71,13 @@ function SuccessionLink({
     <div className="min-w-0">
       <div className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</div>
       {person ? (
-        <Link
+        <HashLink
           to={`/fichas/${person.personId}`}
           className="mt-1 flex min-w-0 items-center gap-1 text-sm font-medium text-sky-200 hover:text-sky-100"
         >
           <span className="truncate">{person.nombrePrincipal}</span>
           <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-        </Link>
+        </HashLink>
       ) : (
         <div className="mt-1 text-sm text-slate-500">—</div>
       )}
@@ -123,10 +123,10 @@ export function TimelineDetailPanel({ period, issues }: TimelineDetailPanelProps
         </div>
 
         <Button asChild variant="outline" size="sm" className="h-9 shrink-0 rounded-[3px]">
-          <Link to={`/fichas/${period.personId}`}>
+          <HashLink to={`/fichas/${period.personId}`}>
             <ExternalLink className="mr-2 h-4 w-4" />
             ficha
-          </Link>
+          </HashLink>
         </Button>
       </div>
 
