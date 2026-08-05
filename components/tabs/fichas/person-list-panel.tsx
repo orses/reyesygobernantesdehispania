@@ -1,4 +1,5 @@
-import { PanelLeftClose, RotateCcw, Search, X } from "lucide-react";
+import { useState } from "react";
+import { PanelLeftClose, PanelTopClose, PanelTopOpen, RotateCcw, Search, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -223,6 +224,7 @@ export function PersonListPanel({
   mediaPreviewUrls,
   onCollapse,
 }: PersonListPanelProps) {
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const hasQuery = query.trim().length > 0;
   const hasReinoFilter = filterReino !== "__all__";
   const hasDinastiaFilter = filterDinastia !== "__all__";
@@ -262,7 +264,11 @@ export function PersonListPanel({
 
   return (
     <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
-      <CardHeader className="relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 pb-3">
+      <CardHeader
+        className={`relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 ${
+          filtersCollapsed ? "" : "pb-3"
+        }`}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <CardTitle className="text-lg font-medium tracking-tight text-slate-50">Gobiernos</CardTitle>
@@ -270,20 +276,45 @@ export function PersonListPanel({
               {governmentCountLabel}
             </CardDescription>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 shrink-0 rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-100 hover:bg-slate-900/70 hover:text-slate-50"
-            title="Ocultar filtros y miniaturas"
-            aria-label="Ocultar filtros y miniaturas"
-            onClick={onCollapse}
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className={`h-9 w-9 rounded-[3px] border-slate-700/70 text-slate-100 hover:bg-slate-900/70 hover:text-slate-50 ${
+                filtersCollapsed ? "bg-slate-800/80" : "bg-slate-950/30"
+              }`}
+              title={filtersCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
+              aria-label={filtersCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
+              aria-controls="person-list-filters"
+              aria-expanded={!filtersCollapsed}
+              onClick={() => setFiltersCollapsed((current) => !current)}
+            >
+              {filtersCollapsed ? (
+                <PanelTopOpen className="h-4 w-4" />
+              ) : (
+                <PanelTopClose className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-100 hover:bg-slate-900/70 hover:text-slate-50"
+              title="Ocultar filtros y miniaturas"
+              aria-label="Ocultar filtros y miniaturas"
+              onClick={onCollapse}
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
-        <div className="mt-3 space-y-2">
+        <div
+          id="person-list-filters"
+          className="mt-3 space-y-2"
+          hidden={filtersCollapsed}
+        >
           <div className="relative">
             <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${hasQuery ? "text-amber-200" : "text-slate-300"}`} />
             <Input
@@ -321,30 +352,6 @@ export function PersonListPanel({
                 <X className="h-4 w-4" />
               </button>
             ) : null}
-          </div>
-
-          <div
-            className={`flex items-center gap-2 rounded-[3px] border px-3 py-2 ${
-              literalSearch
-                ? "border-amber-400/70 bg-amber-950/25"
-                : "border-slate-700/60 bg-slate-950/20"
-            }`}
-          >
-            <Checkbox
-              id="literal-search"
-              checked={literalSearch}
-              onCheckedChange={setLiteralSearch}
-              aria-describedby="literal-search-description"
-            />
-            <label
-              htmlFor="literal-search"
-              className="cursor-pointer select-none text-sm font-medium text-slate-100"
-            >
-              Búsqueda literal
-            </label>
-            <span id="literal-search-description" className="text-xs text-slate-400">
-              coincidencia exacta
-            </span>
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -430,12 +437,28 @@ export function PersonListPanel({
             </Select>
           </div>
 
-          <div className="flex items-center justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Checkbox
+                id="literal-search"
+                checked={literalSearch}
+                onCheckedChange={setLiteralSearch}
+              />
+              <label
+                htmlFor="literal-search"
+                className={`cursor-pointer select-none text-sm font-medium ${
+                  literalSearch ? "text-amber-200" : "text-slate-200"
+                }`}
+              >
+                Búsqueda literal
+              </label>
+            </div>
             <Button
               type="button"
               variant="outline"
+              size="sm"
               disabled={!hasAnyFilter}
-              className={`rounded-[3px] border transition-colors ${
+              className={`h-9 rounded-[3px] border px-2 transition-colors ${
                 hasAnyFilter
                   ? "cursor-pointer border-amber-400/70 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.18)]"
                   : "border-slate-800 bg-slate-950/20 text-slate-500"
@@ -452,20 +475,19 @@ export function PersonListPanel({
                 setSortDir("asc");
               }}
             >
-              <RotateCcw className="mr-2 h-4 w-4" />
+              <RotateCcw className="mr-1.5 h-4 w-4" />
               restablecer filtros
-              {hasAnyFilter ? (
-                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-xs font-semibold text-slate-950">
-                  {activeFilterCount}
-                </span>
-              ) : null}
             </Button>
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="relative z-10 min-h-0 flex-1 overflow-hidden pt-3">
-        <ScrollArea className="h-[62vh] max-h-[520px] pr-2 xl:h-full xl:max-h-none xl:min-h-0 xl:pr-3">
+        <ScrollArea
+          className={`pr-2 xl:h-full xl:max-h-none xl:min-h-0 xl:pr-3 ${
+            filtersCollapsed ? "h-[75vh] max-h-[720px]" : "h-[62vh] max-h-[520px]"
+          }`}
+        >
           <div className="space-y-2">
             {governmentCards.map((item) => {
               const active =
