@@ -55,6 +55,11 @@ describe("búsqueda de tarjetas de gobierno", () => {
     expect(personGovernmentMatchesSimpleSearch(person, person.reinados[0], "925")).toBe(false);
   });
 
+  it("exige un valor completo cuando la búsqueda es literal", () => {
+    expect(personGovernmentMatchesSimpleSearch(person, person.reinados[0], "ordoño ii", true)).toBe(true);
+    expect(personGovernmentMatchesSimpleSearch(person, person.reinados[0], "ordoño i", true)).toBe(false);
+  });
+
   it("mantiene las expresiones avanzadas a cargo del filtro general", () => {
     expect(simpleGovernmentSearchTerms("descripcion!=Muez")).toBeNull();
     expect(simpleGovernmentSearchTerms("Muez OR Córdoba")).toBeNull();

@@ -6,7 +6,11 @@ import {
     getPersonId,
     personPrincipalName,
 } from "./data";
-import { normalizeSearchText, personMatchesAdvancedSearch } from "./person-search";
+import {
+    normalizeSearchText,
+    personMatchesAdvancedSearch,
+    personMatchesLiteralSearch,
+} from "./person-search";
 import { compareChronologicalPersonCandidates } from "./selection";
 
 export type PersonDinastiaSummaryKind = "empty" | "single" | "conflict";
@@ -159,8 +163,10 @@ export function normalizePersonSearchText(value: unknown): string {
     return normalizeSearchText(value);
 }
 
-export function personMatchesSearch(person: Person, searchText: string): boolean {
-    return personMatchesAdvancedSearch(person, searchText);
+export function personMatchesSearch(person: Person, searchText: string, literalSearch = false): boolean {
+    return literalSearch
+        ? personMatchesLiteralSearch(person, searchText)
+        : personMatchesAdvancedSearch(person, searchText);
 }
 
 export function getFirstMatchingPersonId(people: Person[], searchText: string): string | null {
@@ -175,7 +181,9 @@ export function filterAndSortPeople(allPeople: Person[], filters: FilterState): 
     let output = [...allPeople];
 
     if (filters.query) {
-        output = output.filter((person) => personMatchesSearch(person, filters.query));
+        output = output.filter((person) =>
+            personMatchesSearch(person, filters.query, filters.literalSearch)
+        );
     }
 
     if (filters.filterReino !== "__all__") {
