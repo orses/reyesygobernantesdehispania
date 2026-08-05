@@ -67,6 +67,7 @@ interface AppProviderProps {
 
 const DEFAULT_FILTERS: FilterState = {
     query: "",
+    literalSearch: false,
     filterReino: "__all__",
     filterDinastia: "__all__",
     filterSiglo: "__all__",
@@ -79,7 +80,12 @@ export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppP
     const [filters, setFilters] = useState<FilterState>(() => {
         try {
             const stored = localStorage.getItem("reyes_filters");
-            if (stored) return JSON.parse(stored);
+            if (stored) {
+                const parsed: unknown = JSON.parse(stored);
+                if (parsed && typeof parsed === "object") {
+                    return { ...DEFAULT_FILTERS, ...parsed };
+                }
+            }
         } catch (e) {
             console.error("Error reading filters from localStorage:", e);
         }

@@ -14,6 +14,7 @@ vi.mock("../../context/AppContext", () => ({
 
 const filters: FilterState = {
   query: "",
+  literalSearch: false,
   filterReino: "__all__",
   filterDinastia: "__all__",
   filterSiglo: "__all__",

@@ -18,6 +18,7 @@ import type { FilterState, RawRow } from "./types";
 
 const DEFAULT_FILTERS: FilterState = {
     query: "",
+    literalSearch: false,
     filterReino: "__all__",
     filterDinastia: "__all__",
     filterSiglo: "__all__",
@@ -293,6 +294,46 @@ describe("filterAndSortPeople", () => {
         });
 
         expect(people.map((person) => person.personId)).toContain("alfonso");
+    });
+
+    it("limita la búsqueda literal al valor textual completo", () => {
+        const { allPeople } = derivePeopleFromRows([
+            {
+                PersonID: "fernando-i",
+                Nombre: "Fernando I",
+                Reino: "Reino de León",
+                "Inicio del reinado (año)": 1037,
+            },
+            {
+                PersonID: "fernando-ii",
+                Nombre: "Fernando II",
+                Reino: "Reino de León",
+                "Inicio del reinado (año)": 1157,
+            },
+            {
+                PersonID: "fernando-iii",
+                Nombre: "Fernando III",
+                Reino: "Reino de Castilla",
+                "Inicio del reinado (año)": 1217,
+            },
+        ]);
+
+        const partialMatches = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            query: "fernando i",
+        });
+        const literalMatches = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            query: "fernando i",
+            literalSearch: true,
+        });
+
+        expect(partialMatches.map((person) => person.personId)).toEqual([
+            "fernando-i",
+            "fernando-ii",
+            "fernando-iii",
+        ]);
+        expect(literalMatches.map((person) => person.personId)).toEqual(["fernando-i"]);
     });
 
     it("localiza el primer personaje visible que coincide con la búsqueda", () => {

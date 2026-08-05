@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "../../ui/card";
 import { Button } from "../../ui/button";
+import { Checkbox } from "../../ui/checkbox";
 import { Input } from "../../ui/input";
 import { ScrollArea } from "../../ui/scroll-area";
 import {
@@ -63,7 +64,8 @@ function rowMatchesFilters(
   query: string,
   filterReino: string,
   filterDinastia: string,
-  filterSiglo: string
+  filterSiglo: string,
+  literalSearch: boolean
 ): boolean {
   if (filterReino !== "__all__" && rowKingdom(row) !== filterReino) return false;
   if (
@@ -77,7 +79,7 @@ function rowMatchesFilters(
     if (Number.isFinite(century) && !rowSpansCentury(row, century)) return false;
   }
 
-  return personGovernmentMatchesSimpleSearch(person, row, query);
+  return personGovernmentMatchesSimpleSearch(person, row, query, literalSearch);
 }
 
 function governmentCardItems(
@@ -85,7 +87,8 @@ function governmentCardItems(
   query: string,
   filterReino: string,
   filterDinastia: string,
-  filterSiglo: string
+  filterSiglo: string,
+  literalSearch: boolean
 ): GovernmentCardItem[] {
   let order = 0;
   const items: GovernmentCardItem[] = [];
@@ -97,7 +100,7 @@ function governmentCardItems(
       const rowId = String(row?._rowId ?? row?.ID ?? `period-${rowIndex + 1}`);
       const currentOrder = order;
       order += 1;
-      if (!rowMatchesFilters(person, row, query, filterReino, filterDinastia, filterSiglo)) continue;
+      if (!rowMatchesFilters(person, row, query, filterReino, filterDinastia, filterSiglo, literalSearch)) continue;
 
       items.push({
         person,
@@ -163,6 +166,8 @@ interface PersonListPanelProps {
   rowsCount: number;
   query: string;
   setQuery: StateSetter<string>;
+  literalSearch: boolean;
+  setLiteralSearch: StateSetter<boolean>;
   filterReino: string;
   setFilterReino: StateSetter<string>;
   filterDinastia: string;
@@ -193,6 +198,8 @@ export function PersonListPanel({
   rowsCount,
   query,
   setQuery,
+  literalSearch,
+  setLiteralSearch,
   filterReino,
   setFilterReino,
   filterDinastia,
@@ -221,10 +228,11 @@ export function PersonListPanel({
   const hasDinastiaFilter = filterDinastia !== "__all__";
   const hasSigloFilter = filterSiglo !== "__all__";
   const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
-  const governmentCards = governmentCardItems(people, query, filterReino, filterDinastia, filterSiglo)
+  const governmentCards = governmentCardItems(people, query, filterReino, filterDinastia, filterSiglo, literalSearch)
     .sort((a, b) => compareGovernmentCards(a, b, sortKey, sortDir));
   const activeFilterCount =
     (hasQuery ? 1 : 0) +
+    (literalSearch ? 1 : 0) +
     (hasReinoFilter ? 1 : 0) +
     (hasDinastiaFilter ? 1 : 0) +
     (hasSigloFilter ? 1 : 0) +
@@ -313,6 +321,30 @@ export function PersonListPanel({
                 <X className="h-4 w-4" />
               </button>
             ) : null}
+          </div>
+
+          <div
+            className={`flex items-center gap-2 rounded-[3px] border px-3 py-2 ${
+              literalSearch
+                ? "border-amber-400/70 bg-amber-950/25"
+                : "border-slate-700/60 bg-slate-950/20"
+            }`}
+          >
+            <Checkbox
+              id="literal-search"
+              checked={literalSearch}
+              onCheckedChange={setLiteralSearch}
+              aria-describedby="literal-search-description"
+            />
+            <label
+              htmlFor="literal-search"
+              className="cursor-pointer select-none text-sm font-medium text-slate-100"
+            >
+              Búsqueda literal
+            </label>
+            <span id="literal-search-description" className="text-xs text-slate-400">
+              coincidencia exacta
+            </span>
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -411,6 +443,7 @@ export function PersonListPanel({
               title={hasAnyFilter ? `Restablecer ${activeFilterCount} filtro(s) activo(s)` : "No hay filtros que restablecer"}
               onClick={() => {
                 setQuery("");
+                setLiteralSearch(false);
                 setFilterReino("__all__");
                 setFilterDinastia("__all__");
                 setFilterSiglo("__all__");

@@ -246,6 +246,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const hasFilters = useMemo(
     () =>
       filters.query !== "" ||
+      filters.literalSearch ||
       filters.filterReino !== "__all__" ||
       filters.filterDinastia !== "__all__" ||
       filters.filterSiglo !== "__all__",
@@ -400,6 +401,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   // Helpers de filtros para FichasTab
   const setQuery = (v: string | ((prev: string) => string)) =>
     setFilters((f) => ({ ...f, query: typeof v === 'function' ? v(f.query) : v }));
+  const setLiteralSearch = (v: boolean | ((prev: boolean) => boolean)) =>
+    setFilters((f) => ({ ...f, literalSearch: typeof v === 'function' ? v(f.literalSearch) : v }));
   const setFilterReino = (v: string | ((prev: string) => string)) =>
     setFilters((f) => ({ ...f, filterReino: typeof v === 'function' ? v(f.filterReino) : v }));
   const setFilterDinastia = (v: string | ((prev: string) => string)) =>
@@ -584,6 +587,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   rows={rows}
                   query={filters.query}
                   setQuery={setQuery}
+                  literalSearch={filters.literalSearch}
+                  setLiteralSearch={setLiteralSearch}
                   filterReino={filters.filterReino}
                   setFilterReino={setFilterReino}
                   filterDinastia={filters.filterDinastia}
