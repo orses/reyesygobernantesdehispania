@@ -24,7 +24,7 @@ export function simpleGovernmentSearchTerms(query: string): string[] | null {
     .filter(Boolean);
 }
 
-function governmentSearchText(person: Person, row: RawRow): string {
+function governmentSearchValues(person: Person, row: RawRow): string[] {
   return [
     person.nombrePrincipal,
     ...person.apelativos,
@@ -39,9 +39,11 @@ function governmentSearchText(person: Person, row: RawRow): string {
     row?.["Inicio del reinado (año)"],
     row?.["Final del reinado (año)"],
     ...person.reinados.map(rowDescriptionSearchText),
-  ]
-    .map((value) => String(value ?? ""))
-    .join(" ");
+  ].map((value) => String(value ?? ""));
+}
+
+function governmentSearchText(person: Person, row: RawRow): string {
+  return governmentSearchValues(person, row).join(" ");
 }
 
 /**
@@ -50,8 +52,17 @@ function governmentSearchText(person: Person, row: RawRow): string {
 export function personGovernmentMatchesSimpleSearch(
   person: Person,
   row: RawRow,
-  query: string
+  query: string,
+  literalSearch = false
 ): boolean {
+  if (literalSearch) {
+    const normalizedQuery = normalizeSearchText(query);
+    if (!normalizedQuery) return true;
+    return governmentSearchValues(person, row).some(
+      (value) => normalizeSearchText(value) === normalizedQuery
+    );
+  }
+
   const terms = simpleGovernmentSearchTerms(query);
   if (terms === null || terms.length === 0) return true;
 

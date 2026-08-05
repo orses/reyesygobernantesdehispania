@@ -19,6 +19,8 @@ interface FichasTabProps {
   rows: RawRow[];
   query: string;
   setQuery: StateSetter<string>;
+  literalSearch: boolean;
+  setLiteralSearch: StateSetter<boolean>;
   filterReino: string;
   setFilterReino: StateSetter<string>;
   filterDinastia: string;
@@ -79,6 +81,8 @@ export function FichasTab({
   rows,
   query,
   setQuery,
+  literalSearch,
+  setLiteralSearch,
   filterReino,
   setFilterReino,
   filterDinastia,
@@ -124,6 +128,7 @@ export function FichasTab({
   const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
   const activeFilterCount =
     (hasQuery ? 1 : 0) +
+    (literalSearch ? 1 : 0) +
     (hasReinoFilter ? 1 : 0) +
     (hasDinastiaFilter ? 1 : 0) +
     (hasSigloFilter ? 1 : 0) +
@@ -193,6 +198,8 @@ export function FichasTab({
           rowsCount={rows.length}
           query={query}
           setQuery={setQuery}
+          literalSearch={literalSearch}
+          setLiteralSearch={setLiteralSearch}
           filterReino={filterReino}
           setFilterReino={setFilterReino}
           filterDinastia={filterDinastia}

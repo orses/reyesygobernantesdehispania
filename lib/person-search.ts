@@ -422,6 +422,15 @@ function personContainsText(person: Person, query: string, exact: boolean): bool
   return textValuesForPerson(person).some((value) => containsNormalizedText(value, query, exact));
 }
 
+/**
+ * Comprueba si la consulta coincide con un valor textual completo del personaje.
+ */
+export function personMatchesLiteralSearch(person: Person, query: string): boolean {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+  return personContainsText(person, normalizedQuery, true);
+}
+
 function termAsYear(value: string): number | null {
   const trimmed = normalizeSearchText(value);
   if (!/^\d{1,4}$/.test(trimmed)) return null;

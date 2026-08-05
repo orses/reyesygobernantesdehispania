@@ -230,6 +230,7 @@ export interface Stats {
 /** Estado de filtros. */
 export interface FilterState {
     query: string;
+    literalSearch: boolean;
     filterReino: string;
     filterDinastia: string;
     filterSiglo: string;
