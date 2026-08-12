@@ -7,7 +7,9 @@ const stationCounts: Record<RailwayKingdom, number> = {
   Asturias: 3,
   León: 2,
   Galicia: 1,
-  Castilla: 0,
+  Castilla: 9,
+  "Corona de Castilla": 13,
+  "Monarquía Hispánica / España": 31,
 };
 
 describe("RailwayControls", () => {
@@ -21,12 +23,21 @@ describe("RailwayControls", () => {
       />
     );
 
-    const positions = RAILWAY_KINGDOMS.map((kingdom) => html.indexOf(`>${kingdom}</span>`));
+    const expectedLabels = [
+      "Reino de Asturias",
+      "Reino de León",
+      "Reino de Galicia",
+      "Reino de Castilla",
+      "Corona de Castilla",
+      "Monarquía Hispánica / España",
+    ];
+    const positions = expectedLabels.map((label) => html.indexOf(`>${label}</span>`));
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((left, right) => left - right));
     expect(html).toContain("3 marcadores");
     expect(html).toContain("1 marcador");
+    expect(html).toContain("31 marcadores");
     expect(html).toContain("#00468C");
     expect(html).toContain("#702963");
     expect(html).toContain("#0079AF");

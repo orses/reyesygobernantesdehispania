@@ -9,7 +9,7 @@ import type { RailwayTransitionCatalog } from "./railway";
  */
 export const WESTERN_KINGDOMS_RAILWAY_TOPOLOGY: RailwayTransitionCatalog = {
   schemaVersion: 1,
-  version: "reinos-occidentales-1.2.0",
+  version: "reinos-occidentales-1.4.0",
   transitions: [
     {
       id: "division-alfonso-iii-910",
@@ -71,6 +71,24 @@ export const WESTERN_KINGDOMS_RAILWAY_TOPOLOGY: RailwayTransitionCatalog = {
       kingdoms: ["León", "Castilla"],
       label: "Unión dinástica definitiva",
     },
+    // El hito de 1252 refleja la periodización de las filas cargadas; no
+    // desplaza a ese año la unión política de Castilla y León declarada en 1230.
+    {
+      id: "relevo-periodizacion-castellana-1252",
+      kind: "transformation",
+      year: 1252,
+      from: "Castilla",
+      to: "Corona de Castilla",
+      label: "Relevo de periodización tras Fernando III",
+    },
+    {
+      id: "integracion-corona-castilla-monarquia-hispanica-1516",
+      kind: "integration",
+      year: 1516,
+      from: "Corona de Castilla",
+      to: "Monarquía Hispánica / España",
+      label: "Integración de la Corona de Castilla en la Monarquía Hispánica",
+    },
   ],
   mainlineSegments: [
     {
@@ -88,11 +106,27 @@ export const WESTERN_KINGDOMS_RAILWAY_TOPOLOGY: RailwayTransitionCatalog = {
       label: "León, vía troncal entre 914 y 1066",
     },
     {
-      id: "troncal-castilla-desde-1066",
+      id: "troncal-castilla-1066-1252",
       kingdom: "Castilla",
       startYear: 1066,
+      endYear: 1252,
+      label: "Reino de Castilla, vía troncal entre 1066 y 1252",
+    },
+    {
+      id: "troncal-corona-castilla-1252-1516",
+      kingdom: "Corona de Castilla",
+      startYear: 1252,
+      endYear: 1516,
+      label: "Corona de Castilla, vía troncal entre 1252 y 1516",
+    },
+    // El relevo troncal de 1516 no es una fusión: la vía documentada de la
+    // Corona de Castilla continúa hasta 1555 y se solapa con esta nueva etapa.
+    {
+      id: "troncal-monarquia-hispanica-desde-1516",
+      kingdom: "Monarquía Hispánica / España",
+      startYear: 1516,
       endYear: null,
-      label: "Castilla, vía troncal desde 1066",
+      label: "Monarquía Hispánica / España, vía troncal desde 1516",
     },
   ],
 };

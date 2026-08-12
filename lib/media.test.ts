@@ -1,10 +1,11 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios: lib/media.ts
+// Pruebas unitarias: lib/media.ts
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from "vitest";
 import {
     applyMediaAssetsToRows,
+    createPrimaryMediaAssetIndex,
     createExternalMediaAsset,
     deriveMediaAssetsFromRows,
     ensurePrimaryMediaAssets,
@@ -12,6 +13,7 @@ import {
     getPersonMediaAssets,
     getMediaAssetRouteLabel,
     getPrimaryMediaAsset,
+    getPrimaryMediaAssetFromIndex,
     movePersonMediaAsset,
     splitGalleryUrls,
     UPLOADED_MEDIA_CSV_COLUMN,
@@ -128,7 +130,7 @@ describe("applyMediaAssetsToRows", () => {
 
         expect(row["Imagen URL"]).toBe("https://img.test/b.jpg");
         expect(row.Galería).toBe("https://img.test/a.jpg");
-        // round-trip: derivar de nuevo recupera las dos URLs
+        // Ida y vuelta: derivar de nuevo recupera las dos URL.
         expect(deriveMediaAssetsFromRows([row]).map((a) => a.src)).toEqual([
             "https://img.test/b.jpg",
             "https://img.test/a.jpg",
@@ -192,6 +194,77 @@ describe("ensurePrimaryMediaAssets", () => {
 
         expect(normalized.filter((asset) => asset.isPrimary)).toHaveLength(1);
         expect(getPrimaryMediaAsset(normalized, "1")?.id).toBe("b");
+    });
+});
+
+describe("índice de medios principales", () => {
+    const asset = (
+        id: string,
+        personId: string,
+        isPrimary = false
+    ): MediaAsset => ({
+        id,
+        personId,
+        kind: "external-url",
+        src: `https://img.test/${id}.jpg`,
+        rightsStatus: "unknown",
+        isPrimary,
+        createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    it("devuelve null cuando la persona no tiene medios o el identificador está vacío", () => {
+        const index = createPrimaryMediaAssetIndex([asset("a", "1")]);
+
+        expect(getPrimaryMediaAssetFromIndex(index, "2")).toBeNull();
+        expect(getPrimaryMediaAssetFromIndex(index, null)).toBeNull();
+        expect(getPrimaryMediaAssetFromIndex(index, "   ")).toBeNull();
+    });
+
+    it("usa el primer medio como alternativa cuando no existe uno principal", () => {
+        const assets = [asset("primero", "1"), asset("segundo", "1")];
+        const index = createPrimaryMediaAssetIndex(assets);
+
+        expect(getPrimaryMediaAssetFromIndex(index, "1")).toBe(assets[0]);
+    });
+
+    it("elige la primera imagen principal aunque aparezca después de medios secundarios", () => {
+        const assets = [
+            asset("alternativa", "1"),
+            asset("principal", "1", true),
+            asset("posterior", "1"),
+        ];
+        const index = createPrimaryMediaAssetIndex(assets);
+
+        expect(getPrimaryMediaAssetFromIndex(index, 1)).toBe(assets[1]);
+    });
+
+    it("conserva la primera principal ante duplicados incoherentes", () => {
+        const assets = [
+            asset("alternativa", "1"),
+            asset("principal-primera", "1", true),
+            asset("principal-duplicada", "1", true),
+        ];
+        const index = createPrimaryMediaAssetIndex(assets);
+
+        expect(getPrimaryMediaAssetFromIndex(index, "1")).toBe(assets[1]);
+    });
+
+    it("indexa varios personajes en una pasada y equivale a la búsqueda individual", () => {
+        const assets = [
+            asset("uno-alternativa", "1"),
+            asset("dos-principal", "2", true),
+            asset("uno-principal", "1", true),
+            asset("dos-secundaria", "2"),
+            asset("tres-alternativa", "3"),
+        ];
+        const index = createPrimaryMediaAssetIndex(assets);
+
+        expect(index.size).toBe(3);
+        for (const personId of ["1", 2, "3", "ausente", null] as const) {
+            expect(getPrimaryMediaAssetFromIndex(index, personId)).toBe(
+                getPrimaryMediaAsset(assets, personId)
+            );
+        }
     });
 });
 

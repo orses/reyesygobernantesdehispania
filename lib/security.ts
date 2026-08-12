@@ -5,7 +5,7 @@ export const securityHeaders: Readonly<Record<string, string>> = {
   "X-Frame-Options": "DENY",
   // Impide que el navegador deduzca tipos MIME distintos a los declarados.
   "X-Content-Type-Options": "nosniff",
-  // No envía la URL de referencia fuera de la propia navegación.
+  // No envía información de referencia en solicitudes ni navegaciones.
   "Referrer-Policy": "no-referrer",
   // Deshabilita API del navegador que la aplicación no necesita.
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",

@@ -20,6 +20,7 @@ const DEFAULT_FILTERS: FilterState = {
     query: "",
     literalSearch: false,
     filterReino: "__all__",
+    filterTipo: "__all__",
     filterDinastia: "__all__",
     filterSiglo: "__all__",
     filterDinastiaLocked: false,
@@ -243,6 +244,86 @@ describe("filterAndSortPeople", () => {
         expect(borgonas.map((person) => person.personId)).toEqual(["alfonso", "sancho"]);
     });
 
+    it("filtra por tipo de gobierno sin crear una propiedad inerte", () => {
+        const { allPeople } = derivePeopleFromRows([
+            {
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                "Tipo de gobierno": "Monarquía",
+                "Inicio del reinado (año)": 1126,
+            },
+            {
+                PersonID: "mariana",
+                Nombre: "Mariana",
+                "Tipo de gobierno": "Regencia",
+                "Inicio del reinado (año)": 1127,
+            },
+        ]);
+
+        const people = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            filterTipo: "Regencia",
+        });
+
+        expect(people.map((person) => person.personId)).toEqual(["mariana"]);
+    });
+
+    it("exige que una misma fila cumpla todos los filtros estructurados", () => {
+        const { allPeople } = derivePeopleFromRows([
+            {
+                PersonID: "mezclado",
+                Nombre: "Mezclado",
+                Reino: "Reino A",
+                "Tipo de gobierno": "Monarquía",
+            },
+            {
+                PersonID: "mezclado",
+                Nombre: "Mezclado",
+                Reino: "Reino B",
+                "Tipo de gobierno": "Regencia",
+            },
+            {
+                PersonID: "coherente",
+                Nombre: "Coherente",
+                Reino: "Reino A",
+                "Tipo de gobierno": "Regencia",
+            },
+        ]);
+
+        const people = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            filterReino: "Reino A",
+            filterTipo: "Regencia",
+        });
+
+        expect(people.map((person) => person.personId)).toEqual(["coherente"]);
+    });
+
+    it("hace filtrables las categorías estadísticas sin valor", () => {
+        const rows: RawRow[] = [
+            { PersonID: "sin-datos", Nombre: "Sin datos", Reino: "", "Tipo de gobierno": "" },
+            {
+                PersonID: "con-datos",
+                Nombre: "Con datos",
+                Reino: "Reino A",
+                "Tipo de gobierno": "Monarquía",
+            },
+        ];
+        const { allPeople } = derivePeopleFromRows(rows);
+        const people = filterAndSortPeople(allPeople, {
+            ...DEFAULT_FILTERS,
+            filterReino: "sin reino",
+            filterTipo: "sin tipo",
+        });
+
+        expect(people.map((person) => person.personId)).toEqual(["sin-datos"]);
+        expect(getPersonFilterOptions(allPeople, rows)).toMatchObject({
+            reinos: expect.arrayContaining(["sin reino"]),
+            tipos: expect.arrayContaining(["sin tipo"]),
+            dinastias: expect.arrayContaining(["sin dinastía"]),
+        });
+    });
+
     it("filtra por siglo usando años inferidos", () => {
         const { allPeople } = derivePeopleFromRows(rowsFixture());
         const people = filterAndSortPeople(allPeople, {
@@ -386,6 +467,20 @@ describe("opciones y filas derivadas", () => {
         });
     });
 
+    it("calcula tipos de gobierno únicos y ordenados", () => {
+        const rows: RawRow[] = [
+            { PersonID: "uno", "Tipo de gobierno": "Regencia" },
+            { PersonID: "dos", "Tipo de gobierno": "Monarquía" },
+            { PersonID: "tres", "Tipo de gobierno": "Regencia" },
+        ];
+        const { allPeople } = derivePeopleFromRows(rows);
+
+        expect(getPersonFilterOptions(allPeople, rows).tipos).toEqual([
+            "Monarquía",
+            "Regencia",
+        ]);
+    });
+
     it("calcula siglos seleccionados de todos los reinados de una persona", () => {
         const { allPeople } = derivePeopleFromRows(rowsFixture());
         const alfonso = allPeople.find((person) => person.personId === "alfonso") ?? null;
@@ -403,6 +498,54 @@ describe("opciones y filas derivadas", () => {
         });
 
         expect(filterRowsForPeople(rows, people).map((row) => row.ID)).toEqual(["pelayo"]);
+    });
+
+    it("limita las estadísticas filtradas a los gobiernos que cumplen los selectores", () => {
+        const rows: RawRow[] = [
+            {
+                ID: "alfonso-monarquia",
+                PersonID: "alfonso",
+                "Tipo de gobierno": "Monarquía",
+                "Inicio del reinado (año)": 1126,
+            },
+            {
+                ID: "alfonso-regencia",
+                PersonID: "alfonso",
+                "Tipo de gobierno": "Regencia",
+                "Inicio del reinado (año)": 1127,
+            },
+        ];
+        const filters = { ...DEFAULT_FILTERS, filterTipo: "Regencia" };
+        const { allPeople } = derivePeopleFromRows(rows);
+        const people = filterAndSortPeople(allPeople, filters);
+
+        expect(filterRowsForPeople(rows, people, filters).map((row) => row.ID)).toEqual([
+            "alfonso-regencia",
+        ]);
+    });
+
+    it("hace coincidir las estadísticas con las tarjetas ante una búsqueda simple", () => {
+        const rows: RawRow[] = [
+            {
+                ID: "alfonso-monarquia",
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                "Tipo de gobierno": "Monarquía",
+            },
+            {
+                ID: "alfonso-regencia",
+                PersonID: "alfonso",
+                Nombre: "Alfonso",
+                "Tipo de gobierno": "Regencia",
+            },
+        ];
+        const filters = { ...DEFAULT_FILTERS, query: "Regencia" };
+        const { allPeople } = derivePeopleFromRows(rows);
+        const people = filterAndSortPeople(allPeople, filters);
+
+        expect(filterRowsForPeople(rows, people, filters).map((row) => row.ID)).toEqual([
+            "alfonso-regencia",
+        ]);
     });
 
     it("recoge siglos inferidos y exactos sin duplicados", () => {

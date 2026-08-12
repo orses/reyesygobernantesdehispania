@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Helpers puros para exportar paquetes portables de datos y medios.
+// Funciones puras para exportar paquetes portátiles de datos y medios.
 // ---------------------------------------------------------------------------
 
 import type { MediaAsset, RawRow } from "./types";
@@ -63,7 +63,7 @@ interface ResolveImportedDatasetNameInput {
 
 export function cleanRowsForExport(rows: RawRow[]): Record<string, unknown>[] {
     return rows.map((row) => {
-        const { _duracionCalc, _duracionFuente, _rowId, ...rest } = row;
+        const { _duracionCalc, _duracionFuente, ...rest } = row;
         return rest;
     });
 }

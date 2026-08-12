@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios: metadatos de impresión de imágenes.
+// Pruebas unitarias: metadatos de impresión de imágenes.
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from "vitest";

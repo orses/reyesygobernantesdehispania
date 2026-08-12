@@ -1,9 +1,10 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios: lib/succession.ts
+// Pruebas unitarias: lib/succession.ts
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from "vitest";
 import { derivePeopleFromRows } from "./people";
+import { prepareDatasetRows } from "./dataset-rows";
 import {
     buildGovernmentSuccession,
     buildSuccessionOptions,
@@ -68,6 +69,51 @@ function multiKingdomRows(): RawRow[] {
 }
 
 describe("buildGovernmentSuccession", () => {
+    it("mantiene separados los gobiernos con ID documental duplicado", () => {
+        const rows = prepareDatasetRows([
+            {
+                ID: "documental-duplicado",
+                PersonID: "primero",
+                Nombre: "Primero",
+                Reino: "Reino de prueba",
+                "Inicio del reinado (año)": 1000,
+                "Final del reinado (año)": 1010,
+            },
+            {
+                ID: "documental-duplicado",
+                PersonID: "segundo",
+                Nombre: "Segundo",
+                Reino: "Reino de prueba",
+                "Inicio del reinado (año)": 1010,
+                "Final del reinado (año)": 1020,
+            },
+            {
+                ID: "tercero",
+                PersonID: "tercero",
+                Nombre: "Tercero",
+                Reino: "Reino de prueba",
+                "Inicio del reinado (año)": 1020,
+                "Final del reinado (año)": 1030,
+                Predecesor: successionRowRef("documental-duplicado~2"),
+            },
+        ]);
+        const { allPeople } = derivePeopleFromRows(rows);
+
+        const options = buildSuccessionOptions(allPeople);
+        const succession = buildGovernmentSuccession(allPeople);
+
+        expect(rows.map((row) => row._rowId)).toEqual([
+            "documental-duplicado",
+            "documental-duplicado~2",
+            "tercero",
+        ]);
+        expect(options.filter((option) => option.personId !== "tercero")).toHaveLength(2);
+        expect(succession.get("tercero")).toMatchObject({
+            predecessor: { personId: "segundo", nombreReinado: "Segundo" },
+            predecessorSource: "manual",
+        });
+    });
+
     it("calcula predecesor y sucesor por reino aunque el PersonID sea el mismo", () => {
         const { allPeople } = derivePeopleFromRows(multiKingdomRows());
         const succession = buildGovernmentSuccession(allPeople);

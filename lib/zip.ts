@@ -14,6 +14,20 @@ export interface ZipEntryOutput {
     data: Uint8Array;
 }
 
+export interface ZipLimits {
+    maxArchiveBytes: number;
+    maxEntries: number;
+    maxEntryUncompressedBytes: number;
+    maxTotalUncompressedBytes: number;
+}
+
+export type ZipLimitOverrides = Partial<ZipLimits>;
+
+export interface ZipFileLike {
+    readonly size: number;
+    arrayBuffer(): Promise<ArrayBuffer>;
+}
+
 const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054b50;
@@ -21,11 +35,24 @@ const STORE_METHOD = 0;
 const DEFLATE_METHOD = 8;
 const UTF8_FLAG = 0x0800;
 
-// Tope frente a "bombas de descompresión": una entrada DEFLATE puede declarar
-// un tamaño pequeño y expandirse a gigabytes. Se aplica tanto al tamaño
-// declarado en la cabecera como al real durante el streaming (la cabecera
-// puede mentir). 256 MiB da margen holgado a datasets con imágenes.
-export const MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024;
+// Los lectores conservan en memoria el archivo y sus entradas. Estos topes
+// limitan conjuntamente la memoria, el tiempo de CPU y las bombas ZIP.
+export const MAX_ZIP_ARCHIVE_BYTES = 256 * 1024 * 1024;
+export const MAX_ZIP_ENTRIES = 4_096;
+export const MAX_ZIP_ENTRY_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
+export const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
+
+// Se conserva el nombre anterior para no romper consumidores existentes.
+export const MAX_DECOMPRESSED_BYTES = MAX_ZIP_ENTRY_UNCOMPRESSED_BYTES;
+
+export const DEFAULT_ZIP_LIMITS: Readonly<ZipLimits> = Object.freeze({
+    maxArchiveBytes: MAX_ZIP_ARCHIVE_BYTES,
+    maxEntries: MAX_ZIP_ENTRIES,
+    maxEntryUncompressedBytes: MAX_ZIP_ENTRY_UNCOMPRESSED_BYTES,
+    maxTotalUncompressedBytes: MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES,
+});
+
+const MAX_ZIP32_ENTRIES = 0xffff;
 const DOS_DATE_1980_01_01 = (1 << 5) | 1;
 
 const encoder = new TextEncoder();
@@ -96,8 +123,53 @@ function assertUint32(value: number, fieldName: string): void {
     }
 }
 
+function resolveZipLimits(overrides: ZipLimitOverrides = {}): ZipLimits {
+    const limits: ZipLimits = { ...DEFAULT_ZIP_LIMITS, ...overrides };
+
+    for (const [name, value] of Object.entries(limits)) {
+        if (!Number.isSafeInteger(value) || value < 0) {
+            throw new Error(`Límite ZIP no válido: ${name}.`);
+        }
+    }
+
+    return limits;
+}
+
+function assertArchiveSize(size: number, limits: ZipLimits): void {
+    if (!Number.isSafeInteger(size) || size < 0) {
+        throw new Error("ZIP inválido: el tamaño del archivo no es válido.");
+    }
+    if (size > limits.maxArchiveBytes) {
+        throw new Error("ZIP no admitido: el archivo supera el tamaño permitido.");
+    }
+}
+
+function assertEntryCount(count: number, limits: ZipLimits): void {
+    if (count > Math.min(limits.maxEntries, MAX_ZIP32_ENTRIES)) {
+        throw new Error("ZIP no admitido: el número de entradas supera el límite permitido.");
+    }
+}
+
+function assertEntryUncompressedSize(size: number, limits: ZipLimits): void {
+    if (size > limits.maxEntryUncompressedBytes) {
+        throw new Error("ZIP no admitido: una entrada descomprimida supera el tamaño permitido.");
+    }
+}
+
+function addUncompressedSize(total: number, size: number, limits: ZipLimits): number {
+    const nextTotal = total + size;
+    if (nextTotal > limits.maxTotalUncompressedBytes) {
+        throw new Error("ZIP no admitido: el contenido descomprimido total supera el tamaño permitido.");
+    }
+    return nextTotal;
+}
+
+function normalizeZipPath(path: string): string {
+    return String(path ?? "").trim().replaceAll("\\", "/").normalize("NFC");
+}
+
 export function validateZipPath(path: string): string {
-    const normalized = String(path ?? "").trim().replaceAll("\\", "/");
+    const normalized = normalizeZipPath(path);
     const parts = normalized.split("/");
 
     if (
@@ -114,8 +186,15 @@ export function validateZipPath(path: string): string {
     return normalized;
 }
 
-export function createStoredZip(entries: ZipEntryInput[]): Uint8Array {
+export function createStoredZip(
+    entries: ZipEntryInput[],
+    limitOverrides: ZipLimitOverrides = {},
+): Uint8Array {
+    const limits = resolveZipLimits(limitOverrides);
+    assertEntryCount(entries.length, limits);
+
     const seenPaths = new Set<string>();
+    let totalUncompressedSize = 0;
     const prepared = entries.map((entry) => {
         const path = validateZipPath(entry.path);
         if (seenPaths.has(path)) throw new Error(`Ruta ZIP duplicada: ${path}`);
@@ -123,10 +202,12 @@ export function createStoredZip(entries: ZipEntryInput[]): Uint8Array {
 
         const name = encoder.encode(path);
         const data = normalizeEntryData(entry.data);
-        const crc = crc32(data);
 
         assertUint32(name.length, "nombre de archivo");
         assertUint32(data.length, "archivo");
+        assertEntryUncompressedSize(data.length, limits);
+        totalUncompressedSize = addUncompressedSize(totalUncompressedSize, data.length, limits);
+        const crc = crc32(data);
 
         return { path, name, data, crc };
     });
@@ -138,6 +219,7 @@ export function createStoredZip(entries: ZipEntryInput[]): Uint8Array {
     assertUint32(localSize, "bloque local");
     assertUint32(centralSize, "directorio central");
     assertUint32(totalSize, "paquete");
+    assertArchiveSize(totalSize, limits);
 
     const zip = new Uint8Array(totalSize);
     const centralRecords: { entry: (typeof prepared)[number]; localOffset: number }[] = [];
@@ -257,7 +339,9 @@ interface RawZipEntry {
 // Recorre el directorio central y devuelve las entradas en crudo, sin
 // descomprimir ni juzgar el método. Lo comparten el lector estricto (STORED) y
 // el general (STORED + DEFLATE) para no duplicar el parseo de cabeceras.
-function readCentralEntries(data: Uint8Array): RawZipEntry[] {
+function readCentralEntries(data: Uint8Array, limits: ZipLimits): RawZipEntry[] {
+    assertArchiveSize(data.byteLength, limits);
+
     const eocdOffset = findEndOfCentralDirectory(data);
     const entryCount = readUint16(data, eocdOffset + 10);
     const centralSize = readUint32(data, eocdOffset + 12);
@@ -266,8 +350,11 @@ function readCentralEntries(data: Uint8Array): RawZipEntry[] {
     if (centralOffset + centralSize > data.length) {
         throw new Error("ZIP inválido: directorio central fuera de rango.");
     }
+    assertEntryCount(entryCount, limits);
 
     const entries: RawZipEntry[] = [];
+    const seenPaths = new Set<string>();
+    let totalDeclaredUncompressedSize = 0;
     let offset = centralOffset;
 
     for (let i = 0; i < entryCount; i++) {
@@ -287,18 +374,30 @@ function readCentralEntries(data: Uint8Array): RawZipEntry[] {
         const nameEnd = nameStart + nameLength;
 
         if (nameEnd > data.length) throw new Error("ZIP inválido: nombre de archivo fuera de rango.");
-        const rawName = decoder.decode(data.slice(nameStart, nameEnd));
+        const rawName = decoder.decode(data.subarray(nameStart, nameEnd));
+        const normalizedName = normalizeZipPath(rawName);
 
         // Las herramientas externas (p. ej. el diálogo "Crear archivo" de
         // Windows 11) añaden entradas de directorio: nombre terminado en "/" y
         // sin datos. No aportan contenido, así que se omiten en lugar de
         // invalidar todo el paquete.
-        if (rawName.endsWith("/")) {
+        if (normalizedName.endsWith("/")) {
             offset = nameEnd + extraLength + commentLength;
             continue;
         }
 
-        const path = validateZipPath(rawName);
+        const path = validateZipPath(normalizedName);
+        if (seenPaths.has(path)) {
+            throw new Error(`Ruta ZIP duplicada: ${path}`);
+        }
+        seenPaths.add(path);
+
+        assertEntryUncompressedSize(uncompressedSize, limits);
+        totalDeclaredUncompressedSize = addUncompressedSize(
+            totalDeclaredUncompressedSize,
+            uncompressedSize,
+            limits,
+        );
 
         if (readUint32(data, localOffset) !== LOCAL_FILE_HEADER_SIGNATURE) {
             throw new Error("ZIP inválido: cabecera local no reconocida.");
@@ -316,7 +415,7 @@ function readCentralEntries(data: Uint8Array): RawZipEntry[] {
             crc,
             compressedSize,
             uncompressedSize,
-            compressed: data.slice(dataStart, dataEnd),
+            compressed: data.subarray(dataStart, dataEnd),
         });
 
         offset = nameEnd + extraLength + commentLength;
@@ -326,8 +425,13 @@ function readCentralEntries(data: Uint8Array): RawZipEntry[] {
 }
 
 // Lector estricto: solo acepta entradas STORED. Síncrono y sin dependencias.
-export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
-    return readCentralEntries(data).map((entry) => {
+export function parseStoredZip(
+    data: Uint8Array,
+    limitOverrides: ZipLimitOverrides = {},
+): ZipEntryOutput[] {
+    const limits = resolveZipLimits(limitOverrides);
+
+    return readCentralEntries(data, limits).map((entry) => {
         if (entry.method !== STORE_METHOD) {
             throw new Error("ZIP no admitido: solo se aceptan entradas sin compresión.");
         }
@@ -338,11 +442,27 @@ export function parseStoredZip(data: Uint8Array): ZipEntryOutput[] {
     });
 }
 
-// Descomprime un bloque DEFLATE en crudo con la API nativa del navegador,
-// abortando si la salida supera `maxBytes` (defensa anti-bomba en streaming).
+// Descomprime un bloque DEFLATE en crudo con la API nativa del navegador y
+// aborta si la salida supera `maxBytes` (defensa anti-bomba durante el flujo).
 export async function inflateRaw(
     data: Uint8Array,
     maxBytes: number = MAX_DECOMPRESSED_BYTES,
+): Promise<Uint8Array> {
+    if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) {
+        throw new Error("Límite ZIP no válido: maxBytes.");
+    }
+
+    return inflateRawWithLimit(
+        data,
+        maxBytes,
+        "ZIP no admitido: una entrada descomprimida supera el tamaño permitido.",
+    );
+}
+
+async function inflateRawWithLimit(
+    data: Uint8Array,
+    maxBytes: number,
+    limitErrorMessage: string,
 ): Promise<Uint8Array> {
     if (typeof DecompressionStream === "undefined") {
         throw new Error("ZIP comprimido: este entorno no admite la descompresión nativa.");
@@ -359,7 +479,7 @@ export async function inflateRaw(
         total += value.length;
         if (total > maxBytes) {
             await reader.cancel();
-            throw new Error("ZIP no admitido: la entrada descomprimida supera el tamaño permitido.");
+            throw new Error(limitErrorMessage);
         }
         chunks.push(value);
     }
@@ -376,10 +496,15 @@ export async function inflateRaw(
 // Lector general: acepta entradas STORED y DEFLATE (el método por defecto del
 // Explorador de Windows, 7-Zip o WinRAR). Verifica integridad por CRC-32 y
 // aplica el tope anti-bomba de descompresión.
-export async function parseZip(data: Uint8Array): Promise<ZipEntryOutput[]> {
+export async function parseZip(
+    data: Uint8Array,
+    limitOverrides: ZipLimitOverrides = {},
+): Promise<ZipEntryOutput[]> {
+    const limits = resolveZipLimits(limitOverrides);
     const out: ZipEntryOutput[] = [];
+    let totalActualUncompressedSize = 0;
 
-    for (const entry of readCentralEntries(data)) {
+    for (const entry of readCentralEntries(data, limits)) {
         let bytes: Uint8Array;
 
         if (entry.method === STORE_METHOD) {
@@ -388,16 +513,28 @@ export async function parseZip(data: Uint8Array): Promise<ZipEntryOutput[]> {
             }
             bytes = entry.compressed;
         } else if (entry.method === DEFLATE_METHOD) {
-            if (entry.uncompressedSize > MAX_DECOMPRESSED_BYTES) {
-                throw new Error("ZIP no admitido: la entrada descomprimida supera el tamaño permitido.");
-            }
-            bytes = await inflateRaw(entry.compressed);
+            const remainingTotalBytes = limits.maxTotalUncompressedBytes - totalActualUncompressedSize;
+            const maxInflatedBytes = Math.min(
+                limits.maxEntryUncompressedBytes,
+                remainingTotalBytes,
+            );
+            const limitErrorMessage = remainingTotalBytes < limits.maxEntryUncompressedBytes
+                ? "ZIP no admitido: el contenido descomprimido total supera el tamaño permitido."
+                : "ZIP no admitido: una entrada descomprimida supera el tamaño permitido.";
+            bytes = await inflateRawWithLimit(entry.compressed, maxInflatedBytes, limitErrorMessage);
             if (bytes.length !== entry.uncompressedSize) {
                 throw new Error("ZIP inválido: el tamaño descomprimido no coincide con la cabecera.");
             }
         } else {
             throw new Error("ZIP no admitido: método de compresión no soportado.");
         }
+
+        assertEntryUncompressedSize(bytes.byteLength, limits);
+        totalActualUncompressedSize = addUncompressedSize(
+            totalActualUncompressedSize,
+            bytes.byteLength,
+            limits,
+        );
 
         if (crc32(bytes) !== entry.crc) {
             throw new Error("ZIP inválido: comprobación CRC fallida (datos corruptos).");
@@ -407,4 +544,17 @@ export async function parseZip(data: Uint8Array): Promise<ZipEntryOutput[]> {
     }
 
     return out;
+}
+
+// Comprueba el tamaño declarado antes de materializar el archivo completo.
+// `parseZip` repite la comprobación sobre el búfer real como defensa adicional.
+export async function parseZipFile(
+    file: ZipFileLike,
+    limitOverrides: ZipLimitOverrides = {},
+): Promise<ZipEntryOutput[]> {
+    const limits = resolveZipLimits(limitOverrides);
+    assertArchiveSize(file.size, limits);
+
+    const buffer = await file.arrayBuffer();
+    return parseZip(new Uint8Array(buffer), limits);
 }

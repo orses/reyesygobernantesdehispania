@@ -42,7 +42,7 @@ describe("comprobaciones estructurales del conjunto de datos", () => {
         expect(result.ok).toBe(false);
         expect(result.issues).toHaveLength(4);
         expect(result.issues.every((issue) => issue.includes("Fila 2"))).toBe(true);
-        expect(result.issues.join(" ")).toContain("repite el identificador de la fila 1");
+        expect(result.issues.join(" ")).toContain("repite el identificador interno de la fila 1");
         expect(result.issues.join(" ")).toContain("falta el PersonID");
         expect(result.issues.join(" ")).toContain("parece contener una URL");
     });
@@ -57,5 +57,24 @@ describe("comprobaciones estructurales del conjunto de datos", () => {
             "Final del reinado (año)": 925,
             "Fin Reinado (Fecha)": "agosto de 925",
         }])).toEqual({ ok: true, issues: [] });
+    });
+
+    it("avisa de ID documentales duplicados aunque los identificadores internos sean únicos", () => {
+        const result = checkDatasetRows([
+            {
+                ID: "documental-duplicado",
+                _rowId: "interno-1",
+                PersonID: "persona-1",
+            },
+            {
+                ID: "documental-duplicado",
+                _rowId: "interno-2",
+                PersonID: "persona-2",
+            },
+        ]);
+
+        expect(result.ok).toBe(false);
+        expect(result.issues).toHaveLength(1);
+        expect(result.issues[0]).toContain("repite el ID documental de la fila 1");
     });
 });

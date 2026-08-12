@@ -76,4 +76,10 @@ describe("configuración de seguridad del repositorio", () => {
     expect(readProjectFile("index.html")).toContain("__CONTENT_SECURITY_POLICY__");
     expect(readProjectFile("vite.config.ts")).toContain("productionCspDirectives");
   });
+
+  it("aplica no-referrer desde el HTML que se publica en producción", () => {
+    const indexHtml = readProjectFile("index.html");
+
+    expect(indexHtml).toMatch(/<meta\s+name="referrer"\s+content="no-referrer"\s*\/>/u);
+  });
 });

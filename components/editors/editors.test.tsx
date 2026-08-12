@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { EditorDialog } from "./editors";
+import { DeleteDialog, EditorDialog, EditorInteractionGuard } from "./editors";
 import type { RawRow } from "../../lib/types";
 
 const personalDraft: RawRow = {
@@ -30,11 +30,24 @@ const commonProps = {
   setOpen: vi.fn(),
   setDraft: vi.fn(),
   setDraftPersonRows: vi.fn(),
-  commitDraft: vi.fn(),
+  commitDraft: vi.fn(async () => true),
   setError: vi.fn(),
 };
 
 describe("EditorDialog", () => {
+  it("deshabilita todos los controles mientras se confirma la persistencia", () => {
+    const html = renderToStaticMarkup(
+      <EditorInteractionGuard isSaving>
+        <input aria-label="Campo de prueba" />
+        <button type="button">Acción</button>
+      </EditorInteractionGuard>
+    );
+
+    expect(html).toMatch(/<fieldset(?=[^>]*disabled="")(?=[^>]*aria-disabled="true")[^>]*>/);
+    expect(html).toContain('aria-label="Campo de prueba"');
+    expect(html).toContain("Acción");
+  });
+
   it("integra Markdown y todos los gobiernos en el editor de personaje", () => {
     const html = renderToStaticMarkup(
       <EditorDialog
@@ -99,5 +112,22 @@ describe("EditorDialog", () => {
     expect(html.match(/aria-invalid="true"/g)).toHaveLength(2);
     expect(html).toContain("Corrija el año o acepte expresamente la propuesta antes de guardar.");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>guardar<\/button>/);
+  });
+});
+
+describe("DeleteDialog", () => {
+  it("explica la persistencia y el borrado de la galería asociada", () => {
+    const html = renderToStaticMarkup(
+      <DeleteDialog
+        open
+        setOpen={vi.fn()}
+        target={{ kind: "person", id: "alfonso" }}
+        removeTarget={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("se guarda automáticamente");
+    expect(html).toContain("también se eliminan su galería");
+    expect(html).not.toContain("estado en memoria");
   });
 });

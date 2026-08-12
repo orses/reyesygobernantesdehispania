@@ -1,16 +1,32 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios: lib/zip.ts
+// Pruebas unitarias: lib/zip.ts
 // ---------------------------------------------------------------------------
 
 import { deflateRawSync } from "node:zlib";
-import { describe, expect, it } from "vitest";
-import { createStoredZip, crc32, inflateRaw, parseStoredZip, parseZip, validateZipPath } from "./zip";
+import { describe, expect, it, vi } from "vitest";
+import {
+    MAX_DECOMPRESSED_BYTES,
+    MAX_ZIP_ENTRY_UNCOMPRESSED_BYTES,
+    createStoredZip,
+    crc32,
+    inflateRaw,
+    parseStoredZip,
+    parseZip,
+    parseZipFile,
+    validateZipPath,
+} from "./zip";
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 
 function textOf(data: Uint8Array): string {
     return decoder.decode(data);
+}
+
+function copyToArrayBuffer(data: Uint8Array): ArrayBuffer {
+    const buffer = new ArrayBuffer(data.byteLength);
+    new Uint8Array(buffer).set(data);
+    return buffer;
 }
 
 // Construye un ZIP de una sola entrada con el método indicado, replicando el
@@ -21,6 +37,7 @@ function buildSingleEntryZip(
     raw: Uint8Array,
     method: number,
     stored: Uint8Array,
+    declaredUncompressedSize = raw.length,
 ): Uint8Array {
     const name = encoder.encode(path);
     const crc = crc32(raw);
@@ -40,7 +57,7 @@ function buildSingleEntryZip(
     dv.setUint16(o, 0x21, true); o += 2;     // fecha (1980-01-01)
     dv.setUint32(o, crc, true); o += 4;
     dv.setUint32(o, stored.length, true); o += 4;  // tamaño comprimido
-    dv.setUint32(o, raw.length, true); o += 4;     // tamaño sin comprimir
+    dv.setUint32(o, declaredUncompressedSize, true); o += 4; // tamaño sin comprimir
     dv.setUint16(o, name.length, true); o += 2;
     dv.setUint16(o, 0, true); o += 2;        // extra
     buf.set(name, o); o += name.length;
@@ -57,7 +74,7 @@ function buildSingleEntryZip(
     dv.setUint16(o, 0x21, true); o += 2;     // fecha
     dv.setUint32(o, crc, true); o += 4;
     dv.setUint32(o, stored.length, true); o += 4;
-    dv.setUint32(o, raw.length, true); o += 4;
+    dv.setUint32(o, declaredUncompressedSize, true); o += 4;
     dv.setUint16(o, name.length, true); o += 2;
     dv.setUint16(o, 0, true); o += 2;        // extra
     dv.setUint16(o, 0, true); o += 2;        // comentario
@@ -171,13 +188,27 @@ describe("createStoredZip y parseStoredZip", () => {
         expect(validateZipPath("media\\pelayo.jpg")).toBe("media/pelayo.jpg");
     });
 
+    it("normaliza las rutas Unicode a NFC", () => {
+        expect(validateZipPath("media/cafe\u0301.jpg")).toBe("media/café.jpg");
+    });
+
     it("rechaza rutas duplicadas al crear el paquete", () => {
         expect(() =>
             createStoredZip([
-                { path: "datos.json", data: "{}" },
-                { path: "datos.json", data: "{}" },
+                { path: "media\\retrato.jpg", data: "a" },
+                { path: "media/retrato.jpg", data: "b" },
             ])
         ).toThrow(/duplicada/);
+    });
+
+    it("rechaza rutas duplicadas normalizadas en paquetes externos", async () => {
+        const zip = buildStoredZip([
+            { path: "media/cafe\u0301.jpg", data: encoder.encode("a") },
+            { path: "media/café.jpg", data: encoder.encode("b") },
+        ]);
+
+        expect(() => parseStoredZip(zip)).toThrow(/Ruta ZIP duplicada/);
+        await expect(parseZip(zip)).rejects.toThrow(/Ruta ZIP duplicada/);
     });
 });
 
@@ -251,5 +282,136 @@ describe("inflateRaw (defensa anti-bomba de descompresión)", () => {
         // encima de un tope de 100 bytes: simula una bomba de descompresión.
         const compressed = new Uint8Array(deflateRawSync(new Uint8Array(5000).fill(65)));
         await expect(inflateRaw(compressed, 100)).rejects.toThrow(/supera el tamaño/);
+    });
+});
+
+describe("límites de seguridad ZIP", () => {
+    it("conserva la constante de compatibilidad del límite por entrada", () => {
+        expect(MAX_DECOMPRESSED_BYTES).toBe(MAX_ZIP_ENTRY_UNCOMPRESSED_BYTES);
+    });
+
+    it("aplica el máximo de entradas al crear y al leer", async () => {
+        const input = [
+            { path: "uno.txt", data: "1" },
+            { path: "dos.txt", data: "2" },
+        ];
+        const zip = createStoredZip(input);
+
+        expect(() => createStoredZip(input, { maxEntries: 1 })).toThrow(/número de entradas/);
+        expect(() => parseStoredZip(zip, { maxEntries: 1 })).toThrow(/número de entradas/);
+        await expect(parseZip(zip, { maxEntries: 1 })).rejects.toThrow(/número de entradas/);
+    });
+
+    it("limita también el tamaño individual de las entradas STORE", async () => {
+        const zip = createStoredZip([{ path: "datos.bin", data: "12345" }]);
+        const limits = {
+            maxEntryUncompressedBytes: 4,
+            maxTotalUncompressedBytes: 10,
+        };
+
+        expect(() => parseStoredZip(zip, limits)).toThrow(/una entrada descomprimida/);
+        await expect(parseZip(zip, limits)).rejects.toThrow(/una entrada descomprimida/);
+    });
+
+    it("limita la suma de varias entradas STORE", async () => {
+        const zip = createStoredZip([
+            { path: "uno.bin", data: "123456" },
+            { path: "dos.bin", data: "abcdef" },
+        ]);
+        const limits = {
+            maxEntryUncompressedBytes: 8,
+            maxTotalUncompressedBytes: 10,
+        };
+
+        expect(() => parseStoredZip(zip, limits)).toThrow(/contenido descomprimido total/);
+        await expect(parseZip(zip, limits)).rejects.toThrow(/contenido descomprimido total/);
+    });
+
+    it("limita el total declarado de una entrada DEFLATE", async () => {
+        const raw = encoder.encode("12345678901");
+        const compressed = new Uint8Array(deflateRawSync(raw));
+        const zip = buildSingleEntryZip("datos.bin", raw, 8, compressed);
+
+        await expect(parseZip(zip, {
+            maxEntryUncompressedBytes: 20,
+            maxTotalUncompressedBytes: 10,
+        })).rejects.toThrow(/contenido descomprimido total/);
+    });
+
+    it("limita el total DEFLATE real aunque la cabecera declare menos bytes", async () => {
+        const raw = encoder.encode("123456789012");
+        const compressed = new Uint8Array(deflateRawSync(raw));
+        const zip = buildSingleEntryZip("datos.bin", raw, 8, compressed, 4);
+
+        await expect(parseZip(zip, {
+            maxEntryUncompressedBytes: 20,
+            maxTotalUncompressedBytes: 10,
+        })).rejects.toThrow(/contenido descomprimido total/);
+    });
+
+    it("limita una entrada DEFLATE real aunque la cabecera declare menos bytes", async () => {
+        const raw = encoder.encode("123456789012");
+        const compressed = new Uint8Array(deflateRawSync(raw));
+        const zip = buildSingleEntryZip("datos.bin", raw, 8, compressed, 4);
+
+        await expect(parseZip(zip, {
+            maxEntryUncompressedBytes: 10,
+            maxTotalUncompressedBytes: 20,
+        })).rejects.toThrow(/una entrada descomprimida/);
+    });
+
+    it("rechaza por metadatos una entrada enorme sin reservar esa memoria", async () => {
+        const raw = encoder.encode("x");
+        const compressed = new Uint8Array(deflateRawSync(raw));
+        const zip = buildSingleEntryZip(
+            "datos.bin",
+            raw,
+            8,
+            compressed,
+            MAX_ZIP_ENTRY_UNCOMPRESSED_BYTES + 1,
+        );
+
+        await expect(parseZip(zip)).rejects.toThrow(/una entrada descomprimida/);
+    });
+
+    it("limita el tamaño real del archivo al crear y al leer", async () => {
+        const zip = createStoredZip([{ path: "datos.json", data: "{}" }]);
+        const maxArchiveBytes = zip.byteLength - 1;
+
+        expect(() => createStoredZip(
+            [{ path: "datos.json", data: "{}" }],
+            { maxArchiveBytes },
+        )).toThrow(/archivo supera el tamaño/);
+        expect(() => parseStoredZip(zip, { maxArchiveBytes })).toThrow(/archivo supera el tamaño/);
+        await expect(parseZip(zip, { maxArchiveBytes })).rejects.toThrow(/archivo supera el tamaño/);
+    });
+
+    it("parseZipFile rechaza el tamaño declarado antes de leer el archivo", async () => {
+        const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
+
+        await expect(parseZipFile(
+            { size: 11, arrayBuffer },
+            { maxArchiveBytes: 10 },
+        )).rejects.toThrow(/archivo supera el tamaño/);
+        expect(arrayBuffer).not.toHaveBeenCalled();
+    });
+
+    it("parseZipFile comprueba también el tamaño del búfer real", async () => {
+        const zip = createStoredZip([{ path: "datos.json", data: "{}" }]);
+        const arrayBuffer = vi.fn(async () => copyToArrayBuffer(zip));
+
+        await expect(parseZipFile(
+            { size: 1, arrayBuffer },
+            { maxArchiveBytes: zip.byteLength - 1 },
+        )).rejects.toThrow(/archivo supera el tamaño/);
+        expect(arrayBuffer).toHaveBeenCalledOnce();
+    });
+
+    it("rechaza límites inyectados que no sean enteros seguros no negativos", async () => {
+        const zip = createStoredZip([{ path: "datos.json", data: "{}" }]);
+
+        expect(() => parseStoredZip(zip, { maxEntries: -1 })).toThrow(/Límite ZIP no válido/);
+        await expect(parseZip(zip, { maxTotalUncompressedBytes: Number.POSITIVE_INFINITY }))
+            .rejects.toThrow(/Límite ZIP no válido/);
     });
 });

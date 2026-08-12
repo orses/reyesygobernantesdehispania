@@ -426,9 +426,7 @@ function personContainsText(person: Person, query: string, exact: boolean): bool
  * Comprueba si la consulta coincide con un valor textual completo del personaje.
  */
 export function personMatchesLiteralSearch(person: Person, query: string): boolean {
-  const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery) return true;
-  return personContainsText(person, normalizedQuery, true);
+  return compilePersonSearch(query, true)(person);
 }
 
 function termAsYear(value: string): number | null {
@@ -602,11 +600,26 @@ function evaluateNode(person: Person, node: SearchNode): boolean {
   return false;
 }
 
-export function personMatchesAdvancedSearch(person: Person, query: string): boolean {
+export type PersonSearchPredicate = (person: Person) => boolean;
+
+const matchEveryPerson: PersonSearchPredicate = () => true;
+
+/**
+ * Compila una consulta una sola vez y devuelve un predicado reutilizable.
+ */
+export function compilePersonSearch(query: string, literalSearch = false): PersonSearchPredicate {
   const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery) return true;
+  if (!normalizedQuery) return matchEveryPerson;
+
+  if (literalSearch) {
+    return (person) => personContainsText(person, normalizedQuery, true);
+  }
 
   const parsed = parseQuery(query);
-  if (!parsed) return true;
-  return evaluateNode(person, parsed);
+  if (!parsed) return matchEveryPerson;
+  return (person) => evaluateNode(person, parsed);
+}
+
+export function personMatchesAdvancedSearch(person: Person, query: string): boolean {
+  return compilePersonSearch(query)(person);
 }

@@ -7,11 +7,13 @@ import {
     personPrincipalName,
 } from "./data";
 import {
+    compilePersonSearch,
     normalizeSearchText,
     personMatchesAdvancedSearch,
     personMatchesLiteralSearch,
 } from "./person-search";
 import { compareChronologicalPersonCandidates } from "./selection";
+import { personGovernmentMatchesSimpleSearch } from "./person-government-search";
 
 export type PersonDinastiaSummaryKind = "empty" | "single" | "conflict";
 
@@ -38,6 +40,18 @@ function uniqueTrimmedValues(values: unknown[]): string[] {
 
 function rowDinastia(row: RawRow): string {
     return String(row?.Dinastía ?? "").trim();
+}
+
+function rowGovernmentType(row: RawRow): string {
+    return String(row?.["Tipo de gobierno"] ?? "").trim();
+}
+
+function filterValueMatches(value: unknown, expected: string, emptyLabel: string): boolean {
+    const normalizedValue = normalizeSearchText(value);
+    const normalizedExpected = normalizeSearchText(expected);
+    return normalizedValue
+        ? normalizedValue === normalizedExpected
+        : normalizedExpected === normalizeSearchText(emptyLabel);
 }
 
 export function personHasDinastia(person: Pick<Person, "dinastias" | "reinados">, dinastia: string): boolean {
@@ -173,7 +187,8 @@ export function getFirstMatchingPersonId(people: Person[], searchText: string): 
     const query = normalizePersonSearchText(searchText);
     if (!query) return null;
 
-    const person = people.find((candidate) => personMatchesSearch(candidate, query));
+    const matchesSearch = compilePersonSearch(query);
+    const person = people.find(matchesSearch);
     return person ? String(person.personId) : null;
 }
 
@@ -181,26 +196,19 @@ export function filterAndSortPeople(allPeople: Person[], filters: FilterState): 
     let output = [...allPeople];
 
     if (filters.query) {
+        const matchesSearch = compilePersonSearch(filters.query, filters.literalSearch);
+        output = output.filter(matchesSearch);
+    }
+
+    const hasStructuredFilters =
+        filters.filterReino !== "__all__" ||
+        filters.filterTipo !== "__all__" ||
+        filters.filterDinastia !== "__all__" ||
+        filters.filterSiglo !== "__all__";
+    if (hasStructuredFilters) {
         output = output.filter((person) =>
-            personMatchesSearch(person, filters.query, filters.literalSearch)
+            person.reinados.some((row) => rowMatchesStructuredFilters(row, filters))
         );
-    }
-
-    if (filters.filterReino !== "__all__") {
-        output = output.filter((person) => person.reinos.includes(filters.filterReino));
-    }
-
-    if (filters.filterDinastia !== "__all__") {
-        output = output.filter((person) => personHasDinastia(person, filters.filterDinastia));
-    }
-
-    if (filters.filterSiglo !== "__all__") {
-        const century = Number.parseInt(filters.filterSiglo, 10);
-        if (Number.isFinite(century)) {
-            output = output.filter((person) =>
-                person.reinados.some((row) => rowSpansCentury(row, century))
-            );
-        }
     }
 
     output.sort((a, b) => comparePeopleByFilter(a, b, filters.sortKey, filters.sortDir));
@@ -252,16 +260,28 @@ function totalDuration(person: Person): number {
 
 export function getPersonFilterOptions(allPeople: Person[], rows: RawRow[]): {
     reinos: string[];
+    tipos: string[];
     dinastias: string[];
     siglos: string[];
 } {
-    const reinos = Array.from(new Set(allPeople.flatMap((person) => person.reinos)))
+    const reinos = uniqueTrimmedValues([
+        ...allPeople.flatMap((person) => person.reinos),
+        ...(rows.some((row) => !String(row.Reino ?? "").trim()) ? ["sin reino"] : []),
+    ])
         .sort((a, b) => a.localeCompare(b, "es"));
-    const dinastias = uniqueTrimmedValues(rows.map(rowDinastia))
+    const tipos = uniqueTrimmedValues([
+        ...rows.map(rowGovernmentType),
+        ...(rows.some((row) => !rowGovernmentType(row)) ? ["sin tipo"] : []),
+    ])
+        .sort((a, b) => a.localeCompare(b, "es"));
+    const dinastias = uniqueTrimmedValues([
+        ...rows.map(rowDinastia),
+        ...(rows.some((row) => !rowDinastia(row)) ? ["sin dinastía"] : []),
+    ])
         .sort((a, b) => a.localeCompare(b, "es"));
     const siglos = collectCenturiesFromRows(rows).map((century) => String(century));
 
-    return { reinos, dinastias, siglos };
+    return { reinos, tipos, dinastias, siglos };
 }
 
 export function collectCenturiesFromRows(rows: RawRow[]): number[] {
@@ -304,7 +324,55 @@ export function getSelectedCenturies(person: Person | null): number[] {
     return collectCenturiesFromRows(person.reinados);
 }
 
-export function filterRowsForPeople(rows: RawRow[], people: Person[]): RawRow[] {
-    const ids = new Set(people.map((person) => String(person.personId)));
-    return rows.filter((row) => ids.has(String(getPersonId(row))));
+export function rowMatchesStructuredFilters(
+    row: RawRow,
+    filters: Pick<FilterState, "filterReino" | "filterTipo" | "filterDinastia" | "filterSiglo">
+): boolean {
+    if (
+        filters.filterReino !== "__all__" &&
+        !filterValueMatches(row.Reino, filters.filterReino, "sin reino")
+    ) {
+        return false;
+    }
+    if (
+        filters.filterTipo !== "__all__" &&
+        !filterValueMatches(rowGovernmentType(row), filters.filterTipo, "sin tipo")
+    ) {
+        return false;
+    }
+    if (
+        filters.filterDinastia !== "__all__" &&
+        !filterValueMatches(rowDinastia(row), filters.filterDinastia, "sin dinastía")
+    ) {
+        return false;
+    }
+    if (filters.filterSiglo !== "__all__") {
+        const century = Number.parseInt(filters.filterSiglo, 10);
+        if (Number.isFinite(century) && !rowSpansCentury(row, century)) return false;
+    }
+    return true;
+}
+
+export function filterRowsForPeople(
+    rows: RawRow[],
+    people: Person[],
+    filters?: FilterState
+): RawRow[] {
+    const peopleById = new Map(
+        people.map((person) => [String(person.personId), person] as const)
+    );
+    return rows.filter((row) => {
+        const person = peopleById.get(String(getPersonId(row)));
+        if (!person) return false;
+        if (!filters) return true;
+        return (
+            rowMatchesStructuredFilters(row, filters) &&
+            personGovernmentMatchesSimpleSearch(
+                person,
+                row,
+                filters.query,
+                filters.literalSearch
+            )
+        );
+    });
 }

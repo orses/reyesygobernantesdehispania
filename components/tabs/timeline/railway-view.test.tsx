@@ -3,8 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { computeDerivedRow } from "../../../lib/data";
 import { derivePeopleFromRows } from "../../../lib/people";
 import { buildRailwayModel, type RailwayTransitionCatalog } from "../../../lib/railway";
+import { WESTERN_KINGDOMS_RAILWAY_TOPOLOGY } from "../../../lib/railway-topology";
 import type { RawRow } from "../../../lib/types";
-import { findRailwayNavigationTarget, RailwayView } from "./railway-view";
+import {
+  findRailwayNavigationTarget,
+  railwayCanvasWidth,
+  railwayLabelPlacements,
+  RailwayView,
+} from "./railway-view";
 
 function row(
   rowId: string,
@@ -89,7 +95,7 @@ describe("RailwayView", () => {
       />
     );
 
-    expect(html).toContain("Ferrocarril histórico: 5 gobiernos en 3 reinos");
+    expect(html).toContain("Ferrocarril histórico: 5 gobiernos en 3 entidades");
     expect(html).toContain("Reino de Asturias");
     expect(html).toContain("Pelayo");
     expect(html).toContain("García I");
@@ -105,6 +111,11 @@ describe("RailwayView", () => {
     expect(html).toContain("mismo monarca; los reinos siguen separados");
     expect(html).toContain('data-railway-station="true"');
     expect(html).toContain("Desplazamiento horizontal del ferrocarril histórico");
+    expect(html).toContain("Comprimir la escala horizontal");
+    expect(html).toContain("Estirar la escala horizontal");
+    expect(html).toContain("Ajustar toda la cronología al ancho visible");
+    expect(html).toContain("Ampliar el gráfico");
+    expect(html).toContain("Ir a una vía concreta");
   });
 
   it("conecta en el año exacto y hace regresar la vía gallega a León en 914", () => {
@@ -133,13 +144,13 @@ describe("RailwayView", () => {
     expect(mergeCoordinates).toHaveLength(8);
     expect(mergeCoordinates[0]).toBe(mergeCoordinates[6]);
     expect(mergeCoordinates[2]).toBeGreaterThan(mergeCoordinates[0]);
-    expect(mergeCoordinates[1]).toBe(390);
-    expect(mergeCoordinates[7]).toBe(254);
+    expect(mergeCoordinates[1]).toBe(508);
+    expect(mergeCoordinates[7]).toBe(324);
     expect(html).toContain('data-source-kingdom="Galicia"');
     expect(html).toContain('data-target-kingdom="León"');
     expect(html).toContain('data-mainline-kingdom="León"');
     expect(html).toContain('data-mainline-start-year="914"');
-    expect(html).toContain('aria-label="Ordoño II, León, 914-924"');
+    expect(html).toContain('aria-label="Ordoño II, Reino de León, 914-924"');
   });
 
   it("explica el estado vacío cuando se ocultan todos los reinos", () => {
@@ -156,7 +167,7 @@ describe("RailwayView", () => {
       />
     );
 
-    expect(html).toContain("Seleccione al menos un reino");
+    expect(html).toContain("Seleccione al menos una entidad");
   });
 
   it("explica por qué la unión de 1230 queda sin anclaje castellano", () => {
@@ -256,5 +267,95 @@ describe("RailwayView", () => {
       periodId("galicia-880"),
       "ArrowUp"
     )?.rowId).toBe("leon-900");
+  });
+
+  it("muestra las denominaciones castellanas e hispánicas sin prefijos artificiales", () => {
+    const people = derivePeopleFromRows([
+      row("castilla", "castilla", "Fernando III", "Reino de Castilla", 1217, 1252),
+      row("corona", "corona", "Alfonso X", "Corona de Castilla", 1252, 1284),
+      row(
+        "monarquia",
+        "monarquia",
+        "Carlos I",
+        "Monarquía Hispánica / España",
+        1516,
+        1556
+      ),
+    ]).allPeople;
+    const projection = buildRailwayModel(people).projection;
+    const html = renderToStaticMarkup(
+      <RailwayView
+        projection={projection}
+        issueCount={0}
+        selectedPeriodId={null}
+        onSelectPeriod={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("Reino de Castilla");
+    expect(html).toContain("Corona de Castilla");
+    expect(html).toContain("Monarquía Hispánica / España");
+    expect(html).not.toContain("Reino de Corona de Castilla");
+    expect(html).not.toContain("Reino de Monarquía Hispánica");
+  });
+
+  it("enlaza el relevo troncal de 1516 sin truncar la Corona de Castilla", () => {
+    const people = derivePeopleFromRows([
+      row("juana", "juana", "Juana I", "Corona de Castilla", 1504, 1555),
+      row(
+        "carlos",
+        "carlos",
+        "Carlos I",
+        "Monarquía Hispánica / España",
+        1516,
+        1556
+      ),
+    ]).allPeople;
+    const model = buildRailwayModel(people, {
+      transitionCatalog: WESTERN_KINGDOMS_RAILWAY_TOPOLOGY,
+    });
+    const html = renderToStaticMarkup(
+      <RailwayView
+        projection={model.projection}
+        issueCount={model.issues.length}
+        selectedPeriodId={null}
+        onSelectPeriod={vi.fn()}
+      />
+    );
+
+    expect(model.network.services.find(
+      (service) => service.kingdom === "Corona de Castilla"
+    )).toMatchObject({ endYear: 1555 });
+    expect(html).toContain('data-railway-transition-connector="true"');
+    expect(html).toContain('data-transition-kind="integration"');
+    expect(html).toContain('data-transition-year="1516"');
+    expect(html).toContain('data-source-kingdom="Corona de Castilla"');
+    expect(html).toContain('data-target-kingdom="Monarquía Hispánica / España"');
+    expect(html).toContain("la etapa anterior puede continuar");
+  });
+
+  it("distribuye los rótulos densos en seis franjas y oculta solo el exceso", () => {
+    const people = derivePeopleFromRows(
+      Array.from({ length: 7 }, (_, index) => row(
+        `gobierno-${index}`,
+        `persona-${index}`,
+        `Gobierno ${index + 1}`,
+        "Monarquía Hispánica / España",
+        1873,
+        1874
+      ))
+    ).allPeople;
+    const projection = buildRailwayModel(people).projection;
+    const width = railwayCanvasWidth(projection);
+    const placements = [...railwayLabelPlacements(projection, width).values()];
+
+    expect(placements.filter((placement) => placement.isVisible)).toHaveLength(6);
+    expect(placements.filter((placement) => !placement.isVisible)).toHaveLength(1);
+    expect(new Set(
+      placements.filter((placement) => placement.isVisible).map((placement) => placement.level)
+    ).size).toBe(6);
+    expect(railwayCanvasWidth(projection, 0.25)).toBe(Math.round(width * 0.25));
+    expect(railwayCanvasWidth(projection, 4)).toBe(width * 4);
+    expect(railwayCanvasWidth(projection, 1, 100)).toBe(271);
   });
 });

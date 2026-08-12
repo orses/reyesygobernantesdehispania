@@ -1,6 +1,7 @@
 import { getPersonId } from "./data";
 import { applyPersonDraftToRows } from "./person-draft";
 import { getReignYearMismatches, reignYearMismatchMessage } from "./reign-chronology";
+import { applyRowDraftToRows } from "./dataset-rows";
 import type { RawRow } from "./types";
 
 export interface PersonEditorDocument {
@@ -128,7 +129,10 @@ export function applyPersonEditorDocumentToRows(
     );
     const rowsWithGovernmentChanges = rows.map((row) => {
         if (getPersonId(row) !== personId) return row;
-        return editedRowsById.get(rowIdentity(row)) ?? row;
+        const rowId = rowIdentity(row);
+        const editedRow = editedRowsById.get(rowId);
+        if (!editedRow) return row;
+        return applyRowDraftToRows([row], rowId, editedRow)[0];
     });
 
     return {

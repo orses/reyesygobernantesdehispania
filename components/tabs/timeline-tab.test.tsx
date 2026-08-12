@@ -16,6 +16,7 @@ const filters: FilterState = {
   query: "",
   literalSearch: false,
   filterReino: "__all__",
+  filterTipo: "__all__",
   filterDinastia: "__all__",
   filterSiglo: "__all__",
   filterDinastiaLocked: false,

@@ -4,7 +4,7 @@
 
 /** Campos posibles de un registro CSV/JSON (una fila = un gobierno). */
 export interface RawRow {
-    // — Identificadores
+    // — Identificadores documentales importados; pueden repetirse y no son editables.
     ID?: string;
     PersonID?: string | number;
     personId?: string | number;
@@ -72,8 +72,10 @@ export interface RawRow {
     Predecesor?: string;
     Sucesor?: string;
 
-    // — Campos derivados (calculados en runtime)
+    // — Identificador técnico estable y único. Se persiste para conservar referencias.
     _rowId?: string;
+
+    // — Campos derivados (calculados en tiempo de ejecución)
     _duracionCalc?: number | null;
     _duracionFuente?: string;
 
@@ -232,6 +234,7 @@ export interface FilterState {
     query: string;
     literalSearch: boolean;
     filterReino: string;
+    filterTipo: string;
     filterDinastia: string;
     filterSiglo: string;
     filterDinastiaLocked: boolean;

@@ -9,14 +9,22 @@ import {
 } from "./timeline";
 import type { Person } from "./types";
 
-/** Reinos admitidos en la primera versión del ferrocarril histórico. */
-export const RAILWAY_KINGDOMS = ["Asturias", "León", "Galicia", "Castilla"] as const;
+/** Entidades admitidas por el ferrocarril histórico, en orden de lectura. */
+export const RAILWAY_KINGDOMS = [
+  "Asturias",
+  "León",
+  "Galicia",
+  "Castilla",
+  "Corona de Castilla",
+  "Monarquía Hispánica / España",
+] as const;
 
 export type RailwayKingdom = (typeof RAILWAY_KINGDOMS)[number];
 export type RailwayTransitionKind =
   | "split"
   | "merge"
   | "transformation"
+  | "integration"
   | "restoration"
   | "dynastic-union"
   | "dynastic-separation";
@@ -43,6 +51,19 @@ export interface RailwayMergeTransitionDefinition {
 export interface RailwayTransformationTransitionDefinition {
   id: string;
   kind: "transformation";
+  year: number;
+  from: RailwayKingdom;
+  to: RailwayKingdom;
+  label?: string;
+}
+
+/**
+ * Incorporación de una entidad a otra estructura política sin extinguir ni
+ * interrumpir la vía documentada de origen.
+ */
+export interface RailwayIntegrationTransitionDefinition {
+  id: string;
+  kind: "integration";
   year: number;
   from: RailwayKingdom;
   to: RailwayKingdom;
@@ -81,6 +102,7 @@ export type RailwayTransitionDefinition =
   | RailwaySplitTransitionDefinition
   | RailwayMergeTransitionDefinition
   | RailwayTransformationTransitionDefinition
+  | RailwayIntegrationTransitionDefinition
   | RailwayRestorationTransitionDefinition
   | RailwayDynasticUnionTransitionDefinition
   | RailwayDynasticSeparationTransitionDefinition;
@@ -265,9 +287,10 @@ const TRANSITION_KIND_ORDER = new Map<RailwayTransitionKind, number>([
   ["split", 0],
   ["merge", 1],
   ["transformation", 2],
-  ["restoration", 3],
-  ["dynastic-union", 4],
-  ["dynastic-separation", 5],
+  ["integration", 3],
+  ["restoration", 4],
+  ["dynastic-union", 5],
+  ["dynastic-separation", 6],
 ]);
 
 function normalizeLookupText(value: unknown): string {
@@ -277,7 +300,8 @@ function normalizeLookupText(value: unknown): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ")
+    .replace(/\s*\/\s*/g, " / ");
 }
 
 const KINGDOM_BY_ALIAS = new Map<string, RailwayKingdom>([
@@ -289,14 +313,31 @@ const KINGDOM_BY_ALIAS = new Map<string, RailwayKingdom>([
   ["reino de galicia", "Galicia"],
   ["castilla", "Castilla"],
   ["reino de castilla", "Castilla"],
+  ["corona de castilla", "Corona de Castilla"],
+  ["monarquia hispanica", "Monarquía Hispánica / España"],
+  ["monarquia hispanica / espana", "Monarquía Hispánica / España"],
 ]);
+
+const KINGDOM_LABELS: Readonly<Record<RailwayKingdom, string>> = {
+  Asturias: "Reino de Asturias",
+  León: "Reino de León",
+  Galicia: "Reino de Galicia",
+  Castilla: "Reino de Castilla",
+  "Corona de Castilla": "Corona de Castilla",
+  "Monarquía Hispánica / España": "Monarquía Hispánica / España",
+};
 
 /**
  * Resuelve únicamente alias completos. No usa coincidencias parciales, por lo
- * que «Condado de Castilla» y «Corona de Castilla» quedan fuera del modelo.
+ * que «Condado de Castilla» y entidades compuestas no declaradas quedan fuera.
  */
 export function normalizeRailwayKingdom(value: unknown): RailwayKingdom | null {
   return KINGDOM_BY_ALIAS.get(normalizeLookupText(value)) ?? null;
+}
+
+/** Devuelve la denominación pública exacta de una entidad ferroviaria. */
+export function railwayKingdomLabel(kingdom: RailwayKingdom): string {
+  return KINGDOM_LABELS[kingdom];
 }
 
 function compareText(a: string, b: string): number {
@@ -397,6 +438,9 @@ function serviceTopologyInstructions(
   return transitions.flatMap((transition) =>
     transition.anchors.flatMap((anchor): ServiceTopologyInstruction[] => {
       if (anchor.stationId === null) return [];
+      // En una integración la entidad de origen permanece activa. Su ancla
+      // enlaza el suceso, pero no crea un extremo ni corta su servicio.
+      if (transition.kind === "integration" && anchor.role === "source") return [];
       return [{
         boundary: {
           transitionId: transition.id,
@@ -772,7 +816,7 @@ function transitionAnchorRequests(definition: RailwayTransitionDefinition): Anch
       { role: "target", kingdom: definition.to },
     ];
   }
-  if (definition.kind === "transformation") {
+  if (definition.kind === "transformation" || definition.kind === "integration") {
     return [
       { role: "source", kingdom: definition.from },
       { role: "target", kingdom: definition.to },
@@ -793,6 +837,18 @@ function sourceAnchorYear(station: RailwayStation): number | null {
   return station.endYear;
 }
 
+function integrationSourceAnchorYear(
+  station: RailwayStation,
+  transitionYear: number
+): number | null {
+  if (station.period.hasInvalidRange || station.endYear === null) return null;
+  // El intervalo es semiabierto para preferir el gobierno que continúa tras
+  // el hito frente a otro que termina precisamente en ese mismo año.
+  return station.startYear <= transitionYear && transitionYear < station.endYear
+    ? transitionYear
+    : null;
+}
+
 function participantAnchorYear(station: RailwayStation, transitionYear: number): number {
   const endYear = station.period.hasInvalidRange || station.endYear === null
     ? station.startYear
@@ -806,8 +862,12 @@ function participantAnchorYear(station: RailwayStation, transitionYear: number):
 function anchorYearForStation(
   station: RailwayStation,
   role: RailwayTransitionAnchorRole,
-  transitionYear: number
+  transitionYear: number,
+  transitionKind: RailwayTransitionKind
 ): number | null {
+  if (transitionKind === "integration" && role === "source") {
+    return integrationSourceAnchorYear(station, transitionYear);
+  }
   if (role === "source") return sourceAnchorYear(station);
   if (role === "target") return station.startYear;
   return participantAnchorYear(station, transitionYear);
@@ -815,6 +875,7 @@ function anchorYearForStation(
 
 function resolveAnchor(
   request: AnchorRequest,
+  transitionKind: RailwayTransitionKind,
   transitionYear: number,
   stations: RailwayStation[],
   toleranceYears: number
@@ -823,7 +884,12 @@ function resolveAnchor(
     .filter((station) => station.kingdom === request.kingdom)
     .map((station) => ({
       station,
-      anchorYear: anchorYearForStation(station, request.role, transitionYear),
+      anchorYear: anchorYearForStation(
+        station,
+        request.role,
+        transitionYear,
+        transitionKind
+      ),
     }))
     .filter((candidate): candidate is { station: RailwayStation; anchorYear: number } =>
       candidate.anchorYear !== null
@@ -898,7 +964,7 @@ function createTransitions(
     const id = `transition:${encodeIdPart(catalog.version)}:${encodeIdPart(definition.id)}`;
     const requests = transitionAnchorRequests(definition);
     const anchors = requests.map((request) =>
-      resolveAnchor(request, definition.year, stations, toleranceYears)
+      resolveAnchor(request, definition.kind, definition.year, stations, toleranceYears)
     );
     transitions.push({
       id,

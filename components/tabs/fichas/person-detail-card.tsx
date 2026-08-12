@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Badge } from "../../ui/badge";
 import { Card, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
@@ -6,9 +7,12 @@ import type { GovernmentSuccession } from "../../../lib/succession";
 import type { MediaAsset, MediaAssetMoveDirection, MediaInputOptions, Person, RawRow } from "../../../lib/types";
 import { MediaGallery } from "./media-gallery";
 import { PersonDetailHeader } from "./person-detail-header";
-import { PersonDescription } from "./person-description";
 import { PersonSummary } from "./person-summary";
 import { SectionTitle } from "./shared";
+
+const PersonDescription = lazy(() =>
+  import("./person-description").then((module) => ({ default: module.PersonDescription }))
+);
 
 type StateSetter<T> = (value: T | ((prev: T) => T)) => void;
 
@@ -125,7 +129,15 @@ export function PersonDetailCard({
 
             <div className="space-y-3">
               <SectionTitle>Descripción</SectionTitle>
-              <PersonDescription description={selectedPerson.reinados[0]?.Descripción} />
+              <Suspense
+                fallback={(
+                  <div className="text-sm text-slate-300" role="status" aria-live="polite">
+                    Cargando descripción…
+                  </div>
+                )}
+              >
+                <PersonDescription description={selectedPerson.reinados[0]?.Descripción} />
+              </Suspense>
             </div>
 
             <Separator />

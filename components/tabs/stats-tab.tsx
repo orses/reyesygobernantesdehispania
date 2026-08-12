@@ -23,9 +23,10 @@ import {
 } from "recharts";
 import { formatNumber, formatCenturyLabel } from "../../lib/data";
 import { useAppContext } from "../../context/AppContext";
+import { applyStatsChartFilter, type StatsFilterKind } from "../../lib/filters";
+import { isKeyboardActivation } from "../../lib/accessibility";
 import type { AgeEntry, CenturyEntry, CountEntry, DurationByEntityEntry, DurationEntry, Stats } from "../../lib/types";
 
-type FilterKind = "reino" | "tipo" | "dinastia" | "siglo";
 type ChartClickValue = string | number;
 type DurationChartEntry = DurationEntry & { months?: number };
 type ChartEntry = Partial<CountEntry & DurationByEntityEntry & DurationEntry & AgeEntry & CenturyEntry & { months: number }>;
@@ -54,7 +55,7 @@ interface StatsTabProps {
   filteredStats: Stats;
   hasFilters: boolean;
   onPersonClick?: (personId: string) => void;
-  onTabChange?: (tab: string) => void;
+  onTabChange: (tab: "fichas") => void;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -97,20 +98,28 @@ function ClickableAxisTick({ x, y, payload, data, onClick, maxLen = 25 }: Clicka
 
   const display = raw.length > maxLen ? raw.slice(0, maxLen - 1) + "…" : raw;
   const clickable = !!onClick;
+  const activate = () => {
+    if (!onClick) return;
+    // Si es un siglo, pasamos d.c (el número). Si no, personId o nombre.
+    const value = entry?.c ?? entry?.personId ?? entry?.name ?? entry?.label ?? raw;
+    onClick(value);
+  };
 
   return (
     <text
       x={x} y={y}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-label={clickable ? `Activar ${raw}` : undefined}
       textAnchor="end"
       fill={clickable ? "#93c5fd" : "#e2e8f0"}
       fontSize={11}
       style={clickable ? { cursor: "pointer" } : undefined}
-      onClick={() => {
-        if (clickable) {
-          // Si es un siglo, pasamos d.c (el número). Si no, personId o nombre.
-          const val = entry?.c ?? entry?.personId ?? entry?.name ?? entry?.label ?? raw;
-          onClick(val);
-        }
+      onClick={activate}
+      onKeyDown={(event) => {
+        if (!clickable || !isKeyboardActivation(event.key)) return;
+        event.preventDefault();
+        activate();
       }}
     >
       {display}
@@ -136,15 +145,12 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
   const { setFilters, setSelectedPersonId } = useAppContext();
   const [viewMode, setViewMode] = useState<"filtered" | "global">("filtered");
 
-  const handleFilterClick = (type: FilterKind, value: ChartClickValue) => {
+  const handleFilterClick = (type: StatsFilterKind, value: ChartClickValue) => {
     // Para que la ficha muestre el primer personaje de la categoría pulsada,
     // reseteamos la selección. El auto-selector de AppContext elegirá el más antiguo.
     setSelectedPersonId(null);
-    setFilters(prev => ({
-      ...prev,
-      [type === 'reino' ? 'filterReino' : type === 'tipo' ? 'filterTipo' : type === 'dinastia' ? 'filterDinastia' : 'filterSiglo']: String(value),
-    }));
-    if (onTabChange) onTabChange("fichas");
+    setFilters((previous) => applyStatsChartFilter(previous, type, value));
+    onTabChange("fichas");
   };
 
   const activeStats = hasFilters && viewMode === "filtered" ? filteredStats : globalStats;

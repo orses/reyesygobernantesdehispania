@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios: lib/dataset-package.ts
+// Pruebas unitarias: lib/dataset-package.ts
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from "vitest";
@@ -17,6 +17,7 @@ import {
     safePackageFileName,
     toPortableMediaAsset,
 } from "./dataset-package";
+import { validateDatasetPayload } from "./dataset-import";
 import type { MediaAsset, RawRow } from "./types";
 
 const uploadedAsset: MediaAsset = {
@@ -72,7 +73,7 @@ function minimalPng(): Uint8Array {
 }
 
 describe("cleanRowsForExport", () => {
-    it("elimina campos internos calculados", () => {
+    it("elimina cálculos efímeros y conserva el identificador interno estable", () => {
         const rows: RawRow[] = [
             {
                 Nombre: "Pelayo",
@@ -82,7 +83,7 @@ describe("cleanRowsForExport", () => {
             },
         ];
 
-        expect(cleanRowsForExport(rows)).toEqual([{ Nombre: "Pelayo" }]);
+        expect(cleanRowsForExport(rows)).toEqual([{ Nombre: "Pelayo", _rowId: "row-1" }]);
     });
 });
 
@@ -133,7 +134,7 @@ describe("normalizeDatasetBaseName", () => {
         expect(normalizeDatasetBaseName("Serie 2026")).toBe("Serie 2026");
     });
 
-    it("limpia caracteres incompatibles con nombres de archivo y aplica fallback", () => {
+    it("limpia caracteres incompatibles con nombres de archivo y aplica una alternativa", () => {
         expect(normalizeDatasetBaseName(" Cronología:/Fichas? ")).toBe("Cronología--Fichas-");
         expect(normalizeDatasetBaseName("...", "respaldo")).toBe("respaldo");
         expect(normalizeDatasetBaseName("", "respaldo")).toBe("respaldo");
@@ -163,7 +164,7 @@ describe("getTimestampedExportFileName", () => {
         ).toBe("CRONOLOGÍA_FICHAS 20260603 - 1842.zip");
     });
 
-    it("usa fallback si el nombre base está vacío", () => {
+    it("usa la alternativa si el nombre base está vacío", () => {
         expect(getTimestampedExportFileName("", "csv", new Date(2026, 5, 3, 18, 42))).toBe(
             "datos 20260603 - 1842.csv"
         );
@@ -180,6 +181,40 @@ describe("readDatasetNameFromPayload", () => {
     it("ignora payloads antiguos sin nombre interno", () => {
         expect(readDatasetNameFromPayload({ version: 1, datos: [] })).toBeUndefined();
         expect(readDatasetNameFromPayload(null)).toBeUndefined();
+    });
+});
+
+describe("validateDatasetPayload", () => {
+    it("acepta un paquete v1 y formatos legados sin versión", () => {
+        expect(validateDatasetPayload({ version: 1, datos: [] })).toEqual({ ok: true });
+        expect(validateDatasetPayload({ datos: [] })).toEqual({ ok: true });
+        expect(validateDatasetPayload([{ Nombre: "Pelayo" }])).toEqual({ ok: true });
+    });
+
+    it.each([2, 0, "1", null])("rechaza una versión incompatible: %j", (version) => {
+        const result = validateDatasetPayload({ version, datos: [] });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.error).toContain("versión");
+    });
+
+    it("rechaza mediaAssets si no es un array", () => {
+        const result = validateDatasetPayload({ version: 1, datos: [], mediaAssets: {} });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.error).toContain("mediaAssets");
+    });
+
+    it.each([
+        null,
+        { id: "", personId: "1", kind: "external-url" },
+        { id: "a", personId: "", kind: "external-url" },
+        { id: "a", personId: "1", kind: "desconocido" },
+    ])("rechaza metadatos multimedia no válidos: %j", (asset) => {
+        const result = validateDatasetPayload({ version: 1, datos: [], mediaAssets: [asset] });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.error).toContain("medio 1");
     });
 });
 
@@ -232,7 +267,7 @@ describe("resolveImportedDatasetName", () => {
 });
 
 describe("safePackageFileName", () => {
-    it("limpia caracteres incompatibles con rutas ZIP portables", () => {
+    it("limpia caracteres incompatibles con rutas ZIP portátiles", () => {
         expect(safePackageFileName(" Pelayo:/original?.png ", "imagen")).toBe("Pelayo--original-.png");
         expect(safePackageFileName("...", "imagen")).toBe("imagen");
     });
@@ -295,7 +330,7 @@ describe("toPortableMediaAsset y createDatasetPayload", () => {
         });
     });
 
-    it("genera un payload JSON portable con nombre base estable", () => {
+    it("genera un contenido JSON portátil con nombre base estable", () => {
         const payload = createDatasetPayload(
             [{ Nombre: "Pelayo", _rowId: "row-1" }],
             [uploadedAsset],
@@ -307,12 +342,12 @@ describe("toPortableMediaAsset y createDatasetPayload", () => {
             version: 1,
             datasetName: "CRONOLOGÍA_FICHAS",
             exportedAt: "2026-01-01T00:00:00.000Z",
-            datos: [{ Nombre: "Pelayo" }],
+            datos: [{ Nombre: "Pelayo", _rowId: "row-1" }],
         });
         expect(payload.mediaAssets[0].storageKey).toBeUndefined();
     });
 
-    it("conserva rutas portables y variante documental ya preparadas para el ZIP completo", () => {
+    it("conserva rutas portátiles y la variante documental preparada para el ZIP completo", () => {
         const payload = createDatasetPayload(
             [{ Nombre: "Pelayo", _rowId: "row-1" }],
             [
