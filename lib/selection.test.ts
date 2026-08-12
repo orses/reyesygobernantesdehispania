@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios: lib/selection.ts
+// Pruebas unitarias: lib/selection.ts
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from "vitest";
@@ -52,6 +52,16 @@ describe("resolveStartupAwareRouteSelectedPersonId", () => {
 
     it("respeta la ruta cuando ya existe una selección activa", () => {
         expect(resolveStartupAwareRouteSelectedPersonId("51", "101", ["101", "51"])).toBe("51");
+    });
+
+    it("descarta una ruta válida globalmente cuando queda fuera de los filtros", () => {
+        expect(
+            resolveStartupAwareRouteSelectedPersonId(
+                "personaje-global",
+                "personaje-global",
+                ["primer-resultado", "segundo-resultado"]
+            )
+        ).toBe("primer-resultado");
     });
 });
 

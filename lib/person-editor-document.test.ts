@@ -142,6 +142,30 @@ describe("documento JSON del editor de personaje", () => {
         expect(result.value[2]).toEqual(rows[2]);
     });
 
+    it("mantiene inmutables los identificadores documentales de cada gobierno", () => {
+        const source = rows.slice(0, 2).map((item, index) => ({
+            ...item,
+            ID: `documental-${index + 1}`,
+            id: `alternativo-${index + 1}`,
+        }));
+        const document = createPersonEditorDocument(
+            { PersonID: "alfonso", "Nombre principal": "Alfonso X" },
+            source
+        );
+        document.Gobiernos[0].ID = "alterado";
+        document.Gobiernos[0].id = "también-alterado";
+
+        const result = applyPersonEditorDocumentToRows(source, "alfonso", document);
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.value[0]).toMatchObject({
+            ID: "documental-1",
+            id: "alternativo-1",
+            _rowId: "alfonso-leon",
+        });
+    });
+
     it("no propaga como datos personales los campos exclusivos de un gobierno", () => {
         const document = createPersonEditorDocument(
             {

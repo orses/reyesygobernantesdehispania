@@ -154,10 +154,16 @@ export function ComparativaTab({
                   onKeyDown={handleSearchKeyDown}
                   className="h-10 rounded-[3px] border-slate-700 bg-slate-950 pl-9 text-slate-100 placeholder:text-slate-500"
                   placeholder="Buscar monarca para comparar..."
+                  aria-label="Buscar personaje para comparar"
                   role="combobox"
                   aria-expanded={searchOpen}
                   aria-controls="compare-person-search-results"
                   aria-autocomplete="list"
+                  aria-activedescendant={
+                    searchOpen && searchablePeople[highlightedIndex]
+                      ? `compare-person-option-${searchablePeople[highlightedIndex].personId}`
+                      : undefined
+                  }
                 />
                 {searchOpen && (
                   <div
@@ -169,6 +175,7 @@ export function ComparativaTab({
                       searchablePeople.map((person, index) => (
                         <button
                           key={String(person.personId)}
+                          id={`compare-person-option-${person.personId}`}
                           type="button"
                           role="option"
                           aria-selected={index === highlightedIndex}
@@ -227,12 +234,13 @@ export function ComparativaTab({
                     <div key={p.personId} className="w-[min(82vw,340px)] flex-shrink-0 flex flex-col bg-slate-950/60 border border-slate-800 rounded-md overflow-hidden relative">
                       <Button 
                         title="Quitar de comparativa"
+                        aria-label={`Quitar a ${p.nombrePrincipal} de la comparativa`}
                         variant="ghost" 
                         size="icon" 
                         className="absolute right-1 top-1 h-6 w-6 rounded-full text-slate-400 hover:text-rose-400 hover:bg-slate-800 z-10"
                         onClick={() => removeId(String(p.personId))}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                       
                       {/* Portada mini */}

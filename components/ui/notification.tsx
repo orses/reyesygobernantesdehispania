@@ -2,6 +2,7 @@ import React from "react";
 import type { NotificationProps } from "../../lib/types";
 
 export function Notification({ type, message, list, rawText, onClose }: NotificationProps) {
+    const titleId = React.useId();
     const colors: Record<string, string> = {
         csv: "border-emerald-400/30",
         warn: "border-amber-400/30",
@@ -13,10 +14,14 @@ export function Notification({ type, message, list, rawText, onClose }: Notifica
     return (
         <div
             className={`rounded-[3px] border ${colors[type]} bg-slate-900/70 backdrop-blur px-4 py-3 shadow-lg`}
+            role={type === "error" ? "alert" : "status"}
+            aria-live={type === "error" ? "assertive" : "polite"}
+            aria-atomic="true"
+            aria-labelledby={titleId}
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-100">{title}</div>
+                    <div id={titleId} className="text-sm font-medium text-slate-100">{title}</div>
                     <div
                         className={`text-sm ${type === "error" ? "text-red-200" : "text-slate-200/90"}`}
                     >
@@ -39,10 +44,13 @@ export function Notification({ type, message, list, rawText, onClose }: Notifica
                     )}
                 </div>
                 <button
+                    type="button"
+                    aria-label={`Cerrar ${title}`}
+                    title={`Cerrar ${title}`}
                     onClick={onClose}
                     className="rounded-[3px] px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
                 >
-                    ×
+                    <span aria-hidden="true">×</span>
                 </button>
             </div>
         </div>

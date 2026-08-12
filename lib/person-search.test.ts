@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { computeDerivedRow } from "./data";
 import { derivePeopleFromRows } from "./people";
-import { personMatchesAdvancedSearch } from "./person-search";
+import {
+  compilePersonSearch,
+  personMatchesAdvancedSearch,
+  personMatchesLiteralSearch,
+} from "./person-search";
 import type { Person, RawRow } from "./types";
 
 function makeRow(row: RawRow): RawRow {
@@ -226,5 +230,50 @@ describe("personMatchesAdvancedSearch", () => {
       .map((person) => String(person.personId));
 
     expect(ids).toEqual(["felipe-iii", "carlos-ii"]);
+  });
+});
+
+describe("compilePersonSearch", () => {
+  const allIds = ["pelayo", "alfonso", "isabel", "fernando", "cortes"];
+
+  it.each([
+    ["términos implícitos", "castilla sabio", ["alfonso"]],
+    ["operadores booleanos", "pelayo OR isabel", ["pelayo", "isabel"]],
+    ["campos textuales", "descripcion:muez", ["pelayo"]],
+    ["años", "año=1500", ["isabel", "fernando"]],
+    ["siglos", "siglo=VIII", ["pelayo"]],
+    ["negaciones", "castilla -alfonso", ["isabel"]],
+    ["consulta inválida", "(", allIds],
+  ])("conserva la semántica de %s", (_label, query, expectedIds) => {
+    const people = peopleFixture();
+    const compiledSearch = compilePersonSearch(query);
+    const compiledIds = people
+      .filter(compiledSearch)
+      .map((person) => String(person.personId));
+    const compatibleIds = people
+      .filter((person) => personMatchesAdvancedSearch(person, query))
+      .map((person) => String(person.personId));
+
+    expect(compiledIds).toEqual(compatibleIds);
+    expect(compiledIds).toEqual(expectedIds);
+  });
+
+  it.each([
+    ["ALFONSO X", ["alfonso"]],
+    ["alfonso", []],
+    ["EL SABIO", ["alfonso"]],
+    ["", allIds],
+  ])("conserva la búsqueda literal para %j", (query, expectedIds) => {
+    const people = peopleFixture();
+    const compiledSearch = compilePersonSearch(query, true);
+    const compiledIds = people
+      .filter(compiledSearch)
+      .map((person) => String(person.personId));
+    const compatibleIds = people
+      .filter((person) => personMatchesLiteralSearch(person, query))
+      .map((person) => String(person.personId));
+
+    expect(compiledIds).toEqual(compatibleIds);
+    expect(compiledIds).toEqual(expectedIds);
   });
 });

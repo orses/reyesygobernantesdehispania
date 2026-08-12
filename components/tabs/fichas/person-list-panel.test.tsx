@@ -16,6 +16,8 @@ function renderPanel(): string {
       setLiteralSearch={noop}
       filterReino="__all__"
       setFilterReino={noop}
+      filterTipo="__all__"
+      setFilterTipo={noop}
       filterDinastia="__all__"
       setFilterDinastia={noop}
       filterSiglo="__all__"
@@ -31,6 +33,7 @@ function renderPanel(): string {
       setSelectedGovernment={noop}
       onSearchSubmit={noop}
       reinos={[]}
+      tipos={[]}
       dinastias={[]}
       siglos={[]}
       mediaAssets={[]}
@@ -59,5 +62,20 @@ describe("PersonListPanel", () => {
     expect(resetFiltersIndex).toBeGreaterThan(literalSearchIndex);
     expect(markup.match(/Búsqueda literal/g)).toHaveLength(1);
     expect(markup).not.toContain("coincidencia exacta");
+  });
+
+  it("muestra un selector explícito para el tipo de gobierno", () => {
+    expect(renderPanel()).toContain("Tipo de gobierno");
+  });
+
+  it("nombra la búsqueda y todos los selectores para tecnologías de asistencia", () => {
+    const markup = renderPanel();
+
+    expect(markup).toContain('aria-label="Buscar gobiernos"');
+    expect(markup).toContain('aria-label="Filtrar por siglo"');
+    expect(markup).toContain('aria-label="Filtrar por reino"');
+    expect(markup).toContain('aria-label="Filtrar por dinastía"');
+    expect(markup).toContain('aria-label="Filtrar por tipo de gobierno"');
+    expect(markup).toContain('aria-label="Ordenar gobiernos"');
   });
 });

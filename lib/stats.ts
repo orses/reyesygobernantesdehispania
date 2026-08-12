@@ -19,6 +19,7 @@ import {
     rowDisplayName,
     getPersonId,
 } from "./data";
+import { reportError } from "./observability";
 
 /**
  * Calcula el bloque completo de estadísticas a partir de las filas
@@ -36,7 +37,6 @@ export function calculateStatsHelper(
         const durations = inputRows
             .map((r) => r._duracionCalc)
             .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
-        durations.sort((a, b) => a - b);
         const sum = durations.reduce((acc, n) => acc + n, 0);
         const mean = durations.length ? sum / durations.length : null;
 
@@ -195,7 +195,14 @@ export function calculateStatsHelper(
             perCentury,
         };
     } catch (e) {
-        console.error("Error calculando estadísticas:", e);
+        reportError(e, {
+            event: "statistics.compute.failed",
+            recoverable: true,
+            metadata: {
+                personCount: inputPeople.length,
+                rowCount: inputRows.length,
+            },
+        });
         return {
             totalFilas: 0,
             totalMonarcas: 0,

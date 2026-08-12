@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios — lib/data.ts
+// Pruebas unitarias: lib/data.ts
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect } from "vitest";
@@ -242,6 +242,34 @@ describe("parseCsv", () => {
         const result = parseCsv("");
         expect(result.ok).toBe(false);
     });
+
+    it("conserva el índice original tras una cabecera vacía intermedia", () => {
+        const result = parseCsv("A;;C\n1;ignorado;3");
+
+        expect(result.ok).toBe(true);
+        expect(result.value).toEqual([{ A: "1", C: "3" }]);
+    });
+
+    it("rechaza cabeceras duplicadas", () => {
+        const result = parseCsv("Nombre;Nombre\nAlfonso;Sancho");
+
+        expect(result.ok).toBe(false);
+        expect(result.error).toContain("cabecera duplicada");
+    });
+
+    it("rechaza comillas sin cerrar", () => {
+        const result = parseCsv('Nombre;Reino\n"Alfonso;Castilla');
+
+        expect(result.ok).toBe(false);
+        expect(result.error).toContain("comillas sin cerrar");
+    });
+
+    it("rechaza columnas adicionales con contenido", () => {
+        const result = parseCsv("Nombre;Reino\nAlfonso;Castilla;sobrante");
+
+        expect(result.ok).toBe(false);
+        expect(result.error).toContain("más columnas");
+    });
 });
 
 // ===========================================================================
@@ -260,6 +288,49 @@ describe("generateCsv", () => {
         // Tiene cabecera
         const lines = csv.split("\n").filter((l) => l.trim());
         expect(lines.length).toBeGreaterThanOrEqual(3); // cabecera + 2 filas
+    });
+
+    it("conserva _rowId para mantener estables las referencias entre gobiernos", () => {
+        const csv = generateCsv([
+            { ID: "duplicado", _rowId: "duplicado", Predecesor: "" },
+            { ID: "duplicado", _rowId: "duplicado~2", Predecesor: "row:duplicado" },
+        ]);
+        const parsed = parseCsv(csv);
+
+        expect(parsed.ok).toBe(true);
+        expect(parsed.value).toEqual([
+            { ID: "duplicado", _rowId: "duplicado", Predecesor: "" },
+            { ID: "duplicado", _rowId: "duplicado~2", Predecesor: "row:duplicado" },
+        ]);
+    });
+
+    it("escapa cabeceras con delimitadores, comillas y saltos de línea", () => {
+        const header = 'Campo; "especial"\nsegunda línea';
+        const csv = generateCsv([{ [header]: "valor" }]);
+        const parsed = parseCsv(csv);
+
+        expect(parsed.ok).toBe(true);
+        expect(parsed.value).toEqual([{ [header]: "valor" }]);
+    });
+
+    it.each(["=1+1", "+SUMA(A1:A2)", "-2+3", "@comando", "\tpeligro", "\rpeligro"])(
+        "neutraliza el valor potencialmente ejecutable %j",
+        (dangerousValue) => {
+            const csv = generateCsv([{ Valor: dangerousValue }]);
+            const parsed = parseCsv(csv);
+            const exportedValue = String(parsed.value?.[0]?.Valor ?? "");
+
+            expect(parsed.ok).toBe(true);
+            expect(exportedValue.startsWith("'")).toBe(true);
+            expect(/^[=+\-@\t\r]/.test(exportedValue)).toBe(false);
+        }
+    );
+
+    it("neutraliza también una cabecera que podría interpretarse como fórmula", () => {
+        const parsed = parseCsv(generateCsv([{ "=HIPERVINCULO()": "valor" }]));
+        const exportedHeader = Object.keys(parsed.value?.[0] ?? {})[0];
+
+        expect(exportedHeader).toBe("'=HIPERVINCULO()");
     });
 });
 
@@ -297,6 +368,17 @@ describe("normalizeRows", () => {
         const result = normalizeRows(null);
         expect(result.ok).toBe(false);
     });
+
+    it.each([null, 7, "fila", []])(
+        "rechaza una fila que no sea un objeto: %j",
+        (invalidRow) => {
+            const result = normalizeRows({ datos: [{ Nombre: "válida" }, invalidRow] });
+
+            expect(result.ok).toBe(false);
+            expect(result.error).toContain("fila 2");
+            expect(result.error).toContain("objeto");
+        }
+    );
 });
 
 // ===========================================================================
@@ -371,7 +453,7 @@ describe("rowDisplayName", () => {
         expect(rowDisplayName(row)).toBe("Fernando V");
     });
 
-    it("devuelve un fallback para filas vacías", () => {
+    it("devuelve una alternativa para filas vacías", () => {
         const row: RawRow = {};
         const name = rowDisplayName(row);
         expect(typeof name).toBe("string");

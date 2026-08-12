@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PanelLeftClose, PanelTopClose, PanelTopOpen, RotateCcw, Search, X } from "lucide-react";
 import {
   Card,
@@ -20,9 +20,16 @@ import {
 } from "../../ui/select";
 import { asYearOrNull, firstNonEmpty, formatCenturyLabel, rowDisplayName } from "../../../lib/data";
 import { kingdomColor } from "../../../lib/ficha-view";
-import { getPrimaryMediaAsset } from "../../../lib/media";
+import {
+  createPrimaryMediaAssetIndex,
+  getPrimaryMediaAssetFromIndex,
+} from "../../../lib/media";
 import { personGovernmentMatchesSimpleSearch } from "../../../lib/person-government-search";
-import { normalizePersonSearchText, personDinastiaSummary, rowSpansCentury } from "../../../lib/people";
+import {
+  normalizePersonSearchText,
+  personDinastiaSummary,
+  rowMatchesStructuredFilters,
+} from "../../../lib/people";
 import type { MediaAsset, Person, RawRow } from "../../../lib/types";
 import { MediaThumb } from "./shared";
 
@@ -64,21 +71,17 @@ function rowMatchesFilters(
   row: RawRow,
   query: string,
   filterReino: string,
+  filterTipo: string,
   filterDinastia: string,
   filterSiglo: string,
   literalSearch: boolean
 ): boolean {
-  if (filterReino !== "__all__" && rowKingdom(row) !== filterReino) return false;
-  if (
-    filterDinastia !== "__all__" &&
-    normalizePersonSearchText(rowDynasty(row)) !== normalizePersonSearchText(filterDinastia)
-  ) {
-    return false;
-  }
-  if (filterSiglo !== "__all__") {
-    const century = Number.parseInt(filterSiglo, 10);
-    if (Number.isFinite(century) && !rowSpansCentury(row, century)) return false;
-  }
+  if (!rowMatchesStructuredFilters(row, {
+    filterReino,
+    filterTipo,
+    filterDinastia,
+    filterSiglo,
+  })) return false;
 
   return personGovernmentMatchesSimpleSearch(person, row, query, literalSearch);
 }
@@ -87,6 +90,7 @@ function governmentCardItems(
   people: Person[],
   query: string,
   filterReino: string,
+  filterTipo: string,
   filterDinastia: string,
   filterSiglo: string,
   literalSearch: boolean
@@ -101,7 +105,7 @@ function governmentCardItems(
       const rowId = String(row?._rowId ?? row?.ID ?? `period-${rowIndex + 1}`);
       const currentOrder = order;
       order += 1;
-      if (!rowMatchesFilters(person, row, query, filterReino, filterDinastia, filterSiglo, literalSearch)) continue;
+      if (!rowMatchesFilters(person, row, query, filterReino, filterTipo, filterDinastia, filterSiglo, literalSearch)) continue;
 
       items.push({
         person,
@@ -171,6 +175,8 @@ interface PersonListPanelProps {
   setLiteralSearch: StateSetter<boolean>;
   filterReino: string;
   setFilterReino: StateSetter<string>;
+  filterTipo: string;
+  setFilterTipo: StateSetter<string>;
   filterDinastia: string;
   setFilterDinastia: StateSetter<string>;
   filterSiglo: string;
@@ -186,6 +192,7 @@ interface PersonListPanelProps {
   setSelectedGovernment: (personId: string, rowId: string) => void;
   onSearchSubmit: (query: string) => void;
   reinos: string[];
+  tipos: string[];
   dinastias: string[];
   siglos: string[];
   mediaAssets: MediaAsset[];
@@ -203,6 +210,8 @@ export function PersonListPanel({
   setLiteralSearch,
   filterReino,
   setFilterReino,
+  filterTipo,
+  setFilterTipo,
   filterDinastia,
   setFilterDinastia,
   filterSiglo,
@@ -218,6 +227,7 @@ export function PersonListPanel({
   setSelectedGovernment,
   onSearchSubmit,
   reinos,
+  tipos,
   dinastias,
   siglos,
   mediaAssets,
@@ -227,15 +237,41 @@ export function PersonListPanel({
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const hasQuery = query.trim().length > 0;
   const hasReinoFilter = filterReino !== "__all__";
+  const hasTipoFilter = filterTipo !== "__all__";
   const hasDinastiaFilter = filterDinastia !== "__all__";
   const hasSigloFilter = filterSiglo !== "__all__";
   const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
-  const governmentCards = governmentCardItems(people, query, filterReino, filterDinastia, filterSiglo, literalSearch)
-    .sort((a, b) => compareGovernmentCards(a, b, sortKey, sortDir));
+  const primaryMediaAssetIndex = useMemo(
+    () => createPrimaryMediaAssetIndex(mediaAssets),
+    [mediaAssets]
+  );
+  const governmentCards = useMemo(
+    () => governmentCardItems(
+      people,
+      query,
+      filterReino,
+      filterTipo,
+      filterDinastia,
+      filterSiglo,
+      literalSearch
+    ).sort((a, b) => compareGovernmentCards(a, b, sortKey, sortDir)),
+    [
+      people,
+      query,
+      filterReino,
+      filterTipo,
+      filterDinastia,
+      filterSiglo,
+      literalSearch,
+      sortKey,
+      sortDir,
+    ]
+  );
   const activeFilterCount =
     (hasQuery ? 1 : 0) +
     (literalSearch ? 1 : 0) +
     (hasReinoFilter ? 1 : 0) +
+    (hasTipoFilter ? 1 : 0) +
     (hasDinastiaFilter ? 1 : 0) +
     (hasSigloFilter ? 1 : 0) +
     (hasSortFilter ? 1 : 0);
@@ -324,6 +360,7 @@ export function PersonListPanel({
                   : "border-slate-700/60 bg-slate-900/60"
               }`}
               placeholder="Buscar: Muez, descripción:Muez, año:920..."
+              aria-label="Buscar gobiernos"
               title="Búsqueda avanzada: texto libre, años contenidos en un gobierno, OR/O, AND/Y, NO/NOT/- y campos como descripción:, reino:, dinastia:, año:, inicio>=, fin<= y siglo=."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -358,7 +395,7 @@ export function PersonListPanel({
             <div className="space-y-1 sm:col-span-1">
               <div className={filterLabelClass(hasSigloFilter)}>Siglo</div>
               <Select value={filterSiglo} onValueChange={setFilterSiglo}>
-                <SelectTrigger className={controlClass(hasSigloFilter)}>
+                <SelectTrigger aria-label="Filtrar por siglo" className={controlClass(hasSigloFilter)}>
                   <SelectValue>{filterSiglo === "__all__" ? "todos" : formatCenturyLabel(filterSiglo)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -375,7 +412,7 @@ export function PersonListPanel({
             <div className="space-y-1 sm:col-span-2">
               <div className={filterLabelClass(hasReinoFilter)}>Reino</div>
               <Select value={filterReino} onValueChange={setFilterReino}>
-                <SelectTrigger className={controlClass(hasReinoFilter)}>
+                <SelectTrigger aria-label="Filtrar por reino" className={controlClass(hasReinoFilter)}>
                   <SelectValue>{filterReino === "__all__" ? "todos" : filterReino}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -393,7 +430,7 @@ export function PersonListPanel({
           <div className="space-y-1">
             <div className={filterLabelClass(hasDinastiaFilter)}>Dinastía</div>
             <Select value={filterDinastia} onValueChange={setFilterDinastia}>
-              <SelectTrigger className={controlClass(hasDinastiaFilter)}>
+              <SelectTrigger aria-label="Filtrar por dinastía" className={controlClass(hasDinastiaFilter)}>
                 <SelectValue>{filterDinastia === "__all__" ? "todas" : filterDinastia}</SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -401,6 +438,23 @@ export function PersonListPanel({
                 {dinastias.map((dinastia) => (
                   <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" key={dinastia} value={dinastia}>
                     {dinastia}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <div className={filterLabelClass(hasTipoFilter)}>Tipo de gobierno</div>
+            <Select value={filterTipo} onValueChange={setFilterTipo}>
+              <SelectTrigger aria-label="Filtrar por tipo de gobierno" className={controlClass(hasTipoFilter)}>
+                <SelectValue>{filterTipo === "__all__" ? "todos" : filterTipo}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
+                <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" value="__all__">todos</SelectItem>
+                {tipos.map((tipo) => (
+                  <SelectItem className="text-slate-100 focus:bg-slate-800 focus:text-slate-50" key={tipo} value={tipo}>
+                    {tipo}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -417,7 +471,7 @@ export function PersonListPanel({
                 setSortDir(direction);
               }}
             >
-              <SelectTrigger className={controlClass(hasSortFilter)}>
+              <SelectTrigger aria-label="Ordenar gobiernos" className={controlClass(hasSortFilter)}>
                 <SelectValue>{sortOptions[`${sortKey}:${sortDir}`] || "ordenar..."}</SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">
@@ -468,6 +522,7 @@ export function PersonListPanel({
                 setQuery("");
                 setLiteralSearch(false);
                 setFilterReino("__all__");
+                setFilterTipo("__all__");
                 setFilterDinastia("__all__");
                 setFilterSiglo("__all__");
                 setFilterDinastiaLocked(false);
@@ -493,12 +548,17 @@ export function PersonListPanel({
               const active =
                 item.rowId === selectedGovernmentRowId ||
                 (!selectedGovernmentRowId && String(item.person.personId) === String(selectedPersonId));
-              const primaryMedia = getPrimaryMediaAsset(mediaAssets, item.person.personId);
+              const primaryMedia = getPrimaryMediaAssetFromIndex(
+                primaryMediaAssetIndex,
+                item.person.personId
+              );
               const rangeStr = rangeLabel(item);
 
               return (
                 <button
                   key={`${item.person.personId}-${item.rowId}`}
+                  type="button"
+                  aria-current={active ? "true" : undefined}
                   className={`w-full cursor-pointer text-left rounded-[3px] px-3 py-2 transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${active ? "bg-slate-800/70 border-emerald-400/70" : "bg-slate-900/35 border-slate-600/80 hover:bg-slate-900/55 hover:border-slate-400/90"}`}
                   onClick={() => setSelectedGovernment(String(item.person.personId), item.rowId)}
                   title={item.person.nombrePrincipal !== item.name ? `${item.name} · ${item.person.nombrePrincipal}` : item.name}

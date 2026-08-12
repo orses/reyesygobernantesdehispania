@@ -1,7 +1,7 @@
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import {
   Upload,
   Plus,
@@ -10,12 +10,8 @@ import {
   Download,
   UserPlus,
 } from "lucide-react";
-import { motion } from "framer-motion";
-
 import {
-  getPersonId,
   formatCenturyLabel,
-  verifiedToText,
 } from "./lib/data";
 import {
   getPreferredStartupPersonId,
@@ -31,17 +27,47 @@ import {
   isOpenPersonEditorShortcut,
 } from "./lib/person-editor-keyboard-shortcut";
 import { useHashLocation } from "./lib/hash-router";
+import { hasActiveDatasetFilters } from "./lib/filters";
+import { isPendingDatasetReplacement } from "./lib/dataset-revision";
+import {
+  completeEditorSave,
+  createClosedEditorSession,
+  editorSessionReducer,
+} from "./lib/editor-session";
 
 // Componentes
 import { Notification } from "./components/ui/notification";
-import { StatsTab } from "./components/tabs/stats-tab";
 import { FichasTab } from "./components/tabs/fichas-tab";
-import { DataTab } from "./components/tabs/data-tab";
-import { TimelineTab } from "./components/tabs/timeline-tab";
-import { ComparativaTab } from "./components/tabs/comparativa-tab";
-import { EditorDialog, DeleteDialog, LoadDataDialog } from "./components/editors/editors";
+import { DatasetHydrationGate } from "./components/dataset-hydration-gate";
 
-// Hook y Contexto
+const StatsTab = lazy(() =>
+  import("./components/tabs/stats-tab").then((module) => ({ default: module.StatsTab }))
+);
+const DataTab = lazy(() =>
+  import("./components/tabs/data-tab").then((module) => ({ default: module.DataTab }))
+);
+const TimelineTab = lazy(() =>
+  import("./components/tabs/timeline-tab").then((module) => ({ default: module.TimelineTab }))
+);
+const ComparativaTab = lazy(() =>
+  import("./components/tabs/comparativa-tab").then((module) => ({ default: module.ComparativaTab }))
+);
+const EditorDialog = lazy(() =>
+  import("./components/editors/editors").then((module) => ({ default: module.EditorDialog }))
+);
+const DeleteDialog = lazy(() =>
+  import("./components/editors/editors").then((module) => ({ default: module.DeleteDialog }))
+);
+const LoadDataDialog = lazy(() =>
+  import("./components/editors/editors").then((module) => ({ default: module.LoadDataDialog }))
+);
+const ImportReviewDialog = lazy(() =>
+  import("./components/import-review-dialog").then((module) => ({
+    default: module.ImportReviewDialog,
+  }))
+);
+
+// Estado de datos y contexto de la aplicación.
 import { useDataset } from "./hooks/useDataset";
 import { AppProvider, useAppContext } from "./context/AppContext";
 
@@ -51,8 +77,22 @@ import { AppProvider, useAppContext } from "./context/AppContext";
 export default function ReyesApp() {
   const dataset = useDataset();
 
+  if (dataset.hydrationStatus !== "ready") {
+    return (
+      <DatasetHydrationGate
+        status={dataset.hydrationStatus}
+        errorMessage={dataset.error}
+        onRetry={() => globalThis.location.reload()}
+      />
+    );
+  }
+
   return (
-    <AppProvider rows={dataset.rows} idbLoaded={dataset.idbLoaded} datasetLoadedAt={dataset.datasetLoadedAt}>
+    <AppProvider
+      rows={dataset.rows}
+      idbLoaded={dataset.idbLoaded}
+      datasetReplacementRevision={dataset.datasetReplacementRevision}
+    >
       <ReyesAppInner dataset={dataset} />
     </AppProvider>
   );
@@ -74,6 +114,20 @@ function personRoute(personId: string | number): string {
   return `/fichas/${encodeURIComponent(String(personId))}`;
 }
 
+const EMPTY_EDITOR_ROWS: RawRow[] = [];
+
+function LoadingPanel() {
+  return (
+    <div
+      className="rounded-[3px] border border-slate-800 bg-slate-900/30 px-4 py-8 text-center text-sm text-slate-300"
+      role="status"
+      aria-live="polite"
+    >
+      Cargando módulo…
+    </div>
+  );
+}
+
 function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) {
   const {
     fileRef,
@@ -82,6 +136,10 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     detectedQuotes,
     error,
     setError,
+    pendingDatasetImportReview,
+    isApplyingDatasetImportReview,
+    applyDatasetImportRepairs,
+    cancelDatasetImportReview,
     datasetName,
     setDatasetName,
     datasetChecks,
@@ -112,6 +170,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     filters,
     setFilters,
     reinos,
+    tipos,
     dinastias,
     siglos,
     selectedPersonId,
@@ -127,6 +186,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const [showChecksNotice, setShowChecksNotice] = useState(true);
   const [showErrorNotice, setShowErrorNotice] = useState(true);
   const [showNoticeCenter, setShowNoticeCenter] = useState(false);
+  const noticeCenterButtonRef = useRef<HTMLButtonElement>(null);
 
   // --- Rutas y sincronización ---
   const { pathname, navigate } = useHashLocation();
@@ -149,31 +209,33 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
 
   const matchFicha = pathname.match(/^\/fichas\/(.+)/);
   const urlPersonId = decodeRouteParam(matchFicha ? matchFicha[1] : null);
-  const allPersonIds = useMemo(() => allPeople.map((person) => person.personId), [allPeople]);
+  const visiblePersonIds = useMemo(() => people.map((person) => person.personId), [people]);
   const startupPersonId = useMemo(() => getPreferredStartupPersonId(allPeople), [allPeople]);
-  const handledRouteDatasetLoadedAtRef = useRef<number | null>(null);
+  const handledRouteDatasetReplacementRevisionRef = useRef(0);
 
   useEffect(() => {
     if (!dataset.idbLoaded) return;
     if (activeTab !== "fichas") return;
     if (
-      dataset.datasetLoadedAt &&
-      startupPersonId &&
-      handledRouteDatasetLoadedAtRef.current !== dataset.datasetLoadedAt
+      isPendingDatasetReplacement(
+        dataset.datasetReplacementRevision,
+        handledRouteDatasetReplacementRevisionRef.current
+      )
     ) {
-      handledRouteDatasetLoadedAtRef.current = dataset.datasetLoadedAt;
-      if (startupPersonId !== selectedPersonId) {
-        setSelectedPersonId(startupPersonId);
-      }
-      if (startupPersonId !== urlPersonId) {
+      handledRouteDatasetReplacementRevisionRef.current = dataset.datasetReplacementRevision;
+      if (!startupPersonId) {
+        if (urlPersonId) navigate("/fichas", { replace: true });
+      } else if (startupPersonId !== urlPersonId) {
         navigate(personRoute(startupPersonId), { replace: true });
       }
       return;
     }
 
-    const nextPersonId = !selectedPersonId && startupPersonId
-      ? startupPersonId
-      : resolveStartupAwareRouteSelectedPersonId(urlPersonId, selectedPersonId, allPersonIds);
+    const nextPersonId = resolveStartupAwareRouteSelectedPersonId(
+      urlPersonId,
+      selectedPersonId,
+      visiblePersonIds
+    );
 
     if (!nextPersonId) {
       if (urlPersonId) navigate("/fichas", { replace: true });
@@ -190,12 +252,12 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     activeTab,
     urlPersonId,
     selectedPersonId,
-    allPersonIds,
+    visiblePersonIds,
     startupPersonId,
     setSelectedPersonId,
     navigate,
     dataset.idbLoaded,
-    dataset.datasetLoadedAt,
+    dataset.datasetReplacementRevision,
   ]);
 
   const selectPerson = (personId: string | null) => {
@@ -213,12 +275,31 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   };
 
   // --- Estado de edición ---
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorMode, setEditorMode] = useState<"person" | "row">("person");
-  const [draftPersonId, setDraftPersonId] = useState<string | number | null>(null);
-  const [draftRowId, setDraftRowId] = useState<string | number | null>(null);
-  const [draft, setDraft] = useState<RawRow | null>(null);
-  const [draftPersonRows, setDraftPersonRows] = useState<RawRow[]>([]);
+  const [editorSession, dispatchEditorSession] = React.useReducer(
+    editorSessionReducer,
+    createClosedEditorSession()
+  );
+  const editorOpen = editorSession.kind !== "closed";
+  const editorMode = editorSession.kind === "row" ? "row" : "person";
+  const draft = editorSession.kind === "closed" ? null : editorSession.draft;
+  const draftPersonRows = editorSession.kind === "person"
+    ? editorSession.governmentRows
+    : EMPTY_EDITOR_ROWS;
+  const draftPersonId = editorSession.kind === "closed"
+    ? null
+    : editorSession.personId;
+  const draftRowId = editorSession.kind === "row" ? editorSession.rowId : null;
+  const setEditorOpen = React.useCallback((open: boolean) => {
+    if (!open) dispatchEditorSession({ type: "close" });
+  }, []);
+  const setDraft = React.useCallback<React.Dispatch<React.SetStateAction<RawRow | null>>>(
+    (value) => dispatchEditorSession({ type: "set-draft", value }),
+    []
+  );
+  const setDraftPersonRows = React.useCallback<React.Dispatch<React.SetStateAction<RawRow[]>>>(
+    (value) => dispatchEditorSession({ type: "set-government-rows", value }),
+    []
+  );
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: string; id: string | number | null }>({ kind: "row", id: null });
 
@@ -243,15 +324,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   }
 
   // --- Derivados ---
-  const hasFilters = useMemo(
-    () =>
-      filters.query !== "" ||
-      filters.literalSearch ||
-      filters.filterReino !== "__all__" ||
-      filters.filterDinastia !== "__all__" ||
-      filters.filterSiglo !== "__all__",
-    [filters]
-  );
+  const hasFilters = useMemo(() => hasActiveDatasetFilters(filters), [filters]);
 
   const selectedCenturiesText = useMemo(() => {
     if (!selectedCenturies.length) return "";
@@ -263,33 +336,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   const openPersonEditor = React.useCallback((personId: string | number) => {
     const p = allPeople.find((x) => String(x.personId) === String(personId));
     if (!p) return;
-    const base = p.reinados[0] || {};
-    const personDraft: RawRow = {
-      PersonID: personId,
-      "Nombre principal": p.nombrePrincipal === "(sin nombre)" ? "" : p.nombrePrincipal,
-      Apelativo: p.apelativos?.[0] ?? base.Apelativo ?? base.apelativo ?? "",
-      Dinastía: p.hasDinastiaConflict ? "" : p.dinastia,
-      "Información verificada": verifiedToText(p.verifiedAll),
-      "Nacimiento (Fecha)": base["Nacimiento (Fecha)"] ?? "",
-      "Nacimiento (lugar)": base["Nacimiento (lugar)"] ?? "",
-      "Nacimiento (ciudad)": base["Nacimiento (ciudad)"] ?? "",
-      "Nacimiento (provincia)": base["Nacimiento (provincia)"] ?? "",
-      "Nacimiento (País)": base["Nacimiento (País)"] ?? "",
-      "Fallecimiento (Fecha)": base["Fallecimiento (Fecha)"] ?? "",
-      "Fallecimiento (lugar)": base["Fallecimiento (lugar)"] ?? "",
-      "Fallecimiento (ciudad)": base["Fallecimiento (ciudad)"] ?? "",
-      "Fallecimiento (provincia)": base["Fallecimiento (provincia)"] ?? "",
-      "Fallecimiento (País)": base["Fallecimiento (País)"] ?? "",
-      Enterramiento: base["Enterramiento"] ?? "",
-      "Ficha RAH URL": base["Ficha RAH URL"] ?? "",
-      Descripción: base["Descripción"] ?? "",
-    };
-    setEditorMode("person");
-    setDraftPersonId(personId);
-    setDraftRowId(null);
-    setDraft(personDraft);
-    setDraftPersonRows(p.reinados.map((row) => ({ ...row })));
-    setEditorOpen(true);
+    dispatchEditorSession({ type: "open-person", person: p });
   }, [allPeople]);
 
   useEffect(() => {
@@ -324,34 +371,24 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   function openRowEditor(rowId: string | number) {
     const r = rows.find((x) => String(x._rowId) === String(rowId));
     if (!r) return;
-    setEditorMode("row");
-    setDraftRowId(rowId);
-    setDraftPersonId(getPersonId(r) || null);
-    setDraftPersonRows([]);
-    setDraft(JSON.parse(JSON.stringify(r)));
-    setEditorOpen(true);
+    dispatchEditorSession({ type: "open-row", row: r, rowId });
   }
 
-  function commitDraft(
+  async function commitDraft(
     { closeAfterSave = true }: { closeAfterSave?: boolean } = {}
-  ): boolean {
+  ): Promise<boolean> {
     if (!draft) return false;
-    if (editorMode === "person") {
-      const err = commitPersonDraft(String(draftPersonId ?? ""), draft, draftPersonRows);
-      if (err) {
-        setError(err);
-        return false;
-      }
-    } else {
-      const err = commitRowDraft(String(draftRowId ?? ""), draft);
-      if (err) {
-        setError(err);
-        return false;
-      }
-    }
-    setError(null);
-    if (closeAfterSave) setEditorOpen(false);
-    return true;
+
+    const commit = editorMode === "person"
+      ? () => commitPersonDraft(String(draftPersonId ?? ""), draft, draftPersonRows)
+      : () => commitRowDraft(String(draftRowId ?? ""), draft);
+
+    return completeEditorSave({
+      commit,
+      closeAfterSave,
+      setError,
+      close: () => setEditorOpen(false),
+    });
   }
 
   function addRowForSelectedPerson() {
@@ -362,31 +399,11 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
   function createNewPerson() {
     const { personId: newId, row: newRow } = addPerson();
     selectPerson(String(newId));
-    setEditorMode("person");
-    setDraftPersonId(newId);
-    setDraftRowId(null);
-    setDraft({
-      PersonID: newId,
-      "Nombre principal": "",
-      Apelativo: "",
-      Dinastía: "",
-      "Información verificada": verifiedToText(false),
-      "Nacimiento (Fecha)": "",
-      "Nacimiento (lugar)": "",
-      "Nacimiento (ciudad)": "",
-      "Nacimiento (provincia)": "",
-      "Nacimiento (País)": "",
-      "Fallecimiento (Fecha)": "",
-      "Fallecimiento (lugar)": "",
-      "Fallecimiento (ciudad)": "",
-      "Fallecimiento (provincia)": "",
-      "Fallecimiento (País)": "",
-      Enterramiento: "",
-      "Ficha RAH URL": "",
-      Descripción: "",
+    dispatchEditorSession({
+      type: "open-new-person",
+      personId: newId,
+      row: newRow,
     });
-    setDraftPersonRows([{ ...newRow }]);
-    setEditorOpen(true);
   }
 
   function removeTarget() {
@@ -398,13 +415,15 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
     setDeleteOpen(false);
   }
 
-  // Helpers de filtros para FichasTab
+  // Funciones auxiliares de filtros para FichasTab.
   const setQuery = (v: string | ((prev: string) => string)) =>
     setFilters((f) => ({ ...f, query: typeof v === 'function' ? v(f.query) : v }));
   const setLiteralSearch = (v: boolean | ((prev: boolean) => boolean)) =>
     setFilters((f) => ({ ...f, literalSearch: typeof v === 'function' ? v(f.literalSearch) : v }));
   const setFilterReino = (v: string | ((prev: string) => string)) =>
     setFilters((f) => ({ ...f, filterReino: typeof v === 'function' ? v(f.filterReino) : v }));
+  const setFilterTipo = (v: string | ((prev: string) => string)) =>
+    setFilters((f) => ({ ...f, filterTipo: typeof v === 'function' ? v(f.filterTipo) : v }));
   const setFilterDinastia = (v: string | ((prev: string) => string)) =>
     setFilters((f) => ({ ...f, filterDinastia: typeof v === 'function' ? v(f.filterDinastia) : v }));
   const setFilterSiglo = (v: string | ((prev: string) => string)) =>
@@ -449,11 +468,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
           )}
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-        >
+        <div className="app-header-enter">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-5xl">
               <div className="flex items-center gap-2">
@@ -466,19 +481,44 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
               <div className="relative">
                 <Button
+                  ref={noticeCenterButtonRef}
+                  type="button"
                   variant="outline"
                   size="icon"
                   className="cursor-pointer bg-slate-950 border-slate-700/70"
                   onClick={() => setShowNoticeCenter((v) => !v)}
+                  aria-label={showNoticeCenter ? "Cerrar preferencias de notificaciones" : "Abrir preferencias de notificaciones"}
+                  aria-expanded={showNoticeCenter}
+                  aria-controls="notification-preferences"
                 >
-                  <Bell className="h-5 w-5 text-slate-100" />
+                  <Bell className="h-5 w-5 text-slate-100" aria-hidden="true" />
                 </Button>
                 {showNoticeCenter && (
-                  <div className="absolute right-0 mt-2 w-[320px] rounded-[3px] border border-slate-800 bg-slate-950/95 p-3 shadow-xl z-50">
+                  <div
+                    id="notification-preferences"
+                    role="region"
+                    aria-label="Preferencias de notificaciones"
+                    className="absolute right-0 mt-2 w-[320px] rounded-[3px] border border-slate-800 bg-slate-950/95 p-3 shadow-xl z-50"
+                    onKeyDown={(event) => {
+                      if (event.key !== "Escape") return;
+                      event.preventDefault();
+                      setShowNoticeCenter(false);
+                      noticeCenterButtonRef.current?.focus();
+                    }}
+                  >
                     <div className="flex items-center justify-between text-sm mb-2 font-medium">
                       <span>notificaciones</span>
-                      <button onClick={() => setShowNoticeCenter(false)}>
-                        ×
+                      <button
+                        type="button"
+                        aria-label="Cerrar preferencias de notificaciones"
+                        title="Cerrar preferencias de notificaciones"
+                        className="rounded-[3px] px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        onClick={() => {
+                          setShowNoticeCenter(false);
+                          noticeCenterButtonRef.current?.focus();
+                        }}
+                      >
+                        <span aria-hidden="true">×</span>
                       </button>
                     </div>
                     <div className="space-y-2 text-sm">
@@ -558,10 +598,13 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
               </Button>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-[3px] bg-slate-900/40 border border-slate-800 p-1">
+          <TabsList
+            aria-label="Secciones principales"
+            className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-[3px] bg-slate-900/40 border border-slate-800 p-1"
+          >
             <TabsTrigger value="fichas" className="min-w-[calc(50%-0.25rem)] flex-1 rounded-[3px] px-3 sm:min-w-0 sm:flex-none sm:px-4">
               Fichas
             </TabsTrigger>
@@ -580,7 +623,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
           </TabsList>
 
           <div className="mt-3 min-w-0">
-            {activeTab === "fichas" && (
+            <Suspense fallback={<LoadingPanel />}>
+              <TabsContent value="fichas" className="mt-0">
                 <FichasTab
                   people={people}
                   chronologicalPeople={allPeople}
@@ -591,6 +635,8 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   setLiteralSearch={setLiteralSearch}
                   filterReino={filters.filterReino}
                   setFilterReino={setFilterReino}
+                  filterTipo={filters.filterTipo}
+                  setFilterTipo={setFilterTipo}
                   filterDinastia={filters.filterDinastia}
                   setFilterDinastia={setFilterDinastia}
                   filterSiglo={filters.filterSiglo}
@@ -604,6 +650,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   setSelectedPersonId={selectPerson}
                   selectedPerson={selectedPerson}
                   reinos={reinos}
+                  tipos={tipos}
                   dinastias={dinastias}
                   siglos={siglos}
                   selectedCenturies={selectedCenturies}
@@ -623,18 +670,19 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   removeMediaAsset={removeMediaAsset}
                   setPrimaryMediaAsset={setPrimaryMediaAsset}
                 />
-            )}
+              </TabsContent>
               
-            {activeTab === "estadistica" && (
+              <TabsContent value="estadistica" className="mt-0">
                 <StatsTab
                   globalStats={globalStats}
                   filteredStats={filteredStats}
                   hasFilters={hasFilters}
                   onPersonClick={navigateToPerson}
+                  onTabChange={handleTabChange}
                 />
-            )}
+              </TabsContent>
 
-            {activeTab === "datos" && (
+              <TabsContent value="datos" className="mt-0">
                 <DataTab
                   rows={rows}
                   datasetName={datasetName}
@@ -644,46 +692,69 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                   setImagePrintProfile={setImagePrintProfile}
                   exportDatasetPackage={exportDatasetPackage}
                 />
-            )}
+              </TabsContent>
 
-            {activeTab === "timeline" && <TimelineTab />}
+              <TabsContent value="timeline" className="mt-0">
+                <TimelineTab />
+              </TabsContent>
 
-            {activeTab === "comparativa" && (
-              <ComparativaTab mediaAssets={mediaAssets} mediaPreviewUrls={mediaPreviewUrls} />
-            )}
+              <TabsContent value="comparativa" className="mt-0">
+                <ComparativaTab mediaAssets={mediaAssets} mediaPreviewUrls={mediaPreviewUrls} />
+              </TabsContent>
+            </Suspense>
           </div>
         </Tabs>
       </div>
 
-      <EditorDialog
-        open={editorOpen}
-        setOpen={setEditorOpen}
-        mode={editorMode}
-        draft={draft}
-        setDraft={setDraft}
-        draftPersonRows={draftPersonRows}
-        setDraftPersonRows={setDraftPersonRows}
-        draftPersonId={draftPersonId}
-        draftRowId={draftRowId}
-        commitDraft={commitDraft}
-        setError={setError}
-        people={allPeople}
-      />
+      <Suspense fallback={null}>
+        {editorOpen && (
+          <EditorDialog
+            open={editorOpen}
+            setOpen={setEditorOpen}
+            mode={editorMode}
+            draft={draft}
+            setDraft={setDraft}
+            draftPersonRows={draftPersonRows}
+            setDraftPersonRows={setDraftPersonRows}
+            draftPersonId={draftPersonId}
+            draftRowId={draftRowId}
+            commitDraft={commitDraft}
+            setError={setError}
+            people={allPeople}
+          />
+        )}
 
-      <DeleteDialog
-        open={deleteOpen}
-        setOpen={setDeleteOpen}
-        target={deleteTarget}
-        removeTarget={removeTarget}
-      />
+        {deleteOpen && (
+          <DeleteDialog
+            open={deleteOpen}
+            setOpen={setDeleteOpen}
+            target={deleteTarget}
+            removeTarget={removeTarget}
+          />
+        )}
 
-      <LoadDataDialog
-        open={loadConfirmOpen}
-        setOpen={setLoadConfirmOpen}
-        file={pendingFile}
-        uploadedCount={uploadedMediaCount}
-        onConfirm={confirmLoadFile}
-      />
+        {loadConfirmOpen && (
+          <LoadDataDialog
+            open={loadConfirmOpen}
+            setOpen={setLoadConfirmOpen}
+            file={pendingFile}
+            uploadedCount={uploadedMediaCount}
+            onConfirm={confirmLoadFile}
+          />
+        )}
+
+        {pendingDatasetImportReview && (
+          <ImportReviewDialog
+            open
+            fileName={pendingDatasetImportReview.file.name}
+            review={pendingDatasetImportReview.review}
+            resolutionError={pendingDatasetImportReview.resolutionError}
+            isApplying={isApplyingDatasetImportReview}
+            onApply={applyDatasetImportRepairs}
+            onCancel={cancelDatasetImportReview}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

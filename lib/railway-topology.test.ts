@@ -7,6 +7,7 @@ describe("topología ferroviaria de los reinos occidentales", () => {
     const ids = transitions.map((transition) => transition.id);
 
     expect(WESTERN_KINGDOMS_RAILWAY_TOPOLOGY.schemaVersion).toBe(1);
+    expect(WESTERN_KINGDOMS_RAILWAY_TOPOLOGY.version).toBe("reinos-occidentales-1.4.0");
     expect(new Set(ids).size).toBe(ids.length);
     expect(transitions.map((transition) => transition.year)).toEqual(
       [...transitions].map((transition) => transition.year).sort((left, right) => left - right)
@@ -30,11 +31,25 @@ describe("topología ferroviaria de los reinos occidentales", () => {
         label: "León, vía troncal entre 914 y 1066",
       },
       {
-        id: "troncal-castilla-desde-1066",
+        id: "troncal-castilla-1066-1252",
         kingdom: "Castilla",
         startYear: 1066,
+        endYear: 1252,
+        label: "Reino de Castilla, vía troncal entre 1066 y 1252",
+      },
+      {
+        id: "troncal-corona-castilla-1252-1516",
+        kingdom: "Corona de Castilla",
+        startYear: 1252,
+        endYear: 1516,
+        label: "Corona de Castilla, vía troncal entre 1252 y 1516",
+      },
+      {
+        id: "troncal-monarquia-hispanica-desde-1516",
+        kingdom: "Monarquía Hispánica / España",
+        startYear: 1516,
         endYear: null,
-        label: "Castilla, vía troncal desde 1066",
+        label: "Monarquía Hispánica / España, vía troncal desde 1516",
       },
     ]);
   });
@@ -84,6 +99,32 @@ describe("topología ferroviaria de los reinos occidentales", () => {
       kind: "dynastic-separation",
       year: 1157,
       kingdoms: ["León", "Castilla"],
+    });
+  });
+
+  it("distingue el relevo de 1252 de la integración sin extinción de 1516", () => {
+    const transitions = WESTERN_KINGDOMS_RAILWAY_TOPOLOGY.transitions;
+
+    expect(transitions.find(
+      (transition) => transition.id === "relevo-periodizacion-castellana-1252"
+    )).toEqual({
+      id: "relevo-periodizacion-castellana-1252",
+      kind: "transformation",
+      year: 1252,
+      from: "Castilla",
+      to: "Corona de Castilla",
+      label: "Relevo de periodización tras Fernando III",
+    });
+    expect(transitions.find(
+      (transition) => transition.id
+        === "integracion-corona-castilla-monarquia-hispanica-1516"
+    )).toEqual({
+      id: "integracion-corona-castilla-monarquia-hispanica-1516",
+      kind: "integration",
+      year: 1516,
+      from: "Corona de Castilla",
+      to: "Monarquía Hispánica / España",
+      label: "Integración de la Corona de Castilla en la Monarquía Hispánica",
     });
   });
 });

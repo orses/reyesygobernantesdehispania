@@ -72,15 +72,18 @@ export function DataTab({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(260px,360px)_minmax(0,1fr)_minmax(280px,420px)]">
           <div className="space-y-2">
-            <div className="text-sm text-slate-300">Nombre base de archivo</div>
-            <Input className="rounded-[3px] text-base font-medium bg-slate-900/60 text-slate-50 placeholder:text-slate-400 border-slate-700/60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" value={datasetName} onChange={(e) => setDatasetName(e.target.value)} />
+            <label htmlFor="dataset-name" className="text-sm text-slate-300">Nombre base de archivo</label>
+            <Input id="dataset-name" className="rounded-[3px] text-base font-medium bg-slate-900/60 text-slate-50 placeholder:text-slate-400 border-slate-700/60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" value={datasetName} onChange={(e) => setDatasetName(e.target.value)} />
             <div className="space-y-1">
               <div className="text-sm text-slate-300">Imágenes en ZIP</div>
               <Select
                 value={imagePrintProfile}
                 onValueChange={(value) => setImagePrintProfile(value as ImagePrintResolutionProfile)}
               >
-                <SelectTrigger className="h-9 cursor-pointer rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-50 hover:bg-slate-900/60">
+                <SelectTrigger
+                  aria-label="Perfil de imágenes en ZIP"
+                  className="h-9 cursor-pointer rounded-[3px] border-slate-700/70 bg-slate-950/30 text-slate-50 hover:bg-slate-900/60"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-950 text-slate-50 border-slate-800">

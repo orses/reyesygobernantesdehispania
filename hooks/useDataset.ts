@@ -1,17 +1,13 @@
 // ---------------------------------------------------------------------------
-// Hook useDataset — gestión centralizada de datos (extraído de App.tsx)
+// useDataset: gestión centralizada de datos extraída de App.tsx.
 // ---------------------------------------------------------------------------
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { del, get, set } from "idb-keyval";
+import { delMany, getMany, keys, setMany } from "idb-keyval";
 import type { RawRow, DatasetChecks, MediaAsset, MediaInputOptions } from "../lib/types";
 import {
-    parseCsv,
-    safeJsonParse,
-    normalizeRows,
     normalizeUrl,
     computeDerivedRow,
-    getRowId,
     getPersonId,
     asYearOrNull,
     downloadTextFile,
@@ -19,13 +15,9 @@ import {
     generateCsv,
 } from "../lib/data";
 import {
-    createDatasetPayload,
-    createUploadedMediaPackage,
     getTimestampedExportFileName,
     normalizeDatasetBaseName,
-    readDatasetNameFromPayload,
     resolveImportedDatasetName,
-    toPortableMediaAsset,
 } from "../lib/dataset-package";
 import {
     applyMediaAssetsToRows,
@@ -40,10 +32,53 @@ import {
     createPersonEditorDocument,
 } from "../lib/person-editor-document";
 import type { ImagePrintResolutionProfile } from "../lib/print-resolution";
-import { uint8ArrayToArrayBuffer } from "../lib/blob";
-import { createStoredZip, parseZip } from "../lib/zip";
+import { parseZipFile } from "../lib/zip";
 import { getReignYearMismatches, reignYearMismatchMessage } from "../lib/reign-chronology";
 import { checkDatasetRows } from "../lib/dataset-checks";
+import {
+    applyRowDraftToRows,
+    prepareDatasetRows,
+    removeRowById,
+} from "../lib/dataset-rows";
+import {
+    DATASET_NAME_STORAGE_KEY,
+    DATASET_ROWS_STORAGE_KEY,
+    MEDIA_ASSETS_STORAGE_KEY,
+    commitDatasetReplacement,
+    createPersistenceTaskQueue,
+    getChangedDatasetStorageEntries,
+    hydrateDatasetPersistence,
+    mergeDatasetSnapshotDomains,
+    resolvePersistableDatasetDomains,
+    restoreDatasetSnapshotFromStorage,
+    runWithDatasetStorageLock,
+    selectDatasetDomainForPublication,
+    type DatasetPersistenceEpochs,
+    type DatasetSnapshot,
+    type DatasetStorageEntry,
+    type PersistenceTaskQueue,
+} from "../lib/dataset-persistence";
+import {
+    createMediaStorageKey,
+    createReplacementMediaStorageKey,
+    createUploadedMediaStoragePlan,
+    normalizeMediaAssets,
+    reconcileMediaAssetsWithRows,
+} from "../lib/media-lifecycle";
+import {
+    assertDatasetTextFileSize,
+    prepareDatasetTextImport,
+    prepareDatasetZipImport,
+    type MediaImportRepair,
+    type MediaImportReview,
+} from "../lib/dataset-file-import";
+import { nextDatasetReplacementRevision } from "../lib/dataset-revision";
+import {
+    datasetZipExportBlob,
+    datasetZipExportWarning,
+    prepareDatasetZipExport,
+} from "../lib/dataset-export";
+import { reportError } from "../lib/observability";
 
 // Datos de ejemplo
 const SAMPLE_ROWS: RawRow[] = [
@@ -77,42 +112,50 @@ const SAMPLE_ROWS: RawRow[] = [
     },
 ];
 
-function normalizeStoredMediaAssets(assets: MediaAsset[]): MediaAsset[] {
-    return ensurePrimaryMediaAssets(
-        assets
-            .map((asset): MediaAsset => {
-                const kind: MediaAsset["kind"] =
-                    asset.kind === "uploaded-file" ? "uploaded-file" : "external-url";
-
-                return {
-                    ...asset,
-                    id: String(asset.id ?? ""),
-                    personId: String(asset.personId ?? "").trim(),
-                    kind,
-                    src: String(asset.src ?? ""),
-                    rightsStatus: normalizeRightsStatus(asset.rightsStatus),
-                    isPrimary: Boolean(asset.isPrimary),
-                    createdAt: String(asset.createdAt ?? new Date(0).toISOString()),
-                };
-            })
-            .filter((asset) => asset.id && asset.personId && (asset.src || asset.storageKey))
-    );
-}
-
 function createRuntimeId(prefix: string): string {
     const randomId = globalThis.crypto?.randomUUID?.();
     if (randomId) return `${prefix}-${randomId}`;
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function readMediaAssetsFromPayload(value: unknown): MediaAsset[] | undefined {
-    if (!value || typeof value !== "object") return undefined;
-    const mediaAssetsValue = (value as { mediaAssets?: unknown }).mediaAssets;
-    return Array.isArray(mediaAssetsValue) ? (mediaAssetsValue as MediaAsset[]) : undefined;
-}
-
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+const DATASET_SAVE_FAILURE_MESSAGE = "Persistencia: no se pudieron guardar los cambios.";
+
+export type DatasetHydrationStatus = "pending" | "ready" | "failed";
+
+export interface PendingDatasetImportReview {
+    file: File;
+    review: MediaImportReview;
+    resolutionError?: string;
+}
+
+type MediaAssetMutationResult =
+    | {
+        ok: true;
+        mediaAssets: MediaAsset[];
+        blobEntries?: DatasetStorageEntry[];
+    }
+    | { ok: false; error: string };
+
+async function readDatasetSnapshotFromIdb(): Promise<DatasetSnapshot> {
+    const values = await getMany<unknown>([
+        DATASET_ROWS_STORAGE_KEY,
+        DATASET_NAME_STORAGE_KEY,
+        MEDIA_ASSETS_STORAGE_KEY,
+    ]);
+    const restored = restoreDatasetSnapshotFromStorage(SAMPLE_ROWS, [
+        values[0],
+        values[1],
+        values[2],
+    ]);
+    return {
+        rows: restored.rows,
+        datasetName: restored.datasetName,
+        mediaAssets: restored.mediaAssets,
+    };
 }
 
 export function useDataset() {
@@ -122,58 +165,146 @@ export function useDataset() {
     const [rawText, setRawText] = useState("");
     const [detectedDelimiter, setDetectedDelimiter] = useState<string | null>(null);
     const [detectedQuotes, setDetectedQuotes] = useState<boolean | null>(null);
-    const [rows, setRows] = useState<RawRow[]>(() =>
-        SAMPLE_ROWS.map((r, i) => ({
-            ...computeDerivedRow(r),
-            _rowId: getRowId(r, i),
-        }))
-    );
+    const [rows, setRows] = useState<RawRow[]>(() => prepareDatasetRows(SAMPLE_ROWS));
     const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(() =>
         deriveMediaAssetsFromRows(SAMPLE_ROWS)
     );
     const [mediaPreviewUrls, setMediaPreviewUrls] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
+    const [pendingDatasetImportReview, setPendingDatasetImportReview] =
+        useState<PendingDatasetImportReview | null>(null);
+    const [isApplyingDatasetImportReview, setIsApplyingDatasetImportReview] = useState(false);
     const [datasetName, setDatasetName] = useState("datos");
-    const [idbLoaded, setIdbLoaded] = useState(false);
-    const [datasetLoadedAt, setDatasetLoadedAt] = useState<number | null>(null);
+    const [hydrationStatus, setHydrationStatus] = useState<DatasetHydrationStatus>("pending");
+    const [datasetReplacementRevision, setDatasetReplacementRevision] = useState(0);
+    const persistedDatasetSnapshotRef = useRef<DatasetSnapshot | null>(null);
+    const persistenceEpochRef = useRef<DatasetPersistenceEpochs>({
+        rows: 0,
+        datasetName: 0,
+        mediaAssets: 0,
+    });
+    const persistenceQueueRef = useRef<PersistenceTaskQueue | null>(null);
+    if (!persistenceQueueRef.current) {
+        persistenceQueueRef.current = createPersistenceTaskQueue(runWithDatasetStorageLock);
+    }
+    const persistenceQueue = persistenceQueueRef.current;
+    const idbLoaded = hydrationStatus === "ready";
+    const uploadedMediaStoragePlan = useMemo(
+        () => createUploadedMediaStoragePlan(mediaAssets),
+        [mediaAssets]
+    );
+    const uploadedMediaStoragePlanRef = useRef(uploadedMediaStoragePlan);
+    uploadedMediaStoragePlanRef.current = uploadedMediaStoragePlan;
 
     // --- Persistencia con IndexedDB ---
     useEffect(() => {
-        async function loadFromIdb() {
-            try {
-                const storedRows = await get<RawRow[]>("reyes_dataset_rows");
-                const storedName = await get<string>("reyes_dataset_name");
-                const storedMediaAssets = await get<MediaAsset[]>("reyes_media_assets");
-                if (storedRows && storedRows.length > 0) {
-                    setRows(storedRows);
-                }
-                if (storedName) {
-                    setDatasetName(normalizeDatasetBaseName(storedName));
-                }
-                if (storedMediaAssets && storedMediaAssets.length > 0) {
-                    setMediaAssets(normalizeStoredMediaAssets(storedMediaAssets));
-                } else if (storedRows && storedRows.length > 0) {
-                    setMediaAssets(deriveMediaAssetsFromRows(storedRows));
-                }
-            } catch (err) {
-                console.error("Error loading from IndexedDB:", err);
-            } finally {
-                setIdbLoaded(true);
+        let active = true;
+
+        void persistenceQueue.enqueue(() => hydrateDatasetPersistence({
+            sampleRows: SAMPLE_ROWS,
+            readEntries: async () => {
+                const values = await getMany<unknown>([
+                    DATASET_ROWS_STORAGE_KEY,
+                    DATASET_NAME_STORAGE_KEY,
+                    MEDIA_ASSETS_STORAGE_KEY,
+                ]);
+                return [values[0], values[1], values[2]];
+            },
+            listKeys: () => keys(),
+            writeEntries: (entries) => setMany(entries),
+            deleteKeys: (storageKeys) => delMany(storageKeys),
+        })).then((result) => {
+            if (!active) return;
+            if (!result.ok) {
+                reportError(result.error, {
+                    event: "persistence.dataset.load_failed",
+                    recoverable: false,
+                    metadata: { storageKeyCount: 3 },
+                });
+                setError("Persistencia: no se pudo restaurar el almacenamiento local de forma segura.");
+                setHydrationStatus("failed");
+                return;
             }
-        }
-        loadFromIdb();
-    }, []);
+
+            if (result.cleanupError) {
+                reportError(result.cleanupError, {
+                    event: "media.blob.cleanup_failed",
+                    recoverable: true,
+                });
+            }
+            persistedDatasetSnapshotRef.current = result.snapshot;
+            persistenceEpochRef.current = {
+                rows: persistenceEpochRef.current.rows + 1,
+                datasetName: persistenceEpochRef.current.datasetName + 1,
+                mediaAssets: persistenceEpochRef.current.mediaAssets + 1,
+            };
+            setRows(result.snapshot.rows);
+            setMediaAssets(result.snapshot.mediaAssets);
+            setDatasetName(result.snapshot.datasetName);
+            setHydrationStatus("ready");
+        }).catch((err) => {
+            if (!active) return;
+            reportError(err, {
+                event: "persistence.dataset.load_failed",
+                recoverable: false,
+                metadata: { storageKeyCount: 3 },
+            });
+            setError("Persistencia: no se pudo bloquear el almacenamiento local de forma segura.");
+            setHydrationStatus("failed");
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [persistenceQueue]);
 
     useEffect(() => {
-        if (!idbLoaded) return;
-        set("reyes_dataset_rows", rows).catch(err => console.error("Error saving to IndexedDB:", err));
-        set("reyes_dataset_name", datasetName).catch(err => console.error("Error saving name to IndexedDB:", err));
-    }, [rows, datasetName, idbLoaded]);
+        if (hydrationStatus !== "ready") return;
+        const snapshot = { rows, datasetName, mediaAssets };
+        const previousSnapshot = persistedDatasetSnapshotRef.current;
+        const rowsChanged = !previousSnapshot || previousSnapshot.rows !== snapshot.rows;
+        const nameChanged = !previousSnapshot || previousSnapshot.datasetName !== snapshot.datasetName;
+        const mediaChanged = !previousSnapshot || previousSnapshot.mediaAssets !== snapshot.mediaAssets;
+        if (!rowsChanged && !nameChanged && !mediaChanged) return;
+        const scheduledEpoch = { ...persistenceEpochRef.current };
 
-    useEffect(() => {
-        if (!idbLoaded) return;
-        set("reyes_media_assets", mediaAssets).catch(err => console.error("Error saving media assets to IndexedDB:", err));
-    }, [mediaAssets, idbLoaded]);
+        void persistenceQueue.enqueue(async () => {
+            const persistableDomains = resolvePersistableDatasetDomains(
+                {
+                    rows: rowsChanged,
+                    datasetName: nameChanged,
+                    mediaAssets: mediaChanged,
+                },
+                scheduledEpoch,
+                persistenceEpochRef.current
+            );
+            if (!Object.values(persistableDomains).some(Boolean)) return;
+
+            const latest = await readDatasetSnapshotFromIdb();
+            const merged = mergeDatasetSnapshotDomains(
+                latest,
+                snapshot,
+                persistableDomains
+            );
+            const entries = getChangedDatasetStorageEntries(latest, merged);
+            if (entries.length > 0) await setMany(entries);
+            persistedDatasetSnapshotRef.current = merged;
+
+            setRows((current) => current === snapshot.rows ? merged.rows : current);
+            setDatasetName((current) => current === snapshot.datasetName ? merged.datasetName : current);
+            setMediaAssets((current) => current === snapshot.mediaAssets ? merged.mediaAssets : current);
+        }).catch((err) => {
+            reportError(err, {
+                event: "persistence.dataset.save_failed",
+                recoverable: true,
+                metadata: {
+                    changedDomainCount: Number(rowsChanged) + Number(nameChanged) + Number(mediaChanged),
+                    mediaAssetCount: snapshot.mediaAssets.length,
+                    rowCount: snapshot.rows.length,
+                },
+            });
+        });
+    }, [rows, datasetName, mediaAssets, hydrationStatus, persistenceQueue]);
 
     useEffect(() => {
         let active = true;
@@ -181,18 +312,35 @@ export function useDataset() {
 
         async function loadUploadedPreviews() {
             const previews: Record<string, string> = {};
+            const plan = uploadedMediaStoragePlanRef.current;
 
-            for (const asset of mediaAssets) {
-                if (asset.kind !== "uploaded-file" || !asset.storageKey) continue;
-                try {
-                    const blob = await get<Blob>(asset.storageKey);
+            try {
+                const storedValues = plan.storageKeys.length > 0
+                    ? await getMany<unknown>(plan.storageKeys)
+                    : [];
+                const blobByStorageKey = new Map(
+                    plan.storageKeys.map((storageKey, index) => [
+                        storageKey,
+                        storedValues[index],
+                    ])
+                );
+
+                for (const reference of plan.references) {
+                    const blob = blobByStorageKey.get(reference.storageKey);
                     if (!(blob instanceof Blob)) continue;
                     const objectUrl = URL.createObjectURL(blob);
                     objectUrls.push(objectUrl);
-                    previews[asset.id] = objectUrl;
-                } catch (err) {
-                    console.error("Error loading media blob from IndexedDB:", err);
+                    previews[reference.assetId] = objectUrl;
                 }
+            } catch (err) {
+                reportError(err, {
+                    event: "media.preview.load_failed",
+                    recoverable: true,
+                    metadata: {
+                        referenceCount: plan.references.length,
+                        storageKeyCount: plan.storageKeys.length,
+                    },
+                });
             }
 
             if (active) {
@@ -208,120 +356,165 @@ export function useDataset() {
             active = false;
             objectUrls.forEach((url) => URL.revokeObjectURL(url));
         };
-    }, [mediaAssets]);
+    }, [uploadedMediaStoragePlan.signature]);
 
     // --- Comprobaciones ---
     const datasetChecks: DatasetChecks = useMemo(() => checkDatasetRows(rows), [rows]);
 
     // --- Carga de datos ---
     const setDatasetFromRows = useCallback(
-        (objs: RawRow[], nameHint: string | null, nextMediaAssets?: MediaAsset[]) => {
-            const next = objs.map((r, i) => ({
-                ...computeDerivedRow(r),
-                _rowId: getRowId(r, i),
-            }));
-            setRows(next);
-            setMediaAssets(
-                nextMediaAssets
-                    ? normalizeStoredMediaAssets(nextMediaAssets)
-                    : deriveMediaAssetsFromRows(next)
-            );
-            setError(null);
-            if (nameHint) setDatasetName(normalizeDatasetBaseName(nameHint));
-            setDatasetLoadedAt(Date.now());
+        async (
+            objs: RawRow[],
+            nameHint: string | null,
+            nextMediaAssets?: MediaAsset[],
+            options: {
+                retainManagedStorageKeys?: boolean;
+                blobEntries?: DatasetStorageEntry[];
+            } = {}
+        ): Promise<void> => {
+            await persistenceQueue.enqueue(async () => {
+                const current = await readDatasetSnapshotFromIdb();
+                const next = prepareDatasetRows(objs);
+                const candidateMediaAssets = nextMediaAssets === undefined
+                    ? deriveMediaAssetsFromRows(next)
+                    : normalizeMediaAssets(nextMediaAssets, {
+                        retainManagedStorageKeys: Boolean(options.retainManagedStorageKeys),
+                    });
+                const reconciliation = reconcileMediaAssetsWithRows(
+                    next,
+                    current.mediaAssets,
+                    candidateMediaAssets
+                );
+                const snapshot = {
+                    rows: next,
+                    datasetName: nameHint
+                        ? normalizeDatasetBaseName(nameHint)
+                        : current.datasetName,
+                    mediaAssets: reconciliation.mediaAssets,
+                };
+                const result = await commitDatasetReplacement(snapshot, {
+                    blobEntries: options.blobEntries,
+                    storageKeysToDelete: reconciliation.storageKeysToDelete,
+                    writeEntries: (entries) => setMany(entries),
+                    publish: (confirmedSnapshot) => {
+                        persistenceEpochRef.current = {
+                            rows: persistenceEpochRef.current.rows + 1,
+                            datasetName: persistenceEpochRef.current.datasetName + 1,
+                            mediaAssets: persistenceEpochRef.current.mediaAssets + 1,
+                        };
+                        persistedDatasetSnapshotRef.current = confirmedSnapshot;
+                        setRows(confirmedSnapshot.rows);
+                        setMediaAssets(confirmedSnapshot.mediaAssets);
+                        setDatasetName(confirmedSnapshot.datasetName);
+                        setError(null);
+                        setDatasetReplacementRevision(nextDatasetReplacementRevision);
+                    },
+                    deleteKeys: (storageKeys) => delMany(storageKeys),
+                });
+                if (result.cleanupError) {
+                    reportError(result.cleanupError, {
+                        event: "media.blob.cleanup_failed",
+                        recoverable: true,
+                        metadata: {
+                            storageKeyCount: reconciliation.storageKeysToDelete.length,
+                        },
+                    });
+                }
+            });
         },
-        []
+        [persistenceQueue]
     );
 
     const importDatasetPackage = useCallback(
-        async (file: File) => {
-            try {
-                const bytes = new Uint8Array(await file.arrayBuffer());
-                const entries = await parseZip(bytes);
-                const entryByPath = new Map(entries.map((entry) => [entry.path, entry]));
-                const dataEntry = entryByPath.get("datos.json");
-
-                if (!dataEntry) {
-                    setError("ZIP inválido: falta datos.json.");
-                    return;
-                }
-
-                const text = new TextDecoder().decode(dataEntry.data);
-                setRawText(text);
-
-                const parsed = safeJsonParse(text);
-                if (!parsed.ok) {
-                    setError(`JSON inválido dentro del ZIP: ${parsed.error}`);
-                    return;
-                }
-
-                const norm = normalizeRows(parsed.value);
-                if (!norm.ok) {
-                    setError(norm.error || "Unknown error");
-                    return;
-                }
-
-                const restoredMediaAssets: MediaAsset[] = [];
-                const packageMediaAssets = readMediaAssetsFromPayload(parsed.value) ?? [];
-
-                for (const asset of packageMediaAssets) {
-                    if (asset.kind === "uploaded-file") {
-                        const packagePath = String(asset.packagePath ?? "");
-                        const mediaEntry = packagePath ? entryByPath.get(packagePath) : undefined;
-                        if (!mediaEntry) continue;
-
-                        const id = String(asset.id || createRuntimeId("media-imported"));
-                        const storageKey = `reyes_media_blob_${id}`;
-                        const blob = new Blob([uint8ArrayToArrayBuffer(mediaEntry.data)], { type: asset.mimeType || "application/octet-stream" });
-                        await set(storageKey, blob);
-
-                        const { packagePath: _packagePath, storageKey: _storageKey, ...rest } = asset;
-                        restoredMediaAssets.push({
-                            ...rest,
-                            id,
-                            kind: "uploaded-file",
-                            src: "",
-                            storageKey,
-                            size: asset.size ?? mediaEntry.data.byteLength,
-                        });
-                        continue;
-                    }
-
-                    const { packagePath: _packagePath, storageKey: _storageKey, ...rest } = asset;
-                    restoredMediaAssets.push({
-                        ...rest,
-                        kind: "external-url",
-                    });
-                }
-
-                const restoredStorageKeys = new Set(
-                    restoredMediaAssets
-                        .map((asset) => asset.storageKey)
-                        .filter((storageKey): storageKey is string => Boolean(storageKey))
-                );
-                await Promise.all(
-                    mediaAssets
-                        .filter((asset) => asset.storageKey && !restoredStorageKeys.has(asset.storageKey))
-                        .map((asset) => del(asset.storageKey!))
-                );
-
+        async (
+            file: File,
+            repairs?: readonly MediaImportRepair[]
+        ): Promise<boolean> => {
+            if (repairs === undefined) {
+                setPendingDatasetImportReview(null);
+                setRawText("");
                 setDetectedDelimiter(null);
                 setDetectedQuotes(null);
-                setDatasetFromRows(
-                    norm.value!,
+                setError(null);
+            }
+            try {
+                const entries = await parseZipFile(file);
+                const prepared = prepareDatasetZipImport({
+                    entries,
+                    createRuntimeId: (purpose) => createRuntimeId(`media-imported-${purpose}`),
+                    reservedStorageKeys: mediaAssets.map((asset) => asset.storageKey),
+                    repairs,
+                });
+                if (!prepared.ok) {
+                    if (prepared.review) {
+                        setPendingDatasetImportReview({
+                            file,
+                            review: prepared.review,
+                            ...(repairs === undefined
+                                ? {}
+                                : { resolutionError: prepared.error }),
+                        });
+                        setError(null);
+                    } else {
+                        setPendingDatasetImportReview(null);
+                        setError(prepared.error);
+                    }
+                    return false;
+                }
+
+                setRawText(prepared.value.rawText);
+                setDetectedDelimiter(prepared.value.detectedDelimiter);
+                setDetectedQuotes(prepared.value.detectedQuotes);
+                await setDatasetFromRows(
+                    prepared.value.rows,
                     resolveImportedDatasetName({
                         currentDatasetName: datasetName,
                         fileName: file?.name,
-                        payloadDatasetName: readDatasetNameFromPayload(parsed.value),
+                        payloadDatasetName: prepared.value.payloadDatasetName,
                     }),
-                    restoredMediaAssets
+                    prepared.value.mediaAssets,
+                    {
+                        retainManagedStorageKeys: true,
+                        blobEntries: prepared.value.blobEntries,
+                    }
                 );
+                setPendingDatasetImportReview(null);
+                return true;
             } catch (err) {
+                reportError(err, {
+                    event: "import.zip.failed",
+                    recoverable: true,
+                    metadata: { fileSizeBytes: file.size },
+                });
+                setPendingDatasetImportReview(null);
                 setError(`ZIP inválido: ${errorMessage(err)}`);
+                return false;
             }
         },
         [datasetName, mediaAssets, setDatasetFromRows]
     );
+
+    const applyDatasetImportRepairs = useCallback(
+        async (repairs: readonly MediaImportRepair[]): Promise<boolean> => {
+            if (!pendingDatasetImportReview || isApplyingDatasetImportReview) return false;
+
+            setIsApplyingDatasetImportReview(true);
+            try {
+                return await importDatasetPackage(pendingDatasetImportReview.file, repairs);
+            } finally {
+                setIsApplyingDatasetImportReview(false);
+            }
+        }, [
+            importDatasetPackage,
+            isApplyingDatasetImportReview,
+            pendingDatasetImportReview,
+        ]
+    );
+
+    const cancelDatasetImportReview = useCallback(() => {
+        if (isApplyingDatasetImportReview) return;
+        setPendingDatasetImportReview(null);
+    }, [isApplyingDatasetImportReview]);
 
     const handleFile = useCallback(
         (file: File) => {
@@ -331,54 +524,148 @@ export function useDataset() {
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                const text = String(reader.result ?? "");
-                setRawText(text);
+            try {
+                assertDatasetTextFileSize(file.size);
+            } catch (err) {
+                setRawText("");
+                setError(errorMessage(err));
+                return;
+            }
 
-                if (file.name.toLowerCase().endsWith(".csv")) {
-                    const parsed = parseCsv(text);
-                    if (!parsed.ok) {
-                        setError(parsed.error || "Unknown error");
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    const text = String(reader.result ?? "");
+                    setRawText(text);
+                    const format = file.name.toLowerCase().endsWith(".csv")
+                        ? "csv"
+                        : "json";
+                    const prepared = prepareDatasetTextImport(text, format);
+                    if (!prepared.ok) {
+                        setError(prepared.error);
                         return;
                     }
-                    setDetectedDelimiter(parsed.delimiter || null);
-                    setDetectedQuotes(parsed.usesQuotes || false);
-                    setDatasetFromRows(
-                        parsed.value as RawRow[],
+
+                    setDetectedDelimiter(prepared.value.detectedDelimiter);
+                    setDetectedQuotes(prepared.value.detectedQuotes);
+                    await setDatasetFromRows(
+                        prepared.value.rows,
                         resolveImportedDatasetName({
                             currentDatasetName: datasetName,
                             fileName: nameHint,
-                        })
+                            payloadDatasetName: prepared.value.payloadDatasetName,
+                        }),
+                        prepared.value.mediaAssets
                     );
-                    return;
+                } catch (err) {
+                    reportError(err, {
+                        event: "import.text.failed",
+                        recoverable: true,
+                        metadata: {
+                            fileSizeBytes: file.size,
+                            format: file.name.toLowerCase().endsWith(".csv") ? "csv" : "json",
+                        },
+                    });
+                    setError(`Importación: ${errorMessage(err)}`);
                 }
-
-                const parsed = safeJsonParse(text);
-                if (!parsed.ok) {
-                    setError(`JSON inválido: ${parsed.error}`);
-                    return;
-                }
-                const norm = normalizeRows(parsed.value);
-                if (!norm.ok) {
-                    setError(norm.error || "Unknown error");
-                    return;
-                }
-                const mediaAssetsFromJson =
-                    readMediaAssetsFromPayload(parsed.value);
-                setDatasetFromRows(
-                    norm.value!,
-                    resolveImportedDatasetName({
-                        currentDatasetName: datasetName,
-                        fileName: nameHint,
-                        payloadDatasetName: readDatasetNameFromPayload(parsed.value),
-                    }),
-                    mediaAssetsFromJson
-                );
+            };
+            reader.onerror = () => {
+                reportError(reader.error ?? new Error("No se pudo leer el archivo."), {
+                    event: "import.file.read_failed",
+                    recoverable: true,
+                    metadata: { fileSizeBytes: file.size },
+                });
+                setError("Importación: no se pudo leer el archivo.");
             };
             reader.readAsText(file, "utf-8");
         },
         [datasetName, importDatasetPackage, setDatasetFromRows]
+    );
+
+    const commitMediaAssetSnapshot = useCallback(
+        async (
+            mutate: (currentMediaAssets: MediaAsset[]) => MediaAssetMutationResult
+        ): Promise<boolean> => {
+            let attemptedBlobEntryCount = 0;
+            let attemptedMediaAssetCount = 0;
+            try {
+                return await persistenceQueue.enqueue(async () => {
+                    const confirmedBeforeCommit = persistedDatasetSnapshotRef.current;
+                    const current = await readDatasetSnapshotFromIdb();
+                    const mutation = mutate(current.mediaAssets);
+                    if (!mutation.ok) {
+                        setError(mutation.error);
+                        return false;
+                    }
+                    attemptedBlobEntryCount = mutation.blobEntries?.length ?? 0;
+                    attemptedMediaAssetCount = mutation.mediaAssets.length;
+                    const reconciliation = reconcileMediaAssetsWithRows(
+                        current.rows,
+                        current.mediaAssets,
+                        mutation.mediaAssets
+                    );
+                    const result = await commitDatasetReplacement(
+                        {
+                            ...current,
+                            mediaAssets: reconciliation.mediaAssets,
+                        },
+                        {
+                            blobEntries: mutation.blobEntries,
+                            storageKeysToDelete: reconciliation.storageKeysToDelete,
+                            writeEntries: (entries) => setMany(entries),
+                            publish: (snapshot) => {
+                                persistenceEpochRef.current.mediaAssets += 1;
+                                persistedDatasetSnapshotRef.current = snapshot;
+                                setRows((currentRows) => selectDatasetDomainForPublication(
+                                    currentRows,
+                                    confirmedBeforeCommit?.rows,
+                                    snapshot.rows
+                                ));
+                                setDatasetName((currentName) =>
+                                    selectDatasetDomainForPublication(
+                                        currentName,
+                                        confirmedBeforeCommit?.datasetName,
+                                        snapshot.datasetName
+                                    )
+                                );
+                                setMediaAssets((currentMediaAssets) =>
+                                    selectDatasetDomainForPublication(
+                                        currentMediaAssets,
+                                        confirmedBeforeCommit?.mediaAssets,
+                                        snapshot.mediaAssets,
+                                        true
+                                    )
+                                );
+                                setError(null);
+                            },
+                            deleteKeys: (storageKeys) => delMany(storageKeys),
+                        }
+                    );
+                    if (result.cleanupError) {
+                        reportError(result.cleanupError, {
+                            event: "media.blob.cleanup_failed",
+                            recoverable: true,
+                            metadata: {
+                                storageKeyCount: reconciliation.storageKeysToDelete.length,
+                            },
+                        });
+                    }
+                    return true;
+                });
+            } catch (err) {
+                reportError(err, {
+                    event: "media.snapshot.save_failed",
+                    recoverable: true,
+                    metadata: {
+                        blobEntryCount: attemptedBlobEntryCount,
+                        mediaAssetCount: attemptedMediaAssetCount,
+                    },
+                });
+                setError(`Imagen: no se pudieron guardar los cambios. ${errorMessage(err)}`);
+                return false;
+            }
+        },
+        [persistenceQueue]
     );
 
     const addMediaUrl = useCallback(
@@ -445,8 +732,7 @@ export function useDataset() {
             }
 
             const id = createRuntimeId(`media-${normalizedPersonId}`);
-            const storageKey = `reyes_media_blob_${id}`;
-            await set(storageKey, file);
+            const storageKey = createMediaStorageKey(id);
 
             const asset: MediaAsset = {
                 id,
@@ -469,17 +755,22 @@ export function useDataset() {
                 createdAt: new Date().toISOString(),
             };
 
-            setMediaAssets((prev) => {
-                const hasPersonAssets = prev.some((item) => item.personId === normalizedPersonId);
-                return ensurePrimaryMediaAssets([
-                    ...prev,
-                    { ...asset, isPrimary: !hasPersonAssets },
-                ]);
+            const committed = await commitMediaAssetSnapshot((currentMediaAssets) => {
+                const hasPersonAssets = currentMediaAssets.some(
+                    (item) => item.personId === normalizedPersonId
+                );
+                return {
+                    ok: true,
+                    mediaAssets: ensurePrimaryMediaAssets([
+                        ...currentMediaAssets,
+                        { ...asset, isPrimary: !hasPersonAssets },
+                    ]),
+                    blobEntries: [[storageKey, file]],
+                };
             });
-            setError(null);
-            return id;
+            return committed ? id : null;
         },
-        [setError]
+        [commitMediaAssetSnapshot]
     );
 
     const replaceMediaAssetFile = useCallback(
@@ -494,46 +785,56 @@ export function useDataset() {
                 return false;
             }
 
-            try {
-                const storageKey = target.storageKey || `reyes_media_blob_${target.id}`;
-                await set(storageKey, file);
+            return commitMediaAssetSnapshot((currentMediaAssets) => {
+                const currentTarget = currentMediaAssets.find((asset) => asset.id === assetId);
+                if (!currentTarget) {
+                    return {
+                        ok: false,
+                        error: "Validación: no se ha encontrado la imagen que se quiere reemplazar.",
+                    };
+                }
 
-                setMediaAssets((prev) =>
-                    ensurePrimaryMediaAssets(
-                        prev.map((asset) => {
-                            if (asset.id !== assetId) return asset;
-
-                            const {
-                                packagePath: _packagePath,
-                                printPackagePath: _printPackagePath,
-                                printDpi: _printDpi,
-                                ...assetWithoutPackagePaths
-                            } = asset;
-                            const shouldUseFileNameAsTitle =
-                                !asset.title?.trim() || Boolean(asset.fileName && asset.title === asset.fileName);
-
-                            return {
-                                ...assetWithoutPackagePaths,
-                                kind: "uploaded-file",
-                                src: "",
-                                storageKey,
-                                title: shouldUseFileNameAsTitle ? file.name : asset.title,
-                                fileName: file.name,
-                                mimeType: file.type,
-                                size: file.size,
-                                updatedAt: new Date().toISOString(),
-                            };
-                        })
-                    )
+                // Una clave nueva mantiene intacto el blob anterior hasta confirmar
+                // atómicamente metadatos y contenido; la limpieza se ejecuta después.
+                const storageKey = createReplacementMediaStorageKey(
+                    currentTarget.storageKey,
+                    () => createRuntimeId(`media-${currentTarget.personId}`)
                 );
-                setError(null);
-                return true;
-            } catch (err) {
-                setError(`Imagen: no se pudo reemplazar el archivo. ${errorMessage(err)}`);
-                return false;
-            }
+                const nextMediaAssets = ensurePrimaryMediaAssets(
+                    currentMediaAssets.map((asset) => {
+                        if (asset.id !== assetId) return asset;
+
+                        const {
+                            packagePath: _packagePath,
+                            printPackagePath: _printPackagePath,
+                            printDpi: _printDpi,
+                            ...assetWithoutPackagePaths
+                        } = asset;
+                        const shouldUseFileNameAsTitle =
+                            !asset.title?.trim() ||
+                            Boolean(asset.fileName && asset.title === asset.fileName);
+
+                        return {
+                            ...assetWithoutPackagePaths,
+                            kind: "uploaded-file" as const,
+                            src: "",
+                            storageKey,
+                            title: shouldUseFileNameAsTitle ? file.name : asset.title,
+                            fileName: file.name,
+                            mimeType: file.type,
+                            size: file.size,
+                            updatedAt: new Date().toISOString(),
+                        };
+                    })
+                );
+                return {
+                    ok: true,
+                    mediaAssets: nextMediaAssets,
+                    blobEntries: [[storageKey, file]],
+                };
+            });
         },
-        [mediaAssets, setError]
+        [commitMediaAssetSnapshot, mediaAssets]
     );
 
     const replaceMediaAssetUrl = useCallback(
@@ -550,59 +851,59 @@ export function useDataset() {
                 return false;
             }
 
-            const duplicate = mediaAssets.some(
-                (asset) =>
-                    asset.id !== assetId &&
-                    asset.personId === target.personId &&
-                    asset.kind === "external-url" &&
-                    normalizeUrl(asset.src) === src
-            );
-            if (duplicate) {
-                setError("Validación: esa URL ya está asociada a este personaje.");
-                return false;
-            }
-
-            try {
-                if (target.storageKey) {
-                    await del(target.storageKey);
+            return commitMediaAssetSnapshot((currentMediaAssets) => {
+                const currentTarget = currentMediaAssets.find((asset) => asset.id === assetId);
+                if (!currentTarget) {
+                    return {
+                        ok: false,
+                        error: "Validación: no se ha encontrado la imagen que se quiere reemplazar.",
+                    };
                 }
 
-                setMediaAssets((prev) =>
-                    ensurePrimaryMediaAssets(
-                        prev.map((asset) => {
-                            if (asset.id !== assetId) return asset;
-
-                            const {
-                                storageKey: _storageKey,
-                                fileName: _fileName,
-                                mimeType: _mimeType,
-                                size: _size,
-                                packagePath: _packagePath,
-                                printPackagePath: _printPackagePath,
-                                printDpi: _printDpi,
-                                ...assetWithoutFileData
-                            } = asset;
-                            const shouldClearFileNameTitle =
-                                Boolean(asset.fileName) && asset.title === asset.fileName;
-
-                            return {
-                                ...assetWithoutFileData,
-                                kind: "external-url",
-                                src,
-                                title: shouldClearFileNameTitle ? undefined : asset.title,
-                                updatedAt: new Date().toISOString(),
-                            };
-                        })
-                    )
+                const duplicate = currentMediaAssets.some(
+                    (asset) =>
+                        asset.id !== assetId &&
+                        asset.personId === currentTarget.personId &&
+                        asset.kind === "external-url" &&
+                        normalizeUrl(asset.src) === src
                 );
-                setError(null);
-                return true;
-            } catch (err) {
-                setError(`Imagen: no se pudo reemplazar por URL. ${errorMessage(err)}`);
-                return false;
-            }
+                if (duplicate) {
+                    return {
+                        ok: false,
+                        error: "Validación: esa URL ya está asociada a este personaje.",
+                    };
+                }
+
+                const nextMediaAssets = ensurePrimaryMediaAssets(
+                    currentMediaAssets.map((asset) => {
+                        if (asset.id !== assetId) return asset;
+
+                        const {
+                            storageKey: _storageKey,
+                            fileName: _fileName,
+                            mimeType: _mimeType,
+                            size: _size,
+                            packagePath: _packagePath,
+                            printPackagePath: _printPackagePath,
+                            printDpi: _printDpi,
+                            ...assetWithoutFileData
+                        } = asset;
+                        const shouldClearFileNameTitle =
+                            Boolean(asset.fileName) && asset.title === asset.fileName;
+
+                        return {
+                            ...assetWithoutFileData,
+                            kind: "external-url" as const,
+                            src,
+                            title: shouldClearFileNameTitle ? undefined : asset.title,
+                            updatedAt: new Date().toISOString(),
+                        };
+                    })
+                );
+                return { ok: true, mediaAssets: nextMediaAssets };
+            });
         },
-        [mediaAssets, setError]
+        [commitMediaAssetSnapshot, mediaAssets]
     );
 
     const moveMediaAsset = useCallback(
@@ -639,15 +940,14 @@ export function useDataset() {
 
     const removeMediaAsset = useCallback(
         async (assetId: string) => {
-            const target = mediaAssets.find((asset) => asset.id === assetId);
-            if (target?.storageKey) {
-                await del(target.storageKey);
-            }
-            setMediaAssets((prev) =>
-                ensurePrimaryMediaAssets(prev.filter((asset) => asset.id !== assetId))
-            );
+            await commitMediaAssetSnapshot((currentMediaAssets) => ({
+                ok: true,
+                mediaAssets: ensurePrimaryMediaAssets(
+                    currentMediaAssets.filter((asset) => asset.id !== assetId)
+                ),
+            }));
         },
-        [mediaAssets]
+        [commitMediaAssetSnapshot]
     );
 
     const setPrimaryMediaAsset = useCallback((personId: string | number, assetId: string) => {
@@ -661,26 +961,119 @@ export function useDataset() {
         );
     }, []);
 
+    const commitRowsWithMediaLifecycle = useCallback(
+        async (mutate: (currentRows: RawRow[]) => RawRow[]): Promise<boolean> => {
+            let attemptedRowCount = 0;
+            try {
+                return await persistenceQueue.enqueue(async () => {
+                    const current = await readDatasetSnapshotFromIdb();
+                    const nextRows = mutate(current.rows);
+                    if (nextRows === current.rows) return true;
+                    attemptedRowCount = nextRows.length;
+                    const reconciliation = reconcileMediaAssetsWithRows(
+                        nextRows,
+                        current.mediaAssets
+                    );
+                    const confirmedBeforeCommit = persistedDatasetSnapshotRef.current;
+                    const result = await commitDatasetReplacement(
+                        {
+                            ...current,
+                            rows: nextRows,
+                            mediaAssets: reconciliation.mediaAssets,
+                        },
+                        {
+                            storageKeysToDelete: reconciliation.storageKeysToDelete,
+                            writeEntries: (entries) => setMany(entries),
+                            publish: (snapshot) => {
+                                persistenceEpochRef.current.rows += 1;
+                                persistenceEpochRef.current.mediaAssets += 1;
+                                persistedDatasetSnapshotRef.current = snapshot;
+                                setRows(snapshot.rows);
+                                setDatasetName((currentName) =>
+                                    selectDatasetDomainForPublication(
+                                        currentName,
+                                        confirmedBeforeCommit?.datasetName,
+                                        snapshot.datasetName
+                                    )
+                                );
+                                setMediaAssets((currentMediaAssets) => {
+                                    const selectedMediaAssets = selectDatasetDomainForPublication(
+                                        currentMediaAssets,
+                                        confirmedBeforeCommit?.mediaAssets,
+                                        snapshot.mediaAssets
+                                    );
+                                    if (selectedMediaAssets === snapshot.mediaAssets) {
+                                        return selectedMediaAssets;
+                                    }
+                                    return reconcileMediaAssetsWithRows(
+                                        snapshot.rows,
+                                        selectedMediaAssets,
+                                        selectedMediaAssets
+                                    ).mediaAssets;
+                                });
+                                setError(null);
+                            },
+                            deleteKeys: (storageKeys) => delMany(storageKeys),
+                        }
+                    );
+                    if (result.cleanupError) {
+                        reportError(result.cleanupError, {
+                            event: "media.person.cleanup_failed",
+                            recoverable: true,
+                            metadata: {
+                                storageKeyCount: reconciliation.storageKeysToDelete.length,
+                            },
+                        });
+                    }
+                    return true;
+                });
+            } catch (err) {
+                reportError(err, {
+                    event: "persistence.dataset.save_failed",
+                    recoverable: true,
+                    metadata: { rowCount: attemptedRowCount },
+                });
+                setError(`Persistencia: no se pudieron guardar los cambios. ${errorMessage(err)}`);
+                return false;
+            }
+        },
+        [persistenceQueue]
+    );
+
     // --- Edición ---
     const commitPersonDraft = useCallback(
-        (
+        async (
             pid: string,
             draft: RawRow,
             governmentRows: RawRow[]
-        ): string | null => {
+        ): Promise<string | null> => {
             if (!pid) return "Validación: falta PersonID.";
             const document = createPersonEditorDocument(draft, governmentRows);
             const application = applyPersonEditorDocumentToRows(rows, pid, document);
             if (!application.ok) return `Validación: ${application.error}`;
 
-            setRows(application.value);
-            return null;
+            let latestValidationError: string | null = null;
+            const committed = await commitRowsWithMediaLifecycle((currentRows) => {
+                const latestApplication = applyPersonEditorDocumentToRows(
+                    currentRows,
+                    pid,
+                    document
+                );
+                if (!latestApplication.ok) {
+                    latestValidationError = `Validación: ${latestApplication.error}`;
+                    return currentRows;
+                }
+                return latestApplication.value;
+            });
+
+            if (latestValidationError) return latestValidationError;
+            return committed ? null : DATASET_SAVE_FAILURE_MESSAGE;
         },
-        [rows]
+        [commitRowsWithMediaLifecycle, rows]
     );
 
     const commitRowDraft = useCallback(
-        (rowId: string, draft: RawRow): string | null => {
+        async (rowId: string, draft: RawRow): Promise<string | null> => {
             if (!rowId) return "Validación: falta _rowId.";
             const mismatch = getReignYearMismatches(draft)[0];
             if (mismatch) return `Validación: ${reignYearMismatchMessage(mismatch)}`;
@@ -689,17 +1082,18 @@ export function useDataset() {
             const b = asYearOrNull(draft?.["Final del reinado (año)"]);
             if (a !== null && b !== null && a > b) return "Validación: inicio > fin.";
 
-            setRows((prev) =>
-                prev.map((r) => {
-                    if (String(r._rowId) !== rowId) return r;
-
-                    const stableId = String(r.ID ?? "").trim() || rowId;
-                    return computeDerivedRow({ ...draft, ID: stableId, _rowId: rowId });
-                })
-            );
-            return null;
+            let rowMissing = false;
+            const committed = await commitRowsWithMediaLifecycle((currentRows) => {
+                const nextRows = applyRowDraftToRows(currentRows, rowId, draft);
+                rowMissing = nextRows === currentRows;
+                return nextRows;
+            });
+            if (rowMissing) {
+                return "Validación: ya no existe la fila que se estaba editando.";
+            }
+            return committed ? null : DATASET_SAVE_FAILURE_MESSAGE;
         },
-        []
+        [commitRowsWithMediaLifecycle]
     );
 
     const addRowForPerson = useCallback(
@@ -754,78 +1148,47 @@ export function useDataset() {
             _rowId: id,
         };
         setRows((prev) => [withId, ...prev]);
-        setDatasetLoadedAt(Date.now());
         return { personId, row: withId };
     }, [rows]);
 
     const removeRow = useCallback((rowId: string) => {
-        setRows((prev) => prev.filter((r) => String(r._rowId) !== rowId));
-    }, []);
+        void commitRowsWithMediaLifecycle((currentRows) =>
+            removeRowById(currentRows, rowId)
+        );
+    }, [commitRowsWithMediaLifecycle]);
 
     const removePerson = useCallback((personId: string) => {
-        setRows((prev) =>
-            prev.filter((r) => String(getPersonId(r)) !== personId)
-        );
-    }, []);
+        void commitRowsWithMediaLifecycle((currentRows) => {
+            const nextRows = currentRows.filter(
+                (row) => String(getPersonId(row)) !== personId
+            );
+            return nextRows.length === currentRows.length ? currentRows : nextRows;
+        });
+    }, [commitRowsWithMediaLifecycle]);
 
     // --- Exportación ---
     const exportDatasetPackage = useCallback(async (printProfile: ImagePrintResolutionProfile = "original") => {
         try {
-            const exportedDate = new Date();
-            const exportedAt = exportedDate.toISOString();
-            const portableMediaAssets: MediaAsset[] = [];
-            const mediaEntries: { path: string; data: Uint8Array }[] = [];
-            let missingUploadedFiles = 0;
-            let skippedPrintVariants = 0;
+            const result = await prepareDatasetZipExport({
+                rows,
+                mediaAssets,
+                datasetName,
+                printProfile,
+                readMediaBlobs: (storageKeys) => getMany<unknown>([...storageKeys]),
+            });
 
-            for (const asset of mediaAssets) {
-                if (asset.kind === "uploaded-file") {
-                    if (!asset.storageKey) {
-                        missingUploadedFiles++;
-                        portableMediaAssets.push(toPortableMediaAsset(asset));
-                        continue;
-                    }
-
-                    const blob = await get<Blob>(asset.storageKey);
-                    if (!(blob instanceof Blob)) {
-                        missingUploadedFiles++;
-                        portableMediaAssets.push(toPortableMediaAsset(asset));
-                        continue;
-                    }
-
-                    const data = new Uint8Array(await blob.arrayBuffer());
-                    const packaged = createUploadedMediaPackage(asset, data, printProfile);
-                    mediaEntries.push(...packaged.entries);
-                    portableMediaAssets.push(packaged.portableAsset);
-                    if (packaged.skippedPrintVariant) skippedPrintVariants++;
-                    continue;
-                }
-
-                portableMediaAssets.push(toPortableMediaAsset(asset));
-            }
-
-            const payload = createDatasetPayload(rows, portableMediaAssets, exportedAt, datasetName);
-            const zip = createStoredZip([
-                { path: "datos.json", data: JSON.stringify(payload, null, 2) },
-                ...mediaEntries,
-            ]);
-
-            downloadBlobFile(
-                getTimestampedExportFileName(datasetName, "zip", exportedDate),
-                new Blob([uint8ArrayToArrayBuffer(zip)], { type: "application/zip" })
-            );
-
-            setError(
-                [
-                    missingUploadedFiles
-                        ? `Exportación ZIP: ${missingUploadedFiles} archivo(s) subido(s) no se encontraron en IndexedDB.`
-                        : "",
-                    skippedPrintVariants
-                        ? `Exportación ZIP: ${skippedPrintVariants} imagen(es) no admiten metadatos automáticos de impresión.`
-                        : "",
-                ].filter(Boolean).join(" ") || null
-            );
+            downloadBlobFile(result.fileName, datasetZipExportBlob(result));
+            setError(datasetZipExportWarning(result));
         } catch (err) {
+            reportError(err, {
+                event: "export.zip.failed",
+                recoverable: true,
+                metadata: {
+                    mediaAssetCount: mediaAssets.length,
+                    printProfile,
+                    rowCount: rows.length,
+                },
+            });
             setError(`Exportación ZIP: ${errorMessage(err)}`);
         }
     }, [datasetName, mediaAssets, rows]);
@@ -846,6 +1209,10 @@ export function useDataset() {
         detectedQuotes,
         error,
         setError,
+        pendingDatasetImportReview,
+        isApplyingDatasetImportReview,
+        applyDatasetImportRepairs,
+        cancelDatasetImportReview,
         datasetName,
         setDatasetName,
         datasetChecks,
@@ -866,7 +1233,8 @@ export function useDataset() {
         setPrimaryMediaAsset,
         exportDatasetPackage,
         exportCsv,
+        hydrationStatus,
         idbLoaded,
-        datasetLoadedAt,
+        datasetReplacementRevision,
     };
 }

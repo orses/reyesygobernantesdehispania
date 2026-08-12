@@ -1,71 +1,73 @@
-<div align="center">
-
 # Gobernantes de España
 
-**Herramienta de análisis, visualización y comparativa histórica**
+Aplicación web estática para importar, revisar, editar, analizar y comparar datos de gobernantes y entidades políticas de la península ibérica. El repositorio incluye un registro de ejemplo; el contenido de investigación lo aporta cada usuario mediante CSV, JSON o un paquete ZIP exportado previamente.
 
-</div>
+## Funciones principales
 
-Aplicación web enfocada en investigadores, historiadores y estudiantes, que permite cargar, visualizar, analizar y comparar bases de datos de monarcas y entidades políticas de la península ibérica. Toda la aplicación funciona del lado del cliente sin enviar datos a servidores externos, garantizando máxima privacidad y velocidad.
+- Fichas agrupadas por `PersonID`, con sus distintos gobiernos y una galería de medios.
+- Búsqueda literal o estructurada, filtros por reino, tipo de gobierno, dinastía y siglo, y varias ordenaciones.
+- Estadísticas globales o filtradas sobre gobiernos, personas, dinastías, cronología y edades.
+- Línea temporal general y proyección ferroviaria para Asturias, León, Galicia y Castilla.
+- Comparación de varias personas.
+- Edición de personas y gobiernos, comprobaciones de coherencia y sucesión manual estable.
+- Persistencia local y exportación a CSV, JSON o ZIP con los archivos de imagen.
 
-## Características Principales
+## Privacidad y funcionamiento local
 
-*   **Fichas Detalladas:** Visualización interactiva con soporte para búsqueda difusa, filtrado por reinos, dinastías y siglos. Ordenación cronológica y alfabética.
-*   **Análisis Estadísticos:** Resúmenes y gráficas avanzadas generadas automáticamente sobre distribuciones dinásticas, longevidad vital, duración de reinados y frecuencias.
-*   **Línea del Tiempo (Timeline):** Visualización interactiva temporal donde los períodos se distribuyen en vías para evitar colisiones visuales. Asignación algorítmica de colores según el reino.
-*   **Comparativa (Cara a Cara):** Selector interactivo múltiple para colocar a diversas figuras históricas una junto a otra, contrastando ágilmente parámetros clave.
-*   **Persistencia Local:** La aplicación guarda de forma transparente todo el conjunto de datos en el navegador del usuario utilizando `IndexedDB`.
-*   **Edición y exportación:** Herramienta de edición rápida en memoria que permite corregir datos sobre la marcha y descargar el conjunto optimizado como archivo `CSV` o como paquete `ZIP` completo con imágenes.
+La aplicación no incorpora un servidor de datos, cuentas de usuario ni telemetría. Las filas, los metadatos multimedia y las imágenes subidas se guardan en `IndexedDB`; los filtros se guardan en `localStorage`. Las importaciones y exportaciones se procesan en el navegador.
 
-## Tecnologías Utilizadas
+Una imagen configurada mediante una URL HTTPS no se copia a `IndexedDB`: el navegador la solicita directamente a su servidor de origen cuando debe mostrarla. El HTML publicado declara la política de referencia `no-referrer`, pero ese servidor sigue recibiendo la conexión de red. Para un trabajo totalmente local deben utilizarse imágenes subidas y conservarse copias ZIP.
 
-El proyecto está diseñado sobre un *stack* de desarrollo moderno y altamente eficiente:
+La persistencia del navegador no sustituye a una copia de seguridad: puede desaparecer al borrar los datos del sitio, cambiar de perfil o usar determinadas modalidades privadas. Consulte [Formatos, persistencia y privacidad](docs/DATA_AND_PRIVACY.md).
 
-*   **Core:** React 19, TypeScript y Vite.
-*   **Estilos y UX:** Tailwind CSS, `framer-motion` (para animaciones sutiles) y componentes UI puros basados en `radix-ui`.
-*   **Análisis Visual:** `recharts` para las gráficas interactivas del panel estadístico.
-*   **Enrutamiento y Estado:** `react-router-dom` (HashRouter, adaptado para Github Pages) e `idb-keyval` (almacenamiento asíncrono persistente).
+## Puesta en marcha
 
-## Inicialización Local
+Requisitos reproducibles:
 
-**Requisitos previos:** `Node.js` 22, alineado con `.nvmrc` y con los flujos de GitHub Actions.
+- Node.js `22.22.3`, fijado en `.nvmrc`.
+- npm `10.9.8`, declarado en `package.json`.
 
-1.  **Instalar dependencias:**
-    ```bash
-    npm install
-    ```
+```bash
+npm ci
+npm run dev
+```
 
-2.  **Ejecutar entorno de desarrollo local:**
-    ```bash
-    npm run dev
-    ```
-    La aplicación se inicializará y estará disponible normalmente en `http://localhost:3000`.
+Vite escucha en el puerto `3000`; la dirección local habitual es <http://localhost:3000>.
 
-3.  **Ejecutar la verificación completa antes de publicar cambios:**
-    ```bash
-    npm run verify
-    ```
-    Esta orden ejecuta lint, comprobación de tipos, tests con cobertura, compilación de producción y auditoría de dependencias.
+Antes de entregar un cambio:
 
-## Despliegue Estático (GitHub Pages)
+```bash
+npm run verify
+```
 
-Este repositorio está preparado nativamente para publicarse como página estática a través de **GitHub Pages** con GitHub Actions.
+La verificación ejecuta análisis estático con ESLint, comprobación de tipos, pruebas con cobertura, compilación de producción, presupuestos de recursos y auditoría del archivo de dependencias. El flujo detallado se encuentra en [Estrategia de pruebas](TESTING.md).
 
-1. Asegúrese de hacer *push* al repositorio en su respectiva cuenta de GitHub.
-2. Vaya a `Settings` > `Pages`.
-3. Bajo *Source*, escoja **GitHub Actions**.
-4. El flujo `Deploy static content to Pages` compilará la aplicación y solo desplegará `dist/` si antes pasa `npm run verify`.
+## Tecnología y navegación
 
-## Uso y Origen de los Datos
+- React 19, TypeScript 5.9 y Vite 8.
+- Tailwind CSS, Lucide y una capa local de componentes de interfaz con `@radix-ui/react-slot`.
+- Recharts para las visualizaciones estadísticas.
+- `idb-keyval` como acceso a `IndexedDB`.
+- Vitest, cobertura V8 y ESLint.
 
-El núcleo de esta aplicación es puramente interpretativo y requiere de la inserción inicial de fuentes. Puede importar cualquier tabla de datos guardada en formato **`.csv`** (con delimitadores estándares o automáticos como `;`, `|`, `,` o `\t`) o archivos exportados previamente en formato **`.json`**.
+La navegación no usa `react-router-dom`. Un enrutador propio basado en el fragmento de la URL, definido en `lib/hash-router.tsx`, mantiene rutas compatibles con alojamiento estático, como `#/fichas/:personId`, `#/estadistica`, `#/datos`, `#/timeline` y `#/comparativa`. Las pestañas no iniciales y los diálogos se cargan de forma diferida.
 
-## Exportación de imágenes para documentación
+## Importación y exportación
 
-La exportación completa en formato `ZIP` conserva siempre las imágenes originales sin remuestrear ni alterar sus dimensiones de píxel. Además, permite elegir un perfil documental para añadir una copia con metadatos de resolución de impresión:
+| Formato | Importación | Exportación | Archivos de imagen |
+| --- | --- | --- | --- |
+| CSV | Separador detectado entre `|`, `;`, `,` y tabulador | Separador `;`, campos entre comillas | No; conserva las URL y las rutas descriptivas |
+| JSON | Lista de filas, objetos heredados o paquete versionado | Paquete de datos versionado | No incluye los binarios subidos |
+| ZIP | `datos.json` y medios validados | Paquete autocontenido | Sí, salvo archivos locales ausentes |
 
-*   **Original:** mantiene únicamente los archivos originales en la carpeta `media/`.
-*   **300 ppp:** añade variantes preparadas para documentos en `media-documento/300dpi/`.
-*   **600 ppp:** añade variantes preparadas para documentos de mayor exigencia en `media-documento/600dpi/`.
+El ZIP es el único formato de copia completa. Puede conservar solo los originales o añadir variantes PNG/JPEG con metadatos de impresión de 300 o 600 ppp; no se remuestrean los píxeles.
 
-Estos perfiles solo escriben metadatos de resolución para impresión; no incrementan ni reducen la calidad real de la imagen. La operación está soportada para imágenes `PNG` y `JPEG`. Si un formato no admite esta actualización automática, el archivo original se conserva igualmente y la aplicación muestra una advertencia en la exportación.
+Los contratos, las columnas técnicas, la versión del paquete y los límites de seguridad están documentados en [Formatos, persistencia y privacidad](docs/DATA_AND_PRIVACY.md).
+
+## Arquitectura y rendimiento
+
+La interfaz delega la lógica de dominio en módulos de `lib/`; `useDataset` concentra las operaciones con archivos e `IndexedDB`, y `AppContext` publica personas, filtros y estadísticas derivados. Las fronteras y los presupuestos actuales se describen en [Arquitectura y rendimiento](docs/ARCHITECTURE.md).
+
+## Despliegue
+
+El proyecto genera un sitio estático con base relativa. Los flujos de GitHub Actions verifican los cambios dirigidos a `main`; en esa rama, el flujo de Pages publica `dist/` solo después de superar `npm run verify`.

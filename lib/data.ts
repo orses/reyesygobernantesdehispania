@@ -1,5 +1,5 @@
 
-// --- Tipos y Helpers de Formato ---
+// --- Tipos y funciones auxiliares de formato ---
 
 export function formatNumber(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "—";
@@ -104,7 +104,7 @@ export function parseCsv(text: string) {
     if (scores[bestIdx] > 0) {
       sep = candidates[bestIdx];
     } else {
-      // fallback por defecto
+      // alternativa predeterminada
       sep = ";";
     }
   }
@@ -150,22 +150,42 @@ export function parseCsv(text: string) {
     field += ch;
   }
 
+  if (inQ) return { ok: false, error: "CSV inválido: hay comillas sin cerrar." };
+
   if (records.length < 2) return { ok: false, error: "CSV insuficiente: falta cabecera o filas." };
 
-  // Filtrar cabeceras vacías para evitar columnas fantasma
-  const header = records[0].map((h, idx) => {
+  // Conservamos el índice de origen para que una cabecera vacía no desplace datos.
+  const rawHeader = records[0].map((h, idx) => {
     let v = String(h ?? "");
     if (idx === 0 && v.length && v.charCodeAt(0) === 0xfeff) v = v.slice(1);
-    return v;
-  }).filter(h => h.trim() !== "");
+    return v.trim();
+  });
+  const header: Array<{ name: string; sourceIndex: number }> = [];
+  const seenHeaders = new Set<string>();
+  for (const [sourceIndex, name] of rawHeader.entries()) {
+    if (!name) continue;
+    if (seenHeaders.has(name)) {
+      return { ok: false, error: `CSV inválido: cabecera duplicada «${name}».` };
+    }
+    seenHeaders.add(name);
+    header.push({ name, sourceIndex });
+  }
+  if (header.length === 0) {
+    return { ok: false, error: "CSV insuficiente: falta cabecera." };
+  }
 
   const rows = [];
   for (let i = 1; i < records.length; i++) {
     const cols = records[i];
+    if (cols.slice(rawHeader.length).some((value) => String(value).trim() !== "")) {
+      return {
+        ok: false,
+        error: `CSV inválido: la fila ${i + 1} tiene más columnas con contenido que la cabecera.`,
+      };
+    }
     const obj: Record<string, string> = {};
-    for (let c = 0; c < header.length; c++) {
-      const k = header[c];
-      obj[k] = cols[c] ?? "";
+    for (const { name, sourceIndex } of header) {
+      obj[name] = cols[sourceIndex] ?? "";
     }
     rows.push(obj);
   }
@@ -180,12 +200,12 @@ export function generateCsv(rows: Record<string, unknown>[]) {
 
   // 1. Limpiar campos internos
   const cleanRows = rows.map((r) => {
-    const { _duracionCalc, _duracionFuente, _rowId, ...rest } = r;
+    const { _duracionCalc, _duracionFuente, ...rest } = r;
     return rest;
   });
 
   // 2. Determinar el orden de las columnas:
-  const baseKeys = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const baseKeys = cleanRows.length > 0 ? Object.keys(cleanRows[0]) : [];
   const allKeysSet = new Set(baseKeys);
 
   cleanRows.forEach(row => {
@@ -193,15 +213,16 @@ export function generateCsv(rows: Record<string, unknown>[]) {
   });
 
   let headers = Array.from(allKeysSet);
-  headers = headers.filter(h => !h.startsWith("_") && h.trim() !== "");
+  headers = headers.filter(h => (h === "_rowId" || !h.startsWith("_")) && h.trim() !== "");
 
   // 3. Construir CSV
   const escapeCsv = (val: unknown) => {
-    const s = String(val ?? "");
+    const raw = String(val ?? "");
+    const s = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
     return `"${s.replace(/"/g, '""')}"`;
   };
 
-  const headerLine = headers.join(";");
+  const headerLine = headers.map(escapeCsv).join(";");
   const lines = cleanRows.map(row => {
     return headers.map(h => escapeCsv(row[h])).join(";");
   });
@@ -334,7 +355,7 @@ export function asYearOrNull(v: unknown) {
     }
   }
 
-  // 7. Fallback: buscar cualquier secuencia de dígitos
+  // 7. Alternativa: buscar cualquier secuencia de dígitos
   const mAny = s0.replace(",", ".").match(/-?\d+/);
   if (mAny) {
     const n = Number(mAny[0]);
@@ -416,7 +437,7 @@ export function yearsBetweenMaybe(start: unknown, end: unknown) {
     return yEnd - yStart;
   }
 
-  // Fallback a fechas exactas si el formato lo permite (para ISO estricto)
+  // Alternativa con fechas exactas si el formato permite ISO estricto.
   const ds = new Date(start as string | number);
   const de = new Date(end as string | number);
   if (!Number.isNaN(ds.getTime()) && !Number.isNaN(de.getTime())) {
@@ -429,11 +450,24 @@ export function yearsBetweenMaybe(start: unknown, end: unknown) {
 }
 
 export function normalizeRows(input: unknown) {
-  if (Array.isArray(input)) return { ok: true, value: input };
+  let rows: unknown[] | null = null;
+  if (Array.isArray(input)) rows = input;
   if (input && typeof input === "object") {
     const obj = input as Record<string, unknown>;
-    if (Array.isArray(obj.datos)) return { ok: true, value: obj.datos };
-    if (Array.isArray(obj.reyes)) return { ok: true, value: obj.reyes };
+    if (Array.isArray(obj.datos)) rows = obj.datos;
+    else if (Array.isArray(obj.reyes)) rows = obj.reyes;
+  }
+  if (rows) {
+    const invalidIndex = rows.findIndex(
+      (row) => typeof row !== "object" || row === null || Array.isArray(row)
+    );
+    if (invalidIndex >= 0) {
+      return {
+        ok: false,
+        error: `JSON no válido: la fila ${invalidIndex + 1} debe ser un objeto.`,
+      };
+    }
+    return { ok: true, value: rows as Array<Record<string, unknown>> };
   }
   return { ok: false, error: 'JSON no reconocido: se esperaba un array o un objeto con clave "datos".' };
 }

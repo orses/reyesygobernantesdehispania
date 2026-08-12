@@ -1,8 +1,25 @@
-import { useEffect, useMemo, useRef } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { kingdomColor } from "../../../lib/ficha-view";
 import {
+  DEFAULT_RAILWAY_ZOOM,
+  MAX_RAILWAY_ZOOM,
+  MIN_RAILWAY_ZOOM,
+  centeredRailwayScrollLeft,
+  clampRailwayZoom,
+  nextRailwayZoom,
+  railwayZoomToPercent,
+} from "../../../lib/railway-zoom";
+import {
   RAILWAY_KINGDOMS,
+  railwayKingdomLabel,
   type RailwayKingdom,
   type RailwayProjection,
   type RailwayProjectedTransition,
@@ -10,6 +27,7 @@ import {
 } from "../../../lib/railway";
 import type { TimelineScale } from "../../../lib/timeline";
 import { cn } from "../../../lib/utils";
+import { Button } from "../../ui/button";
 
 interface RailwayViewProps {
   projection: RailwayProjection;
@@ -19,25 +37,38 @@ interface RailwayViewProps {
 }
 
 const AXIS_HEIGHT = 48;
-const LANE_HEIGHT = 136;
-const RAIL_OFFSET = 70;
-const LEFT_GUTTER = 176;
+const LANE_HEIGHT = 184;
+const RAIL_OFFSET = 92;
+const LEFT_GUTTER = 216;
 const RIGHT_GUTTER = 54;
-const LABEL_OFFSETS = [-28, 46, -48, 66] as const;
+const LABEL_OFFSETS = [-30, 46, -52, 68, -74, 90] as const;
+const LABEL_GAP = 8;
+const MIN_LABEL_WIDTH = 48;
+const MAX_LABEL_WIDTH = 132;
+const MIN_CANVAS_WIDTH = 1180;
 
-function canvasWidth(projection: RailwayProjection): number {
+export function railwayCanvasWidth(
+  projection: RailwayProjection,
+  zoom = DEFAULT_RAILWAY_ZOOM,
+  fitWidth?: number
+): number {
+  if (fitWidth !== undefined && Number.isFinite(fitWidth)) {
+    return Math.max(LEFT_GUTTER + RIGHT_GUTTER + 1, Math.round(fitWidth));
+  }
   const chronologicalWidth = projection.scale.totalYears * 5 + LEFT_GUTTER + RIGHT_GUTTER;
-  return Math.max(1180, Math.min(5600, chronologicalWidth));
+  const baseWidth = Math.max(MIN_CANVAS_WIDTH, chronologicalWidth);
+  const zoomedWidth = Math.round(baseWidth * clampRailwayZoom(zoom));
+  return zoomedWidth;
 }
 
 function yearX(year: number, scale: TimelineScale, width: number): number {
-  const drawableWidth = width - LEFT_GUTTER - RIGHT_GUTTER;
+  const drawableWidth = Math.max(1, width - LEFT_GUTTER - RIGHT_GUTTER);
   const ratio = (year - scale.minYear) / scale.totalYears;
   return LEFT_GUTTER + Math.min(1, Math.max(0, ratio)) * drawableWidth;
 }
 
 function trackColor(kingdom: RailwayKingdom): string {
-  return kingdomColor(`Reino de ${kingdom}`) ?? "#64748b";
+  return kingdomColor(railwayKingdomLabel(kingdom)) ?? "#64748b";
 }
 
 function stationAriaLabel(
@@ -47,7 +78,7 @@ function stationAriaLabel(
   endYear: number | null
 ): string {
   const end = endYear === null ? "final desconocido" : String(endYear);
-  return `${name}, ${kingdom}, ${startYear}-${end}`;
+  return `${name}, ${railwayKingdomLabel(kingdom)}, ${startYear}-${end}`;
 }
 
 function transitionPath(
@@ -60,6 +91,13 @@ function transitionPath(
   return [
     `M ${x} ${sourceY}`,
     `C ${controlX} ${sourceY}, ${controlX} ${targetY}, ${x} ${targetY}`,
+  ].join(" ");
+}
+
+function mainlineHandoffPath(x: number, sourceY: number, targetY: number): string {
+  return [
+    `M ${x} ${sourceY}`,
+    `C ${x + 30} ${sourceY}, ${x - 30} ${targetY}, ${x} ${targetY}`,
   ].join(" ");
 }
 
@@ -121,29 +159,42 @@ function transitionConnectorPairs(
   );
 }
 
-function labelLevels(
+export interface RailwayLabelPlacement {
+  level: number;
+  isVisible: boolean;
+}
+
+function estimatedLabelWidth(name: string): number {
+  const textWidth = Array.from(name.trim()).length * 5.8 + 18;
+  return Math.min(MAX_LABEL_WIDTH, Math.max(MIN_LABEL_WIDTH, textWidth));
+}
+
+export function railwayLabelPlacements(
   projection: RailwayProjection,
   width: number
-): Map<string, number> {
-  const output = new Map<string, number>();
+): Map<string, RailwayLabelPlacement> {
+  const output = new Map<string, RailwayLabelPlacement>();
 
   for (const track of projection.tracks) {
     const stations = projection.stations
       .filter((station) => station.kingdom === track.kingdom)
       .sort((left, right) => left.startYear - right.startYear || left.rowId.localeCompare(right.rowId));
-    const lastX = LABEL_OFFSETS.map(() => Number.NEGATIVE_INFINITY);
+    const rightEdges = LABEL_OFFSETS.map(() => Number.NEGATIVE_INFINITY);
 
     for (const station of stations) {
       const x = yearX(station.startYear, projection.scale, width);
-      let level = lastX.findIndex((last) => x - last >= 104);
+      const halfWidth = estimatedLabelWidth(station.name) / 2;
+      const leftEdge = x - halfWidth;
+      const level = rightEdges.findIndex((rightEdge) => rightEdge + LABEL_GAP <= leftEdge);
       if (level < 0) {
-        level = lastX.reduce(
-          (oldestIndex, value, index) => value < lastX[oldestIndex] ? index : oldestIndex,
-          0
-        );
+        output.set(station.id, {
+          level: LABEL_OFFSETS.length - 1,
+          isVisible: false,
+        });
+        continue;
       }
-      output.set(station.id, level);
-      lastX[level] = x;
+      output.set(station.id, { level, isVisible: true });
+      rightEdges[level] = x + halfWidth;
     }
   }
 
@@ -199,7 +250,11 @@ export function RailwayView({
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const syncingScrollRef = useRef(false);
-  const width = canvasWidth(projection);
+  const previousWidthRef = useRef<number | null>(null);
+  const [zoom, setZoom] = useState(DEFAULT_RAILWAY_ZOOM);
+  const [fitWidth, setFitWidth] = useState<number | undefined>(undefined);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const width = railwayCanvasWidth(projection, zoom, fitWidth);
   const visibleKingdoms = projection.tracks.map((track) => track.kingdom);
   const laneY = useMemo(
     () => new Map(visibleKingdoms.map((kingdom, index) => [
@@ -220,7 +275,10 @@ export function RailwayView({
       )
   );
   const height = Math.max(220, AXIS_HEIGHT + visibleKingdoms.length * LANE_HEIGHT + 18);
-  const levels = useMemo(() => labelLevels(projection, width), [projection, width]);
+  const labelPlacements = useMemo(
+    () => railwayLabelPlacements(projection, width),
+    [projection, width]
+  );
   const stationById = useMemo(
     () => new Map(projection.stations.map((station) => [station.id, station])),
     [projection.stations]
@@ -235,10 +293,83 @@ export function RailwayView({
   );
 
   useEffect(() => {
-    if (topScrollRef.current && viewportRef.current) {
-      topScrollRef.current.scrollLeft = viewportRef.current.scrollLeft;
+    const viewport = viewportRef.current;
+    const topScroll = topScrollRef.current;
+    const previousWidth = previousWidthRef.current;
+    previousWidthRef.current = width;
+    if (!viewport || !topScroll) return;
+
+    if (previousWidth !== null && previousWidth !== width) {
+      viewport.scrollLeft = centeredRailwayScrollLeft(
+        viewport.scrollLeft,
+        viewport.clientWidth,
+        previousWidth,
+        width,
+        LEFT_GUTTER,
+        RIGHT_GUTTER
+      );
     }
+    topScroll.scrollLeft = viewport.scrollLeft;
   }, [width, visibleKingdoms.length]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || fitWidth === undefined || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = Math.max(1, Math.round(entry.contentRect.width));
+      setFitWidth((current) => current === undefined || current === nextWidth ? current : nextWidth);
+    });
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [fitWidth]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsExpanded(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isExpanded]);
+
+  function changeZoom(direction: "in" | "out") {
+    if (fitWidth !== undefined) {
+      setFitWidth(undefined);
+      setZoom(MIN_RAILWAY_ZOOM);
+      return;
+    }
+    setFitWidth(undefined);
+    setZoom((current) => nextRailwayZoom(current, direction));
+  }
+
+  function resetZoom() {
+    setFitWidth(undefined);
+    setZoom(DEFAULT_RAILWAY_ZOOM);
+  }
+
+  function fitRailwayToViewport() {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    setZoom(MIN_RAILWAY_ZOOM);
+    setFitWidth(Math.max(1, viewport.clientWidth));
+    viewport.scrollLeft = 0;
+    if (topScrollRef.current) topScrollRef.current.scrollLeft = 0;
+  }
+
+  function scrollToKingdom(value: string) {
+    const kingdom = visibleKingdoms.find((candidate) => candidate === value);
+    const viewport = viewportRef.current;
+    if (!kingdom || !viewport) return;
+    const y = laneY.get(kingdom);
+    if (y === undefined) return;
+    viewport.scrollTop = Math.max(0, y - viewport.clientHeight / 2);
+  }
 
   function syncHorizontalScroll(source: HTMLDivElement, target: HTMLDivElement | null) {
     if (!target || syncingScrollRef.current) return;
@@ -272,7 +403,7 @@ export function RailwayView({
   if (!projection.selectedKingdoms.length) {
     return (
       <div className="rounded-[3px] border border-slate-800 bg-slate-950/30 p-6 text-center text-sm text-slate-400">
-        Seleccione al menos un reino para proyectar el ferrocarril histórico.
+        Seleccione al menos una entidad para proyectar el ferrocarril histórico.
       </div>
     );
   }
@@ -280,7 +411,7 @@ export function RailwayView({
   if (!projection.stations.length) {
     return (
       <div className="rounded-[3px] border border-slate-800 bg-slate-950/30 p-6 text-center text-sm text-slate-400">
-        Los reinos elegidos no contienen gobiernos cronológicos representables.
+        Las entidades elegidas no contienen gobiernos cronológicos representables.
       </div>
     );
   }
@@ -292,8 +423,11 @@ export function RailwayView({
 
   return (
     <section
-      className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-[3px] border border-slate-800/70 bg-slate-950/35"
-      aria-label={`Ferrocarril histórico: ${projection.stations.length} gobiernos en ${projection.tracks.length} reinos`}
+      className={cn(
+        "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-[3px] border border-slate-800/70 bg-slate-950/35",
+        isExpanded && "fixed inset-2 z-[80] bg-slate-950 shadow-2xl"
+      )}
+      aria-label={`Ferrocarril histórico: ${projection.stations.length} gobiernos en ${projection.tracks.length} entidades`}
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-800 px-3 py-2 text-[11px] text-slate-400">
         <span className="font-medium text-slate-200">Lectura del mapa</span>
@@ -316,6 +450,10 @@ export function RailwayView({
           <span className="h-4 border-l border-dashed border-sky-300" aria-hidden="true" />
           mismo monarca; los reinos siguen separados
         </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-4 border-l-4 border-slate-200/70" aria-hidden="true" />
+          relevo de la vía principal; la etapa anterior puede continuar
+        </span>
         {issueCount > 0 && (
           <span className="ml-auto inline-flex items-center gap-1 text-amber-200">
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -328,6 +466,99 @@ export function RailwayView({
             seleccionado.
           </span>
         )}
+        <label className="ml-auto inline-flex items-center gap-1.5 text-slate-300">
+          <span>Ir a</span>
+          <select
+            className="h-8 max-w-[230px] rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-[11px] text-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+            value=""
+            onChange={(event) => scrollToKingdom(event.currentTarget.value)}
+            aria-label="Ir a una vía concreta"
+          >
+            <option value="" disabled>Seleccione una vía</option>
+            {visibleKingdoms.map((kingdom) => (
+              <option key={kingdom} value={kingdom}>
+                {railwayKingdomLabel(kingdom)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div
+          className="flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="Escala horizontal del ferrocarril"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-[3px] border-slate-700 bg-slate-950/60"
+            onClick={() => changeZoom("out")}
+            disabled={fitWidth !== undefined || zoom <= MIN_RAILWAY_ZOOM}
+            title="Comprimir la escala horizontal"
+            aria-label="Comprimir la escala horizontal"
+          >
+            <ZoomOut className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+          <output
+            className="min-w-14 text-center text-xs font-medium tabular-nums text-slate-200"
+            aria-live="polite"
+            aria-label={fitWidth === undefined
+              ? `Escala horizontal al ${railwayZoomToPercent(zoom)} %`
+              : "Escala horizontal ajustada al ancho visible"}
+          >
+            {fitWidth === undefined ? `${railwayZoomToPercent(zoom)} %` : "Ajustado"}
+          </output>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-[3px] border-slate-700 bg-slate-950/60"
+            onClick={resetZoom}
+            disabled={zoom === DEFAULT_RAILWAY_ZOOM && fitWidth === undefined}
+            title="Restablecer la escala al 100 %"
+            aria-label="Restablecer la escala al 100 %"
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-[3px] border-slate-700 bg-slate-950/60"
+            onClick={() => changeZoom("in")}
+            disabled={zoom >= MAX_RAILWAY_ZOOM}
+            title="Estirar la escala horizontal"
+            aria-label="Estirar la escala horizontal"
+          >
+            <ZoomIn className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-[3px] border-slate-700 bg-slate-950/60 px-2 text-[11px]"
+            onClick={fitRailwayToViewport}
+            title="Ajustar toda la cronología al ancho visible"
+            aria-label="Ajustar toda la cronología al ancho visible"
+          >
+            Ajustar
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-[3px] border-slate-700 bg-slate-950/60 px-2 text-[11px]"
+            onClick={() => setIsExpanded((current) => !current)}
+            title={isExpanded ? "Salir de la vista ampliada" : "Ampliar el gráfico"}
+            aria-label={isExpanded ? "Salir de la vista ampliada" : "Ampliar el gráfico"}
+            aria-pressed={isExpanded}
+          >
+            {isExpanded
+              ? <Minimize2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+              : <Maximize2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}
+            {isExpanded ? "Contraer" : "Ampliar"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
@@ -502,6 +733,36 @@ export function RailwayView({
               {visibleTransitions.flatMap((transition) => {
                 const x = yearX(transition.year, projection.scale, width);
                 const pairs = transitionConnectorPairs(transition, laneY);
+                if (transition.kind === "integration") {
+                  return pairs.flatMap((pair, index) => {
+                    const path = mainlineHandoffPath(x, pair.sourceY, pair.targetY);
+                    return [
+                      <path
+                        key={`${transition.id}-${index}-halo`}
+                        d={path}
+                        fill="none"
+                        stroke="#e2e8f0"
+                        strokeWidth="12"
+                        strokeLinecap="round"
+                        opacity="0.38"
+                      />,
+                      <path
+                        key={`${transition.id}-${index}`}
+                        d={path}
+                        data-railway-transition-connector="true"
+                        data-transition-kind="integration"
+                        data-transition-year={transition.year}
+                        data-source-kingdom={pair.sourceKingdom}
+                        data-target-kingdom={pair.targetKingdom}
+                        fill="none"
+                        stroke={trackColor(pair.targetKingdom)}
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        opacity={transition.isAnchored ? 1 : 0.6}
+                      />,
+                    ];
+                  });
+                }
                 return pairs.map((pair, index) => (
                   transition.kind === "dynastic-union"
                     || transition.kind === "dynastic-separation" ? (
@@ -544,19 +805,23 @@ export function RailwayView({
             {projection.tracks.map((track) => {
               const y = laneY.get(track.kingdom);
               if (y === undefined) return null;
+              const label = railwayKingdomLabel(track.kingdom);
               return (
                 <div
                   key={`${track.id}-label-row`}
                   className="pointer-events-none absolute left-0 right-0 z-20"
                   style={{ top: y - 18 }}
                 >
-                  <div className="sticky left-0 inline-flex h-9 max-w-[168px] items-center gap-2 rounded-r-[3px] border border-l-0 border-slate-700 bg-slate-950/95 px-3 text-xs font-medium text-slate-100 shadow-lg">
+                  <div
+                    className="sticky left-0 inline-flex h-9 max-w-[208px] items-center gap-2 rounded-r-[3px] border border-l-0 border-slate-700 bg-slate-950/95 px-3 text-xs font-medium text-slate-100 shadow-lg"
+                    title={label}
+                  >
                     <span
                       className="h-3 w-3 shrink-0 rounded-full border border-white/30"
                       style={{ backgroundColor: trackColor(track.kingdom) }}
                       aria-hidden="true"
                     />
-                    <span className="truncate">Reino de {track.kingdom}</span>
+                    <span className="truncate">{label}</span>
                     <span className="text-slate-500">{track.stationIds.length}</span>
                   </div>
                 </div>
@@ -567,14 +832,20 @@ export function RailwayView({
               const y = laneY.get(station.kingdom);
               if (y === undefined) return null;
               const x = yearX(station.startYear, projection.scale, width);
-              const labelLevel = levels.get(station.id) ?? 0;
+              const placement = labelPlacements.get(station.id) ?? {
+                level: 0,
+                isVisible: true,
+              };
               const selected = station.periodId === selectedPeriodId;
               const inferred = station.period.isInferredStart;
 
               return (
                 <div
                   key={station.id}
-                  className="group absolute z-20 h-11 w-11 -translate-x-1/2 -translate-y-1/2"
+                  className={cn(
+                    "group absolute z-20 h-11 w-11 -translate-x-1/2 -translate-y-1/2 focus-within:z-50",
+                    selected && "z-40"
+                  )}
                   style={{ left: x, top: y }}
                 >
                   <button
@@ -592,7 +863,7 @@ export function RailwayView({
                     onClick={() => onSelectPeriod(station.periodId)}
                     onKeyDown={(event) => handleStationKeyDown(event, station.periodId)}
                     className={cn(
-                      "flex h-11 w-11 items-center justify-center rounded-full outline-none",
+                      "flex h-11 w-11 items-center justify-center overflow-visible rounded-full outline-none",
                       "focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     )}
                   >
@@ -605,19 +876,22 @@ export function RailwayView({
                       )}
                       aria-hidden="true"
                     />
+                    <span
+                      className={cn(
+                        "absolute left-1/2 z-30 max-w-[132px] -translate-x-1/2 truncate rounded-[3px] border px-1.5 py-0.5 text-center text-[10px] leading-tight shadow-sm transition-opacity",
+                        selected
+                          ? "border-emerald-400/60 bg-emerald-950/95 text-emerald-50"
+                          : "border-slate-700/80 bg-slate-950/92 text-slate-200",
+                        !placement.isVisible && !selected
+                          ? "pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                          : "pointer-events-auto opacity-100"
+                      )}
+                      style={{ top: LABEL_OFFSETS[placement.level] }}
+                      title={`${station.name} (${station.startYear})`}
+                    >
+                      {station.name}
+                    </span>
                   </button>
-                  <span
-                    className={cn(
-                      "pointer-events-none absolute left-1/2 z-30 max-w-[116px] -translate-x-1/2 truncate rounded-[3px] border px-1.5 py-0.5 text-center text-[10px] leading-tight shadow-sm",
-                      selected
-                        ? "border-emerald-400/60 bg-emerald-950/95 text-emerald-50"
-                        : "border-slate-700/80 bg-slate-950/92 text-slate-200"
-                    )}
-                    style={{ top: LABEL_OFFSETS[labelLevel] }}
-                    title={`${station.name} (${station.startYear})`}
-                  >
-                    {station.name}
-                  </span>
                 </div>
               );
             })}

@@ -10,6 +10,7 @@ import {
 import {
   RAILWAY_KINGDOMS,
   buildRailwayModel,
+  projectRailwayNetwork,
   type RailwayKingdom,
 } from "../../lib/railway";
 import { WESTERN_KINGDOMS_RAILWAY_TOPOLOGY } from "../../lib/railway-topology";
@@ -23,14 +24,10 @@ import {
   type TimelineDisplayMode,
 } from "./timeline/timeline-display-switch";
 import { TimelineView } from "./timeline/timeline-view";
+import { hasActiveDatasetFilters } from "../../lib/filters";
 
 function hasActiveFilters(filters: ReturnType<typeof useAppContext>["filters"]): boolean {
-  return Boolean(
-    filters.query ||
-    filters.filterReino !== "__all__" ||
-    filters.filterDinastia !== "__all__" ||
-    filters.filterSiglo !== "__all__"
-  );
+  return hasActiveDatasetFilters(filters);
 }
 
 export function TimelineTab() {
@@ -54,12 +51,22 @@ export function TimelineTab() {
   const model = useMemo(() => buildTimelineModel(scopedPeople, {
     groupMode,
   }), [groupMode, scopedPeople]);
-  const railwayModel = useMemo(
+  const railwayBaseModel = useMemo(
     () => buildRailwayModel(allPeople, {
-      selectedKingdoms: selectedRailwayKingdoms,
       transitionCatalog: WESTERN_KINGDOMS_RAILWAY_TOPOLOGY,
     }),
-    [allPeople, selectedRailwayKingdoms]
+    [allPeople]
+  );
+  const railwayProjection = useMemo(
+    () => projectRailwayNetwork(
+      railwayBaseModel.network,
+      selectedRailwayKingdoms
+    ),
+    [railwayBaseModel.network, selectedRailwayKingdoms]
+  );
+  const railwayModel = useMemo(
+    () => ({ ...railwayBaseModel, projection: railwayProjection }),
+    [railwayBaseModel, railwayProjection]
   );
   const railwayStationCounts = useMemo(() => {
     const counts = Object.fromEntries(

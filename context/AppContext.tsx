@@ -10,12 +10,19 @@ import {
 } from "../lib/selection";
 import { calculateStatsHelper } from "../lib/stats";
 import {
+    DEFAULT_FILTERS,
+    hasActiveDatasetFilters,
+    normalizeStoredFilters,
+} from "../lib/filters";
+import {
     derivePeopleFromRows,
     filterAndSortPeople,
     filterRowsForPeople,
     getPersonFilterOptions,
     getSelectedCenturies,
 } from "../lib/people";
+import { isPendingDatasetReplacement } from "../lib/dataset-revision";
+import { reportError } from "../lib/observability";
 
 interface AppContextData {
     // Datos
@@ -34,6 +41,7 @@ interface AppContextData {
 
     // Listas únicas para selectores de filtro
     reinos: string[];
+    tipos: string[];
     dinastias: string[];
     siglos: string[];
 
@@ -61,46 +69,44 @@ export function useAppContext(): AppContextData {
 interface AppProviderProps {
     rows: RawRow[];
     idbLoaded: boolean;
-    datasetLoadedAt: number | null;
+    datasetReplacementRevision: number;
     children: React.ReactNode;
 }
 
-const DEFAULT_FILTERS: FilterState = {
-    query: "",
-    literalSearch: false,
-    filterReino: "__all__",
-    filterDinastia: "__all__",
-    filterSiglo: "__all__",
-    filterDinastiaLocked: false,
-    sortKey: "cronologia",
-    sortDir: "asc",
-};
-
-export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppProviderProps) {
+export function AppProvider({
+    rows,
+    idbLoaded,
+    datasetReplacementRevision,
+    children,
+}: AppProviderProps) {
     const [filters, setFilters] = useState<FilterState>(() => {
         try {
             const stored = localStorage.getItem("reyes_filters");
             if (stored) {
                 const parsed: unknown = JSON.parse(stored);
-                if (parsed && typeof parsed === "object") {
-                    return { ...DEFAULT_FILTERS, ...parsed };
-                }
+                return normalizeStoredFilters(parsed);
             }
         } catch (e) {
-            console.error("Error reading filters from localStorage:", e);
+            reportError(e, {
+                event: "persistence.filters.load_failed",
+                recoverable: true,
+            });
         }
-        return DEFAULT_FILTERS;
+        return { ...DEFAULT_FILTERS };
     });
 
     const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-    const handledDatasetLoadedAtRef = useRef<number | null>(null);
+    const handledDatasetReplacementRevisionRef = useRef(0);
 
-    // Save filters and selectedPersonId to localStorage when they change
+    // Guarda los filtros en el almacenamiento local cuando cambian.
     useEffect(() => {
         try {
             localStorage.setItem("reyes_filters", JSON.stringify(filters));
         } catch (e) {
-            console.error("Error saving filters to localStorage:", e);
+            reportError(e, {
+                event: "persistence.filters.save_failed",
+                recoverable: true,
+            });
         }
     }, [filters]);
 
@@ -114,11 +120,14 @@ export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppP
     // Auto-seleccionar el personaje inicial preferente.
     // Primero: si se acaba de cargar un nuevo dataset explícitamente, resetear filtros e ir al inicio.
     useEffect(() => {
-        if (!datasetLoadedAt || !startupPersonId || handledDatasetLoadedAtRef.current === datasetLoadedAt) return;
-        handledDatasetLoadedAtRef.current = datasetLoadedAt;
-        setFilters(DEFAULT_FILTERS);
-        setSelectedPersonId(startupPersonId);
-    }, [datasetLoadedAt, startupPersonId]);
+        if (!isPendingDatasetReplacement(
+            datasetReplacementRevision,
+            handledDatasetReplacementRevisionRef.current
+        )) return;
+        handledDatasetReplacementRevisionRef.current = datasetReplacementRevision;
+        setFilters({ ...DEFAULT_FILTERS });
+        setSelectedPersonId(startupPersonId || null);
+    }, [datasetReplacementRevision, startupPersonId]);
 
     // Segundo: al cargar nuevos datos o si la selección actual no es válida por filtros
     useEffect(() => {
@@ -128,17 +137,17 @@ export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppP
 
         const nextSelectedPersonId = resolveSelectedPersonId(
             selectedPersonId,
-            allPeople.map((person) => person.personId)
+            people.map((person) => person.personId)
         );
 
         // Si no hay selección, o la persona actual ya no existe en el dataset, seleccionamos la primera.
         if (nextSelectedPersonId !== selectedPersonId) {
             setSelectedPersonId(nextSelectedPersonId);
         }
-    }, [allPeople, selectedPersonId, idbLoaded]);
+    }, [people, selectedPersonId, idbLoaded]);
 
     // --- Listas para selectores ---
-    const { reinos, dinastias, siglos } = useMemo(
+    const { reinos, tipos, dinastias, siglos } = useMemo(
         () => getPersonFilterOptions(allPeople, rows),
         [allPeople, rows]
     );
@@ -155,11 +164,23 @@ export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppP
         [rows, allPeople]
     );
 
-    const filteredRows = useMemo(() => filterRowsForPeople(rows, people), [rows, people]);
+    const hasDatasetFilters = useMemo(
+        () => hasActiveDatasetFilters(filters),
+        [filters]
+    );
+
+    const filteredRows = useMemo(
+        () => hasDatasetFilters
+            ? filterRowsForPeople(rows, people, filters)
+            : rows,
+        [rows, people, filters, hasDatasetFilters]
+    );
 
     const filteredStats = useMemo(
-        () => calculateStatsHelper(filteredRows, people),
-        [filteredRows, people]
+        () => hasDatasetFilters
+            ? calculateStatsHelper(filteredRows, people)
+            : globalStats,
+        [filteredRows, people, globalStats, hasDatasetFilters]
     );
 
     // --- Siglos seleccionados ---
@@ -173,6 +194,7 @@ export function AppProvider({ rows, idbLoaded, datasetLoadedAt, children }: AppP
         byPerson,
         people,
         reinos,
+        tipos,
         dinastias,
         siglos,
         selectedPersonId,

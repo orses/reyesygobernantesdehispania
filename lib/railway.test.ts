@@ -6,9 +6,11 @@ import {
   buildRailwayModel,
   normalizeRailwayKingdom,
   projectRailwayNetwork,
+  railwayKingdomLabel,
   type RailwayTransitionCatalog,
   type RailwayTransitionDefinition,
 } from "./railway";
+import { WESTERN_KINGDOMS_RAILWAY_TOPOLOGY } from "./railway-topology";
 import type { Person, RawRow } from "./types";
 
 function makeRow(values: RawRow, index: number): RawRow {
@@ -39,6 +41,20 @@ function government(
     "Inicio del reinado (año)": startYear,
     "Final del reinado (año)": endYear,
   };
+}
+
+function governmentsFromRanges(
+  prefix: string,
+  kingdom: string,
+  ranges: readonly (readonly [number, number])[]
+): RawRow[] {
+  return ranges.map(([startYear, endYear], index) => government(
+    `${prefix}-${index + 1}`,
+    `${prefix}-${index + 1}`,
+    kingdom,
+    startYear,
+    endYear
+  ));
 }
 
 function catalog(
@@ -78,17 +94,41 @@ function mainlineCatalog(): RailwayTransitionCatalog {
 }
 
 describe("normalización de los reinos ferroviarios", () => {
-  it("mantiene exactamente los cuatro reinos canónicos de la primera versión", () => {
-    expect(RAILWAY_KINGDOMS).toEqual(["Asturias", "León", "Galicia", "Castilla"]);
+  it("mantiene las seis entidades canónicas en su orden de lectura", () => {
+    expect(RAILWAY_KINGDOMS).toEqual([
+      "Asturias",
+      "León",
+      "Galicia",
+      "Castilla",
+      "Corona de Castilla",
+      "Monarquía Hispánica / España",
+    ]);
+    expect(RAILWAY_KINGDOMS.map(railwayKingdomLabel)).toEqual([
+      "Reino de Asturias",
+      "Reino de León",
+      "Reino de Galicia",
+      "Reino de Castilla",
+      "Corona de Castilla",
+      "Monarquía Hispánica / España",
+    ]);
   });
 
-  it("admite alias completos normalizados, pero no condados, coronas ni coincidencias parciales", () => {
+  it("admite alias completos normalizados, pero no condados ni coincidencias parciales", () => {
     expect(normalizeRailwayKingdom("  REINO   DE LEÓN ")).toBe("León");
     expect(normalizeRailwayKingdom("Reino de Leo\u0301n")).toBe("León");
     expect(normalizeRailwayKingdom("galicia")).toBe("Galicia");
     expect(normalizeRailwayKingdom("Reino de CASTILLA")).toBe("Castilla");
+    expect(normalizeRailwayKingdom("CORONA DE CASTILLA")).toBe("Corona de Castilla");
+    expect(normalizeRailwayKingdom("Monarquía Hispánica")).toBe(
+      "Monarquía Hispánica / España"
+    );
+    expect(normalizeRailwayKingdom("Monarquía Hispánica/España")).toBe(
+      "Monarquía Hispánica / España"
+    );
+    expect(normalizeRailwayKingdom("Monarquía Hispánica/ España")).toBe(
+      "Monarquía Hispánica / España"
+    );
     expect(normalizeRailwayKingdom("Condado de Castilla")).toBeNull();
-    expect(normalizeRailwayKingdom("Corona de Castilla")).toBeNull();
     expect(normalizeRailwayKingdom("Reino de Castilla y León")).toBeNull();
 
     const people = peopleFromRows([
@@ -97,6 +137,7 @@ describe("normalización de los reinos ferroviarios", () => {
       government("castilla", "castilla", "reino de castilla", 920, 930),
       government("condado", "conde", "Condado de Castilla", 930, 940),
       government("corona", "reina", "Corona de Castilla", 940, 950),
+      government("monarquia", "monarca", "Monarquía Hispánica/España", 950, 960),
     ]);
 
     const model = buildRailwayModel(people);
@@ -105,7 +146,193 @@ describe("normalización de los reinos ferroviarios", () => {
       "leon",
       "galicia",
       "castilla",
+      "corona",
+      "monarquia",
     ]);
+  });
+});
+
+describe("continuidad castellana e hispánica", () => {
+  it("conserva todas las filas de las tres etapas y su solapamiento desde 1516", () => {
+    const castileRanges = [
+      [1066, 1072],
+      [1072, 1109],
+      [1109, 1126],
+      [1126, 1157],
+      [1157, 1158],
+      [1158, 1214],
+      [1214, 1217],
+      [1217, 1246],
+      [1217, 1252],
+    ] as const;
+    const crownRanges = [
+      [1252, 1284],
+      [1284, 1295],
+      [1295, 1312],
+      [1312, 1350],
+      [1350, 1369],
+      [1369, 1379],
+      [1379, 1390],
+      [1390, 1406],
+      [1406, 1454],
+      [1454, 1474],
+      [1474, 1504],
+      [1479, 1516],
+    ] as const;
+    const monarchyRanges = [
+      [1556, 1598],
+      [1598, 1621],
+      [1621, 1665],
+      [1665, 1700],
+      [1700, 1724],
+      [1724, 1746],
+      [1724, 1724],
+      [1746, 1759],
+      [1759, 1788],
+      [1788, 1808],
+      [1808, 1813],
+      [1808, 1808],
+      [1814, 1833],
+      [1833, 1840],
+      [1840, 1843],
+      [1843, 1868],
+      [1868, 1871],
+      [1871, 1873],
+      [1873, 1873],
+      [1873, 1873],
+      [1873, 1873],
+      [1873, 1874],
+      [1874, 1885],
+      [1885, 1902],
+      [1902, 1931],
+      [1931, 1936],
+      [1936, 1939],
+      [1939, 1975],
+      [1975, 2014],
+      [2014, 2026],
+    ] as const;
+    const people = peopleFromRows([
+      ...governmentsFromRanges("castilla", "Reino de Castilla", castileRanges),
+      ...governmentsFromRanges("corona", "Corona de Castilla", crownRanges),
+      {
+        ...government("juana-corona", "juana-i", "Corona de Castilla", 1504, 1555),
+        "Nombre principal": "Juana I",
+        Nombre: "Juana I",
+      },
+      {
+        ...government(
+          "carlos-monarquia",
+          "carlos-i-v",
+          "Monarquía Hispánica / España",
+          1516,
+          1556
+        ),
+        "Nombre principal": "Carlos I/V",
+        Nombre: "Carlos I/V",
+      },
+      ...governmentsFromRanges(
+        "monarquia",
+        "Monarquía Hispánica / España",
+        monarchyRanges
+      ),
+    ]);
+
+    const model = buildRailwayModel(people, {
+      transitionCatalog: WESTERN_KINGDOMS_RAILWAY_TOPOLOGY,
+    });
+
+    expect(model.network.stations).toHaveLength(53);
+    expect(model.network.tracks.map((track) => [track.kingdom, track.stationIds.length]))
+      .toEqual([
+        ["Castilla", 9],
+        ["Corona de Castilla", 13],
+        ["Monarquía Hispánica / España", 31],
+      ]);
+
+    const periodizationChange = model.network.transitions.find(
+      (transition) => transition.definitionId === "relevo-periodizacion-castellana-1252"
+    );
+    expect(periodizationChange).toMatchObject({
+      kind: "transformation",
+      year: 1252,
+      isAnchored: true,
+      anchors: [
+        {
+          role: "source",
+          kingdom: "Castilla",
+          stationId: "station:castilla-9",
+          anchorYear: 1252,
+          distanceYears: 0,
+        },
+        {
+          role: "target",
+          kingdom: "Corona de Castilla",
+          stationId: "station:corona-1",
+          anchorYear: 1252,
+          distanceYears: 0,
+        },
+      ],
+    });
+
+    const integration = model.network.transitions.find(
+      (transition) => transition.definitionId
+        === "integracion-corona-castilla-monarquia-hispanica-1516"
+    );
+    expect(integration).toMatchObject({
+      kind: "integration",
+      year: 1516,
+      isAnchored: true,
+      anchors: [
+        {
+          role: "source",
+          kingdom: "Corona de Castilla",
+          stationId: "station:juana-corona",
+          anchorYear: 1516,
+          distanceYears: 0,
+        },
+        {
+          role: "target",
+          kingdom: "Monarquía Hispánica / España",
+          stationId: "station:carlos-monarquia",
+          anchorYear: 1516,
+          distanceYears: 0,
+        },
+      ],
+    });
+
+    const crownServices = model.network.services.filter(
+      (service) => service.kingdom === "Corona de Castilla"
+    );
+    const monarchyServices = model.network.services.filter(
+      (service) => service.kingdom === "Monarquía Hispánica / España"
+    );
+    expect(crownServices).toHaveLength(1);
+    expect(crownServices[0]).toMatchObject({ startYear: 1252, endYear: 1555 });
+    expect(crownServices[0].endsAtTransitions.some(
+      (boundary) => boundary.kind === "integration"
+    )).toBe(false);
+    expect(monarchyServices).toHaveLength(1);
+    expect(monarchyServices[0]).toMatchObject({ startYear: 1516, endYear: 2026 });
+    expect(monarchyServices[0].startsAtTransitions).toContainEqual(
+      expect.objectContaining({
+        kind: "integration",
+        role: "target",
+        year: 1516,
+      })
+    );
+    expect(model.network.stations.find(
+      (station) => station.id === "station:juana-corona"
+    )).toMatchObject({ name: "Juana I", startYear: 1504, endYear: 1555 });
+    expect(model.network.stations.find(
+      (station) => station.id === "station:carlos-monarquia"
+    )).toMatchObject({ name: "Carlos I/V", startYear: 1516, endYear: 1556 });
+    expect(model.network.mainlineSegments?.find(
+      (segment) => segment.kingdom === "Corona de Castilla"
+    )).toMatchObject({ startYear: 1252, endYear: 1516 });
+    expect(model.network.mainlineSegments?.find(
+      (segment) => segment.kingdom === "Monarquía Hispánica / España"
+    )).toMatchObject({ startYear: 1516, endYear: 2026 });
+    expect(model.network.scale.maxYear).toBeGreaterThan(2026);
   });
 });
 
@@ -856,6 +1083,72 @@ describe("uniones personales y proyección", () => {
     expect(asturiasProjection.scale).toBe(model.network.scale);
     expect(model.projection.scale.minYear).toBeLessThan(718);
     expect(model.projection.scale.maxYear).toBeGreaterThan(1230);
+  });
+});
+
+describe("equivalencia entre construcción y reproyección", () => {
+  it.each([
+    ["total", [...RAILWAY_KINGDOMS]],
+    ["parcial", ["León", "Galicia"]],
+    ["vacía", []],
+  ] as const)("mantiene la salida completa con una selección %s", (_, selectedKingdoms) => {
+    const people = peopleFromRows([
+      government("asturias", "astur", "Asturias", 900, 910),
+      government("leon", "rey-compartido", "León", 910, 920),
+      government("galicia", "rey-compartido", "Galicia", 910, 920),
+      government("castilla", "castellano", "Castilla", 920, 930),
+    ]);
+    const transitionCatalog: RailwayTransitionCatalog = {
+      schemaVersion: 1,
+      version: "equivalencia-reproyeccion",
+      transitions: [
+        {
+          id: "division",
+          kind: "split",
+          year: 910,
+          from: "Asturias",
+          to: ["León", "Galicia"],
+        },
+        {
+          id: "union",
+          kind: "merge",
+          year: 920,
+          from: ["León", "Galicia"],
+          to: "Castilla",
+        },
+      ],
+      mainlineSegments: [
+        {
+          id: "asturias",
+          kingdom: "Asturias",
+          startYear: null,
+          endYear: 910,
+        },
+        {
+          id: "leon",
+          kingdom: "León",
+          startYear: 910,
+          endYear: 920,
+        },
+        {
+          id: "castilla",
+          kingdom: "Castilla",
+          startYear: 920,
+          endYear: null,
+        },
+      ],
+    };
+    const baseModel = buildRailwayModel(people, { transitionCatalog });
+    const reprojectedModel = {
+      ...baseModel,
+      projection: projectRailwayNetwork(baseModel.network, selectedKingdoms),
+    };
+    const rebuiltModel = buildRailwayModel(people, {
+      selectedKingdoms,
+      transitionCatalog,
+    });
+
+    expect(reprojectedModel).toEqual(rebuiltModel);
   });
 });
 

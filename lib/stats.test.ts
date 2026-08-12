@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests unitarios — lib/stats.ts
+// Pruebas unitarias: lib/stats.ts
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect } from "vitest";

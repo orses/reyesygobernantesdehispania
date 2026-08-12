@@ -23,6 +23,8 @@ interface FichasTabProps {
   setLiteralSearch: StateSetter<boolean>;
   filterReino: string;
   setFilterReino: StateSetter<string>;
+  filterTipo: string;
+  setFilterTipo: StateSetter<string>;
   filterDinastia: string;
   setFilterDinastia: StateSetter<string>;
   filterSiglo: string;
@@ -36,6 +38,7 @@ interface FichasTabProps {
   setSelectedPersonId: (value: string | null) => void;
   selectedPerson: Person | null;
   reinos: string[];
+  tipos: string[];
   dinastias: string[];
   siglos: string[];
   selectedCenturies: number[];
@@ -85,6 +88,8 @@ export function FichasTab({
   setLiteralSearch,
   filterReino,
   setFilterReino,
+  filterTipo,
+  setFilterTipo,
   filterDinastia,
   setFilterDinastia,
   filterSiglo,
@@ -98,6 +103,7 @@ export function FichasTab({
   setSelectedPersonId,
   selectedPerson,
   reinos,
+  tipos,
   dinastias,
   siglos,
   selectedCenturies,
@@ -123,6 +129,7 @@ export function FichasTab({
   const selectedPrimaryMediaAsset = selectedPerson ? getPrimaryMediaAsset(selectedMediaAssets, selectedPerson.personId) : null;
   const hasQuery = query.trim().length > 0;
   const hasReinoFilter = filterReino !== "__all__";
+  const hasTipoFilter = filterTipo !== "__all__";
   const hasDinastiaFilter = filterDinastia !== "__all__";
   const hasSigloFilter = filterSiglo !== "__all__";
   const hasSortFilter = sortKey !== "cronologia" || sortDir !== "asc";
@@ -130,6 +137,7 @@ export function FichasTab({
     (hasQuery ? 1 : 0) +
     (literalSearch ? 1 : 0) +
     (hasReinoFilter ? 1 : 0) +
+    (hasTipoFilter ? 1 : 0) +
     (hasDinastiaFilter ? 1 : 0) +
     (hasSigloFilter ? 1 : 0) +
     (hasSortFilter ? 1 : 0);
@@ -202,6 +210,8 @@ export function FichasTab({
           setLiteralSearch={setLiteralSearch}
           filterReino={filterReino}
           setFilterReino={setFilterReino}
+          filterTipo={filterTipo}
+          setFilterTipo={setFilterTipo}
           filterDinastia={filterDinastia}
           setFilterDinastia={setFilterDinastia}
           filterSiglo={filterSiglo}
@@ -217,6 +227,7 @@ export function FichasTab({
           setSelectedGovernment={selectGovernment}
           onSearchSubmit={selectFirstSearchMatch}
           reinos={reinos}
+          tipos={tipos}
           dinastias={dinastias}
           siglos={siglos}
           mediaAssets={mediaAssets}

@@ -38,7 +38,7 @@ import {
 } from "../../lib/reign-chronology";
 
 // ---------------------------------------------------------------------------
-// Editor Dialog (persona o gobierno)
+// Diálogo de edición de una persona o un gobierno.
 // ---------------------------------------------------------------------------
 
 interface EditorDialogProps {
@@ -51,9 +51,30 @@ interface EditorDialogProps {
   setDraftPersonRows: React.Dispatch<React.SetStateAction<RawRow[]>>;
   draftPersonId: string | number | null;
   draftRowId: string | number | null;
-  commitDraft: (options?: { closeAfterSave?: boolean }) => boolean;
+  commitDraft: (options?: { closeAfterSave?: boolean }) => Promise<boolean>;
   setError: (v: string | null) => void;
   people?: Person[];
+}
+
+interface EditorInteractionGuardProps {
+  isSaving: boolean;
+  children: React.ReactNode;
+}
+
+/** Impide modificar el borrador mientras se confirma su persistencia. */
+export function EditorInteractionGuard({
+  isSaving,
+  children,
+}: EditorInteractionGuardProps) {
+  return (
+    <fieldset
+      disabled={isSaving}
+      aria-disabled={isSaving}
+      className="contents"
+    >
+      {children}
+    </fieldset>
+  );
 }
 
 export function EditorDialog({
@@ -72,6 +93,7 @@ export function EditorDialog({
 }: EditorDialogProps) {
   const [jsonError, setJsonError] = React.useState<string | null>(null);
   const [saveStatus, setSaveStatus] = React.useState<string | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
   const chronologyError = React.useMemo(() => {
     const rowsToCheck = mode === "person" ? draftPersonRows : draft ? [draft] : [];
     for (const row of rowsToCheck) {
@@ -86,6 +108,7 @@ export function EditorDialog({
     if (!open) return;
     setJsonError(null);
     setSaveStatus(null);
+    setIsSaving(false);
     setError(null);
   }, [mode, open, setError]);
 
@@ -99,31 +122,49 @@ export function EditorDialog({
   };
 
   const handleCancel = React.useCallback(() => {
+    if (isSaving) return;
     setOpen(false);
-  }, [setOpen]);
+  }, [isSaving, setOpen]);
+
+  const handleOpenChange = React.useCallback((nextOpen: boolean) => {
+    if (!nextOpen && isSaving) return;
+    setOpen(nextOpen);
+  }, [isSaving, setOpen]);
 
   const handleSave = React.useCallback(
-    (closeAfterSave: boolean) => {
-      const saved = commitDraft({ closeAfterSave });
-      if (saved && !closeAfterSave) setSaveStatus("Cambios guardados.");
+    async (closeAfterSave: boolean) => {
+      if (isSaving) return;
+      setIsSaving(true);
+      setSaveStatus(null);
+
+      let saved = false;
+      try {
+        saved = await commitDraft({ closeAfterSave });
+        if (saved && !closeAfterSave) setSaveStatus("Cambios guardados.");
+      } finally {
+        if (!saved || !closeAfterSave) setIsSaving(false);
+      }
     },
-    [commitDraft]
+    [commitDraft, isSaving]
   );
 
   const handleKeyboardSave = React.useCallback(() => {
-    handleSave(false);
+    void handleSave(false);
   }, [handleSave]);
 
   useEditorKeyboardShortcuts({
-    enabled: open,
-    canSave: !blockingError,
+    enabled: open && !isSaving,
+    canSave: !blockingError && !isSaving,
     onCancel: handleCancel,
     onSave: handleKeyboardSave,
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-3xl w-[95vw] sm:w-full rounded-[3px] max-h-[90vh] overflow-y-auto bg-slate-950 text-slate-50 border border-slate-800">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        aria-busy={isSaving}
+        className="max-w-3xl w-[95vw] sm:w-full rounded-[3px] max-h-[90vh] overflow-y-auto bg-slate-950 text-slate-50 border border-slate-800"
+      >
         <DialogHeader>
           <DialogTitle className="text-lg font-medium">
             {mode === "person" ? "Editar Personaje" : "Editar Gobierno (Fila)"}
@@ -135,54 +176,57 @@ export function EditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {draft ? (
-          mode === "person" ? (
-            <PersonEditorContent
-              draft={draft}
-              setDraft={setDraft}
-              draftPersonRows={draftPersonRows}
-              setDraftPersonRows={setDraftPersonRows}
-              draftPersonId={draftPersonId}
-              onJsonError={handleJsonError}
-            />
-          ) : (
-            <RowEditorContent
-              draft={draft}
-              setDraft={setDraft}
-              draftRowId={draftRowId}
-              onJsonError={handleJsonError}
-              people={people}
-            />
-          )
-        ) : null}
+        <EditorInteractionGuard isSaving={isSaving}>
+          {draft ? (
+            mode === "person" ? (
+              <PersonEditorContent
+                draft={draft}
+                setDraft={setDraft}
+                draftPersonRows={draftPersonRows}
+                setDraftPersonRows={setDraftPersonRows}
+                draftPersonId={draftPersonId}
+                onJsonError={handleJsonError}
+              />
+            ) : (
+              <RowEditorContent
+                draft={draft}
+                setDraft={setDraft}
+                draftRowId={draftRowId}
+                onJsonError={handleJsonError}
+                people={people}
+              />
+            )
+          ) : null}
 
-        {chronologyError ? (
-          <p role="alert" className="rounded-[3px] border border-red-500/60 bg-red-950/30 p-3 text-sm text-red-200">
-            {chronologyError} Corrija el año o acepte expresamente la propuesta antes de guardar.
-          </p>
-        ) : null}
+          {chronologyError ? (
+            <p role="alert" className="rounded-[3px] border border-red-500/60 bg-red-950/30 p-3 text-sm text-red-200">
+              {chronologyError} Corrija el año o acepte expresamente la propuesta antes de guardar.
+            </p>
+          ) : null}
 
-        <DialogFooter>
-          <Button
-            variant="secondary"
-            className="rounded-[3px]"
-            onClick={handleCancel}
-          >
-            cancelar
-          </Button>
-          <Button
-            className="rounded-[3px]"
-            disabled={Boolean(blockingError)}
-            title={blockingError ?? "Guardar y cerrar"}
-            onClick={() => handleSave(true)}
-          >
-            guardar
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              className="rounded-[3px]"
+              disabled={isSaving}
+              onClick={handleCancel}
+            >
+              cancelar
+            </Button>
+            <Button
+              className="rounded-[3px]"
+              disabled={Boolean(blockingError) || isSaving}
+              title={blockingError ?? (isSaving ? "Guardando cambios" : "Guardar y cerrar")}
+              onClick={() => void handleSave(true)}
+            >
+              {isSaving ? "guardando…" : "guardar"}
+            </Button>
+          </DialogFooter>
+        </EditorInteractionGuard>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
           <span>Esc: cancelar · Ctrl+G: guardar sin cerrar</span>
           <span role="status" aria-live="polite" className="text-emerald-300">
-            {saveStatus}
+            {isSaving ? "Guardando cambios…" : saveStatus}
           </span>
         </div>
       </DialogContent>
@@ -574,8 +618,9 @@ export function DeleteDialog({
         <DialogHeader>
           <DialogTitle>Eliminar</DialogTitle>
           <DialogDescription>
-            Esta acción elimina registros del estado en memoria. Para persistir,
-            exporte después el JSON.
+            Esta acción se guarda automáticamente en este navegador. Si desaparece
+            la última fila de un personaje, también se eliminan su galería y los
+            archivos subidos asociados.
           </DialogDescription>
         </DialogHeader>
         <div className="text-sm">

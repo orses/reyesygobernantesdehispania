@@ -7,7 +7,7 @@ import {
   productionCspDirectives,
   securityHeaders,
   serializeCsp,
-} from './lib/security';
+} from './lib/security.ts';
 
 const CSP_PLACEHOLDER = '__CONTENT_SECURITY_POLICY__';
 
@@ -40,14 +40,20 @@ export default defineConfig({
     },
   },
   plugins: [react(), contentSecurityPolicyPlugin()],
+  build: {
+    manifest: true,
+  },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': path.resolve(import.meta.dirname, '.'),
     }
   },
   test: {
+    include: ['**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
+      reportsDirectory: 'coverage',
+      reporter: ['text', 'html', 'json-summary'],
       // Solo mide cobertura de la lógica pura (lib/), excluye definiciones de tipos
       include: ['lib/**'],
       exclude: ['lib/types.ts', 'lib/utils.ts'],

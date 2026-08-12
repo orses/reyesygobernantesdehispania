@@ -104,6 +104,37 @@ export function getPrimaryMediaAsset(
     return personAssets.find((asset) => asset.isPrimary) ?? personAssets[0] ?? null;
 }
 
+export type PrimaryMediaAssetIndex = ReadonlyMap<string, MediaAsset>;
+
+/**
+ * Indexa en una sola pasada el medio que devolvería `getPrimaryMediaAsset`
+ * para cada persona: la primera principal o, en su defecto, el primer medio.
+ */
+export function createPrimaryMediaAssetIndex(
+    assets: readonly MediaAsset[]
+): Map<string, MediaAsset> {
+    const index = new Map<string, MediaAsset>();
+
+    for (const asset of assets) {
+        const current = index.get(asset.personId);
+        if (!current || (!current.isPrimary && asset.isPrimary)) {
+            index.set(asset.personId, asset);
+        }
+    }
+
+    return index;
+}
+
+/** Consulta el índice con la misma normalización y ausencia que la búsqueda individual. */
+export function getPrimaryMediaAssetFromIndex(
+    index: PrimaryMediaAssetIndex,
+    personId: string | number | null | undefined
+): MediaAsset | null {
+    const normalizedPersonId = normalizePersonId(personId);
+    if (!normalizedPersonId) return null;
+    return index.get(normalizedPersonId) ?? null;
+}
+
 export function movePersonMediaAsset(
     assets: MediaAsset[],
     personId: string | number,
