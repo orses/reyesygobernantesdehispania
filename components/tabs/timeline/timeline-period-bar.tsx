@@ -59,7 +59,7 @@ export function TimelinePeriodBar({
         aria-pressed={selected}
         onClick={() => onSelect(period.id)}
         className={cn(
-          "flex h-full w-full items-center overflow-hidden rounded-[3px] border px-1 text-left text-[11px] font-medium text-white shadow-sm outline-none transition",
+          "flex h-full w-full items-center overflow-hidden rounded-[3px] border px-1 text-left text-[11px] font-medium text-white shadow-xs outline-hidden transition",
           "focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
           selected && "border-emerald-200 shadow-lg shadow-emerald-950/40",
           !selected && "border-slate-950/80 hover:border-slate-100/70",
@@ -83,7 +83,7 @@ export function TimelinePeriodBar({
         )}
       </button>
 
-      <div className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-50 hidden w-max max-w-[22rem] -translate-x-1/2 rounded-[3px] border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-left text-xs font-medium text-slate-50 shadow-xl shadow-slate-950/50 group-hover:block group-focus-within:block">
+      <div className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-50 hidden w-max max-w-88 -translate-x-1/2 rounded-[3px] border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-left text-xs font-medium text-slate-50 shadow-xl shadow-slate-950/50 group-hover:block group-focus-within:block">
         {period.name} ({periodRangeLabel(period)}, {periodDurationLabel(period)})
       </div>
     </div>

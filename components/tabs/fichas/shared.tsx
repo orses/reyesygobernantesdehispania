@@ -113,7 +113,7 @@ export function SafeFigure({ url, alt = "imagen" }: { url: unknown; alt?: string
 
   if (!u || !ok) {
     return (
-      <div className="flex aspect-[4/5] items-center justify-center rounded-[3px] border border-slate-700/70 bg-slate-950/25 p-4 text-sm text-slate-200">sin imagen</div>
+      <div className="flex aspect-4/5 items-center justify-center rounded-[3px] border border-slate-700/70 bg-slate-950/25 p-4 text-sm text-slate-200">sin imagen</div>
     );
   }
 
@@ -122,7 +122,7 @@ export function SafeFigure({ url, alt = "imagen" }: { url: unknown; alt?: string
       href={u}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-[3px] border border-slate-700/70 bg-slate-950/25 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+      className="block rounded-[3px] border border-slate-700/70 bg-slate-950/25 overflow-hidden focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
       title="abrir imagen en una pestaña nueva"
     >
       <img src={u} alt={alt} className="w-full h-auto object-cover object-top" onError={() => setOk(false)} />
@@ -199,7 +199,7 @@ export function MediaFigure({
   }
 
   const image = <img src={u} alt={alt} className="w-full max-h-[min(56vh,560px)] object-contain object-top bg-slate-950/40" onError={() => setOk(false)} />;
-  const frameClassName = "block w-full rounded-[3px] border border-slate-700/70 bg-slate-950/25 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950";
+  const frameClassName = "block w-full rounded-[3px] border border-slate-700/70 bg-slate-950/25 overflow-hidden focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950";
 
   if (onOpen) {
     return (
@@ -255,7 +255,7 @@ export function Field({
         <div className="text-[11px] font-semibold tracking-wide text-slate-400">{label}</div>
         {meta ? <DataStatusPill meta={meta} /> : null}
       </div>
-      <div className="mt-1 break-words text-base font-medium text-slate-50">{displayValue}</div>
+      <div className="mt-1 wrap-break-word text-base font-medium text-slate-50">{displayValue}</div>
     </div>
   );
 }
@@ -295,12 +295,12 @@ export function VitalField({
             <span className="text-2xl font-semibold leading-none tabular-nums text-emerald-200">{emphasis}</span>
             {showDetail ? <span className="min-w-0 truncate text-xs text-slate-400">{displayValue}</span> : null}
           </div>
-          {locationValue ? <div className="mt-1 break-words text-xs leading-5 text-slate-400">{locationValue}</div> : null}
+          {locationValue ? <div className="mt-1 wrap-break-word text-xs leading-5 text-slate-400">{locationValue}</div> : null}
         </div>
       ) : (
         <>
-          <div className="mt-1 break-words text-base font-medium text-slate-50">{displayValue}</div>
-          {locationValue ? <div className="mt-1 break-words text-xs leading-5 text-slate-400">{locationValue}</div> : null}
+          <div className="mt-1 wrap-break-word text-base font-medium text-slate-50">{displayValue}</div>
+          {locationValue ? <div className="mt-1 wrap-break-word text-xs leading-5 text-slate-400">{locationValue}</div> : null}
         </>
       )}
     </div>

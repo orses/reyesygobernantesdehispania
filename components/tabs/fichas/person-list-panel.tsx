@@ -299,7 +299,7 @@ export function PersonListPanel({
   const clearSearch = () => setQuery("");
 
   return (
-    <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
+    <Card className="min-w-0 rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800 xl:sticky xl:top-2 xl:flex xl:h-[calc(100vh-1rem)] xl:max-h-[calc(100vh-1rem)] xl:flex-col xl:overflow-visible">
       <CardHeader
         className={`relative z-40 shrink-0 border-b border-slate-800/70 bg-slate-900/95 p-4 ${
           filtersCollapsed ? "" : "pb-3"
@@ -381,7 +381,7 @@ export function PersonListPanel({
             {query ? (
               <button
                 type="button"
-                className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-200 hover:bg-slate-800 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-200 hover:bg-slate-800 hover:text-slate-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 onClick={clearSearch}
                 aria-label="Borrar búsqueda"
                 title="Borrar"
@@ -559,7 +559,7 @@ export function PersonListPanel({
                   key={`${item.person.personId}-${item.rowId}`}
                   type="button"
                   aria-current={active ? "true" : undefined}
-                  className={`w-full cursor-pointer text-left rounded-[3px] px-3 py-2 transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${active ? "bg-slate-800/70 border-emerald-400/70" : "bg-slate-900/35 border-slate-600/80 hover:bg-slate-900/55 hover:border-slate-400/90"}`}
+                  className={`w-full cursor-pointer text-left rounded-[3px] px-3 py-2 transition-colors border focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${active ? "bg-slate-800/70 border-emerald-400/70" : "bg-slate-900/35 border-slate-600/80 hover:bg-slate-900/55 hover:border-slate-400/90"}`}
                   onClick={() => setSelectedGovernment(String(item.person.personId), item.rowId)}
                   title={item.person.nombrePrincipal !== item.name ? `${item.name} · ${item.person.nombrePrincipal}` : item.name}
                 >

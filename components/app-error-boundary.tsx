@@ -18,7 +18,7 @@ export function ApplicationErrorFallback() {
             aria-labelledby="application-error-title"
             className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-slate-900"
         >
-            <section className="w-full max-w-lg rounded-xl border border-red-200 bg-white p-8 shadow-sm">
+            <section className="w-full max-w-lg rounded-xl border border-red-200 bg-white p-8 shadow-xs">
                 <h1 id="application-error-title" className="text-xl font-semibold">
                     No se ha podido mostrar la aplicación
                 </h1>
@@ -28,7 +28,7 @@ export function ApplicationErrorFallback() {
                 </p>
                 <button
                     type="button"
-                    className="mt-6 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                    className="mt-6 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-hidden focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
                     onClick={() => globalThis.location.reload()}
                 >
                     Recargar la aplicación

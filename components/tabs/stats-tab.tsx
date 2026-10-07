@@ -129,7 +129,7 @@ function ClickableAxisTick({ x, y, payload, data, onClick, maxLen = 25 }: Clicka
 
 function StatCard({ title, value, unit }: StatCardProps) {
   return (
-    <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800 flex flex-col justify-center min-h-[120px]">
+    <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800 flex flex-col justify-center min-h-[120px]">
       <CardContent className="p-6 flex flex-col justify-center h-full">
         <div className="text-sm font-medium tracking-widest text-slate-400 uppercase mb-2">{title}</div>
         <div className="text-4xl md:text-5xl font-semibold text-slate-50 leading-none">
@@ -211,7 +211,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
 
         {/* Entidades - Ahora en la misma fila */}
         <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />entidades de gobierno (frecuencia)
@@ -262,7 +262,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
           </Card>
 
           {/* Entidades por Duración (Global) - Alto - Full Width */}
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />entidades de gobierno (duración acumulada)
@@ -314,7 +314,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
 
         {/* Gobiernos por Tipo y Dinastías */}
         <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-4 mt-0">
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />gobiernos por tipo
@@ -363,7 +363,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
             </CardContent>
           </Card>
 
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />dinastías
@@ -415,7 +415,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
 
         {/* Pareja: Duración Gobierno (Longevos vs Breves) */}
         <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />más longevos (gobierno)
@@ -443,7 +443,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
             </CardContent>
           </Card>
 
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />menos longevos (gobierno)
@@ -480,7 +480,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
 
         {/* Pareja: Edad (Más edad vs Menos edad) */}
         <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />más longevos (edad al morir)
@@ -511,7 +511,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
             </CardContent>
           </Card>
 
-          <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+          <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
                 <BarChart3 className="h-4 w-4" />más jóvenes (edad al morir)
@@ -544,7 +544,7 @@ export function StatsTab({ globalStats, filteredStats, hasFilters, onPersonClick
         </div>
 
         {/* personajes por siglo */}
-        <Card className="rounded-[3px] shadow-sm lg:col-span-12 bg-slate-900/30 border border-slate-800">
+        <Card className="rounded-[3px] shadow-xs lg:col-span-12 bg-slate-900/30 border border-slate-800">
           <CardHeader>
             <CardTitle className="text-lg font-medium flex items-center gap-2 text-slate-50">
               <BarChart3 className="h-4 w-4" />personajes por siglo

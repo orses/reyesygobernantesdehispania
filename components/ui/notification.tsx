@@ -13,7 +13,7 @@ export function Notification({ type, message, list, rawText, onClose }: Notifica
 
     return (
         <div
-            className={`rounded-[3px] border ${colors[type]} bg-slate-900/70 backdrop-blur px-4 py-3 shadow-lg`}
+            className={`rounded-[3px] border ${colors[type]} bg-slate-900/70 backdrop-blur-sm px-4 py-3 shadow-lg`}
             role={type === "error" ? "alert" : "status"}
             aria-live={type === "error" ? "assertive" : "polite"}
             aria-atomic="true"

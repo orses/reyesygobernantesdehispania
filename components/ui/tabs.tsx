@@ -103,8 +103,8 @@ export const TabsTrigger = React.forwardRef<
       aria-controls={panelId}
       tabIndex={isActive ? 0 : -1}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-slate-950 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-        isActive && "bg-slate-950 text-slate-50 shadow-sm",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-xs px-3 py-1.5 text-sm font-medium ring-offset-slate-950 transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        isActive && "bg-slate-950 text-slate-50 shadow-xs",
         !isActive && "hover:bg-slate-800 hover:text-slate-50",
         className
       )}
@@ -134,7 +134,7 @@ export const TabsContent = React.forwardRef<
       aria-labelledby={`${baseId}-tab-${tabValue}`}
       tabIndex={0}
       className={cn(
-        "mt-2 ring-offset-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
+        "mt-2 ring-offset-slate-950 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
         className
       )}
     />

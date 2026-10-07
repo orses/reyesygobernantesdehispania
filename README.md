@@ -45,10 +45,12 @@ La verificación ejecuta análisis estático con ESLint, comprobación de tipos,
 ## Tecnología y navegación
 
 - React 19, TypeScript 5.9 y Vite 8.
-- Tailwind CSS, Lucide y una capa local de componentes de interfaz con `@radix-ui/react-slot`.
+- Tailwind CSS 4, Lucide y una capa local de componentes de interfaz con `@radix-ui/react-slot`.
 - Recharts para las visualizaciones estadísticas.
 - `idb-keyval` como acceso a `IndexedDB`.
 - Vitest, cobertura V8 y ESLint.
+
+Los estilos requieren Safari 16.4, Chrome 111 o Firefox 128, o versiones posteriores, conforme a los requisitos de [Tailwind CSS 4](https://tailwindcss.com/docs/upgrade-guide#browser-requirements).
 
 La navegación no usa `react-router-dom`. Un enrutador propio basado en el fragmento de la URL, definido en `lib/hash-router.tsx`, mantiene rutas compatibles con alojamiento estático, como `#/fichas/:personId`, `#/estadistica`, `#/datos`, `#/timeline` y `#/comparativa`. Las pestañas no iniciales y los diálogos se cargan de forma diferida.
 

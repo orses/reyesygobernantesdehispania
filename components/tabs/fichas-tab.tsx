@@ -178,7 +178,7 @@ export function FichasTab({
       }`}
     >
       {isListPanelCollapsed ? (
-        <div className="rounded-[3px] border border-slate-800 bg-slate-900/30 p-3 shadow-sm">
+        <div className="rounded-[3px] border border-slate-800 bg-slate-900/30 p-3 shadow-xs">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-100">Filtros y miniaturas ocultos</div>

@@ -301,7 +301,7 @@ export function Combobox<Option extends ComboboxOption = ComboboxOption>({
               transform:
                 position.placement === "top" ? "translateY(-100%)" : undefined,
             }}
-            className="fixed z-[100] overflow-auto rounded-[3px] border border-slate-700 bg-slate-950 p-1 text-slate-50 shadow-xl shadow-slate-950/40"
+            className="fixed z-100 overflow-auto rounded-[3px] border border-slate-700 bg-slate-950 p-1 text-slate-50 shadow-xl shadow-slate-950/40"
           >
             {visibleOptions.length > 0 ? (
               visibleOptions.map((option, index) => {
@@ -316,7 +316,7 @@ export function Combobox<Option extends ComboboxOption = ComboboxOption>({
                     aria-disabled={option.disabled}
                     aria-selected={selected}
                     className={cn(
-                      "flex min-h-9 cursor-pointer select-none items-center gap-2 rounded-[3px] px-2.5 py-2 text-sm outline-none",
+                      "flex min-h-9 cursor-pointer select-none items-center gap-2 rounded-[3px] px-2.5 py-2 text-sm outline-hidden",
                       "text-slate-100 hover:bg-slate-800",
                       active && "bg-slate-800 text-slate-50",
                       selected && "text-emerald-100",
@@ -368,7 +368,7 @@ export function Combobox<Option extends ComboboxOption = ComboboxOption>({
         autoComplete="off"
         className={cn(
           "flex h-10 w-full rounded-md border border-slate-700 bg-slate-950 py-2 pl-9 pr-16 text-sm ring-offset-slate-950",
-          "text-slate-100 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
+          "text-slate-100 placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
           className
         )}
         placeholder={open ? searchPlaceholder : placeholder}
@@ -387,7 +387,7 @@ export function Combobox<Option extends ComboboxOption = ComboboxOption>({
         <button
           type="button"
           aria-label={clearLabel}
-          className="absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-400 hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          className="absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-400 hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
             onValueChange(clearValue);
@@ -401,7 +401,7 @@ export function Combobox<Option extends ComboboxOption = ComboboxOption>({
       <button
         type="button"
         aria-label={open ? "Cerrar opciones" : "Abrir opciones"}
-        className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-400 hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[3px] text-slate-400 hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => {
           if (open) {
