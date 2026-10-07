@@ -425,7 +425,7 @@ export function RailwayView({
     <section
       className={cn(
         "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-[3px] border border-slate-800/70 bg-slate-950/35",
-        isExpanded && "fixed inset-2 z-[80] bg-slate-950 shadow-2xl"
+        isExpanded && "fixed inset-2 z-80 bg-slate-950 shadow-2xl"
       )}
       aria-label={`Ferrocarril histórico: ${projection.stations.length} gobiernos en ${projection.tracks.length} entidades`}
     >
@@ -469,7 +469,7 @@ export function RailwayView({
         <label className="ml-auto inline-flex items-center gap-1.5 text-slate-300">
           <span>Ir a</span>
           <select
-            className="h-8 max-w-[230px] rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-[11px] text-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+            className="h-8 max-w-[230px] rounded-[3px] border border-slate-700 bg-slate-950 px-2 text-[11px] text-slate-100 outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300"
             value=""
             onChange={(event) => scrollToKingdom(event.currentTarget.value)}
             aria-label="Ir a una vía concreta"
@@ -577,7 +577,7 @@ export function RailwayView({
           onScroll={(event) => syncHorizontalScroll(event.currentTarget, topScrollRef.current)}
         >
           <div className="relative" style={{ width, height }}>
-            <div className="sticky top-0 z-40 h-[48px] border-b border-slate-800 bg-slate-950/95 shadow-sm">
+            <div className="sticky top-0 z-40 h-[48px] border-b border-slate-800 bg-slate-950/95 shadow-xs">
               {projection.scale.ticks.map((tick) => (
                 <span
                   key={tick.year}
@@ -863,7 +863,7 @@ export function RailwayView({
                     onClick={() => onSelectPeriod(station.periodId)}
                     onKeyDown={(event) => handleStationKeyDown(event, station.periodId)}
                     className={cn(
-                      "flex h-11 w-11 items-center justify-center overflow-visible rounded-full outline-none",
+                      "flex h-11 w-11 items-center justify-center overflow-visible rounded-full outline-hidden",
                       "focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     )}
                   >
@@ -878,7 +878,7 @@ export function RailwayView({
                     />
                     <span
                       className={cn(
-                        "absolute left-1/2 z-30 max-w-[132px] -translate-x-1/2 truncate rounded-[3px] border px-1.5 py-0.5 text-center text-[10px] leading-tight shadow-sm transition-opacity",
+                        "absolute left-1/2 z-30 max-w-[132px] -translate-x-1/2 truncate rounded-[3px] border px-1.5 py-0.5 text-center text-[10px] leading-tight shadow-xs transition-opacity",
                         selected
                           ? "border-emerald-400/60 bg-emerald-950/95 text-emerald-50"
                           : "border-slate-700/80 bg-slate-950/92 text-slate-200",

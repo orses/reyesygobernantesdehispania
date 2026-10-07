@@ -175,7 +175,7 @@ export function MediaGallery({
               <div key={asset.id} className="min-w-0 rounded-[3px] border border-slate-700/70 bg-slate-950/25 p-3">
                 <button
                   type="button"
-                  className={`relative aspect-[4/3] w-full overflow-hidden rounded-[3px] border border-slate-700/70 bg-slate-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${src ? "cursor-zoom-in" : "cursor-default"}`}
+                  className={`relative aspect-4/3 w-full overflow-hidden rounded-[3px] border border-slate-700/70 bg-slate-950/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${src ? "cursor-zoom-in" : "cursor-default"}`}
                   disabled={!src}
                   title={src ? "Abrir imagen" : undefined}
                   aria-label={src ? `Abrir ${asset.title || asset.fileName || "imagen"}` : "Sin imagen"}
@@ -373,7 +373,7 @@ export function MediaGallery({
                   </Button>
                   <button
                     type="button"
-                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[3px] border border-slate-800/80 bg-slate-950/35 px-2 text-xs font-medium text-slate-300 hover:border-slate-700 hover:bg-slate-900/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[3px] border border-slate-800/80 bg-slate-950/35 px-2 text-xs font-medium text-slate-300 hover:border-slate-700 hover:bg-slate-900/55 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     aria-expanded={isRouteExpanded}
                     aria-controls={`media-route-${asset.id}`}
                     onClick={() => toggleRoute(asset.id)}

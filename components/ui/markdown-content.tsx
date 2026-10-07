@@ -44,7 +44,7 @@ const MARKDOWN_COMPONENTS: Components = {
     </pre>
   ),
   code: ({ children, className }) => (
-    <code className={cn("rounded bg-slate-950/70 px-1 py-0.5 font-mono text-[0.9em] text-emerald-100", className)}>
+    <code className={cn("rounded-sm bg-slate-950/70 px-1 py-0.5 font-mono text-[0.9em] text-emerald-100", className)}>
       {children}
     </code>
   ),

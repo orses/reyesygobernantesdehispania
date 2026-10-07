@@ -1,6 +1,25 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: Inter Variable, Inter, system-ui, sans-serif;
+}
+
+/*
+  Conserva el color de borde predeterminado de Tailwind CSS 3.
+  Antes de retirar estos estilos, todos los elementos que dependan de ellos
+  deben declarar explícitamente su color de borde.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 /* Scrollbars — tema oscuro, finas y discretas */
 ::-webkit-scrollbar {

@@ -231,7 +231,7 @@ export function ComparativaTab({
                   const dinastiaSummary = personDinastiaSummary(p);
                   
                   return (
-                    <div key={p.personId} className="w-[min(82vw,340px)] flex-shrink-0 flex flex-col bg-slate-950/60 border border-slate-800 rounded-md overflow-hidden relative">
+                    <div key={p.personId} className="w-[min(82vw,340px)] shrink-0 flex flex-col bg-slate-950/60 border border-slate-800 rounded-md overflow-hidden relative">
                       <Button 
                         title="Quitar de comparativa"
                         aria-label={`Quitar a ${p.nombrePrincipal} de la comparativa`}
@@ -245,7 +245,7 @@ export function ComparativaTab({
                       
                       {/* Portada mini */}
                       <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-full border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div className="h-12 w-12 rounded-full border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
                           <ComparePortrait asset={getPrimaryMediaAsset(mediaAssets, p.personId)} previewUrls={mediaPreviewUrls} name={p.nombrePrincipal} />
                         </div>
                         <div className="min-w-0 flex-1 pr-6">
@@ -258,13 +258,13 @@ export function ComparativaTab({
                       </div>
 
                       {/* Estadísticas */}
-                      <div className="p-4 space-y-4 flex-grow text-sm">
+                      <div className="p-4 space-y-4 grow text-sm">
                         <div className="grid grid-cols-2 gap-2 text-center">
-                          <div className="bg-slate-900 p-2 rounded border border-slate-800/60">
+                          <div className="bg-slate-900 p-2 rounded-sm border border-slate-800/60">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Edad de Vida</p>
                             <p className="font-medium text-lg text-rose-300">{p.age !== null ? `${p.age} años` : '?'}</p>
                           </div>
-                          <div className="bg-slate-900 p-2 rounded border border-slate-800/60">
+                          <div className="bg-slate-900 p-2 rounded-sm border border-slate-800/60">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Años en el Poder</p>
                             <p className="font-medium text-lg text-emerald-300">{formatNumber(durationGobierno)}</p>
                           </div>

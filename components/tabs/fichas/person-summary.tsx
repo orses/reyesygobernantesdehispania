@@ -106,7 +106,7 @@ export function PersonSummary({
         {rahUrl ? (
           <div className="flex items-center gap-1">
             <a
-              className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-[3px] px-4 py-2 text-sm font-medium bg-slate-950/30 border border-emerald-400/40 text-slate-50 hover:bg-slate-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-[3px] px-4 py-2 text-sm font-medium bg-slate-950/30 border border-emerald-400/40 text-slate-50 hover:bg-slate-900/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               title="Abrir ficha en la Real Academia de la Historia"
               href={rahUrl}
               target="_blank"

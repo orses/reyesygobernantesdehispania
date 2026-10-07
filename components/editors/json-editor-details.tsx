@@ -70,7 +70,7 @@ export function JsonEditorDetails<T>({
 
   return (
     <details className="md:col-span-2">
-      <summary className="cursor-pointer rounded-[3px] text-sm text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+      <summary className="cursor-pointer rounded-[3px] text-sm text-slate-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
         {title}
       </summary>
       <div className="mt-2 space-y-2">
