@@ -55,7 +55,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
       <div className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{label}</div>
-      <div className="mt-1 min-w-0 break-words text-sm text-slate-100">{value || "—"}</div>
+      <div className="mt-1 min-w-0 wrap-break-word text-sm text-slate-100">{value || "—"}</div>
     </div>
   );
 }

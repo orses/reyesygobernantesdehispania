@@ -176,7 +176,7 @@ export function MediaViewer({ source, onClose, navigation }: MediaViewerProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-50"
+      className="fixed inset-0 z-70 flex flex-col bg-slate-950 text-slate-50"
       role="dialog"
       aria-modal="true"
       aria-label={`Visor de imagen: ${title}`}
@@ -254,7 +254,7 @@ export function MediaViewer({ source, onClose, navigation }: MediaViewerProps) {
                 commitZoomInput();
                 event.currentTarget.blur();
               }}
-              className="h-7 w-16 rounded-[3px] border border-slate-700 bg-slate-900 px-2 text-right text-xs font-medium tabular-nums text-slate-100 outline-none focus:border-emerald-300"
+              className="h-7 w-16 rounded-[3px] border border-slate-700 bg-slate-900 px-2 text-right text-xs font-medium tabular-nums text-slate-100 outline-hidden focus:border-emerald-300"
               aria-label="Zoom personalizado"
             />
             <span>%</span>
@@ -297,7 +297,7 @@ export function MediaViewer({ source, onClose, navigation }: MediaViewerProps) {
 
       <div
         ref={viewportRef}
-        className={`min-h-0 flex-1 overflow-auto bg-slate-950 outline-none ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`min-h-0 flex-1 overflow-auto bg-slate-950 outline-hidden ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
         tabIndex={-1}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

@@ -80,7 +80,7 @@ export function PersonDetailCard({
   const denominations = selectedPerson ? personDenominationsByKingdom(selectedPerson) : [];
 
   return (
-    <Card className="min-w-0 rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+    <Card className="min-w-0 rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
       <PersonDetailHeader
         selectedPerson={selectedPerson}
         selectedGovernmentRow={selectedGovernmentRow}

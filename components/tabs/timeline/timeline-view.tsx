@@ -117,7 +117,7 @@ export function TimelineView({
           className="relative min-w-[960px]"
           style={{ width, height: groupLayouts.totalHeight }}
         >
-          <div className="sticky top-0 z-40 h-[48px] border-b border-slate-800 bg-slate-950/95 shadow-sm">
+          <div className="sticky top-0 z-40 h-[48px] border-b border-slate-800 bg-slate-950/95 shadow-xs">
             <TimelineAxis scale={model.scale} />
           </div>
 
@@ -131,7 +131,7 @@ export function TimelineView({
                 className="absolute left-0 right-0 border-t border-slate-800/70"
                 style={{ top: layout.top, height: layout.height }}
               >
-                <div className="sticky left-0 z-20 inline-flex max-w-[360px] items-center gap-2 rounded-br-[3px] bg-slate-950/95 px-3 py-2 text-sm font-medium text-slate-100 shadow-sm">
+                <div className="sticky left-0 z-20 inline-flex max-w-[360px] items-center gap-2 rounded-br-[3px] bg-slate-950/95 px-3 py-2 text-sm font-medium text-slate-100 shadow-xs">
                   <span
                     className="h-3 w-3 shrink-0 rounded-[3px]"
                     style={{ backgroundColor: group.color }}

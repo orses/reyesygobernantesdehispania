@@ -59,7 +59,7 @@ export function DataTab({
   const uploadedCount = mediaAssets.filter((asset) => asset.kind === "uploaded-file").length;
 
   return (
-    <Card className="rounded-[3px] shadow-sm bg-slate-900/30 border border-slate-800">
+    <Card className="rounded-[3px] shadow-xs bg-slate-900/30 border border-slate-800">
       <CardHeader className="p-4">
         <CardTitle className="flex items-center gap-2 text-xl font-medium tracking-tight text-slate-50">
           <Database className="h-5 w-5 text-emerald-300" />

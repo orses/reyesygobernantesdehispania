@@ -109,7 +109,7 @@ export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerPr
           }
         }}
         className={cn(
-          "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
       >
@@ -159,7 +159,7 @@ export const SelectContent = ({ className, children, onKeyDown, id, ...props }: 
       role="listbox"
       aria-labelledby={triggerId}
       className={cn(
-        "absolute z-50 mt-1 max-h-96 w-max min-w-[var(--trigger-width,100%)] overflow-auto rounded-md border border-slate-700 bg-slate-950 text-slate-50 shadow-md animate-in fade-in-80",
+        "absolute z-50 mt-1 max-h-96 w-max min-w-(--trigger-width,100%) overflow-auto rounded-md border border-slate-700 bg-slate-950 text-slate-50 shadow-md animate-in fade-in-80",
         className
       )}
       onKeyDown={(event) => {
@@ -211,7 +211,7 @@ export const SelectItem = ({ className, children, value, disabled = false, onCli
       aria-selected={isSelected}
       tabIndex={disabled ? -1 : isSelected ? 0 : -1}
       className={cn(
-        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-slate-800 hover:text-slate-50 focus:bg-slate-800 focus:text-slate-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden hover:bg-slate-800 hover:text-slate-50 focus:bg-slate-800 focus:text-slate-50 data-disabled:pointer-events-none data-disabled:opacity-50",
         className
       )}
       onClick={(event) => {

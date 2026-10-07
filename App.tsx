@@ -512,7 +512,7 @@ function ReyesAppInner({ dataset }: { dataset: ReturnType<typeof useDataset> }) 
                         type="button"
                         aria-label="Cerrar preferencias de notificaciones"
                         title="Cerrar preferencias de notificaciones"
-                        className="rounded-[3px] px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        className="rounded-[3px] px-2 py-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400"
                         onClick={() => {
                           setShowNoticeCenter(false);
                           noticeCenterButtonRef.current?.focus();
